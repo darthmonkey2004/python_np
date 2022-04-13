@@ -1,0 +1,53 @@
+#!/bin/bash
+
+kill_np() {
+	if [ -f "$PIDFILE" ]; then
+		rm "$PIDFILE"
+	fi
+	pid=$(cat "$PIDFILE")
+	sudo kill $(pgrep pid)
+	rm "$PIDFILE"
+}
+
+start_np() {
+	if [ -f "$PIDFILE" ]; then
+		rm "$PIDFILE"
+	fi
+	cd ~/
+	python3 -c "from np import main; main.start()"
+}
+
+export PIDFILE="$HOME/.np/pid.txt"
+touch "$PIDFILE"
+if [ -n "$1" ]; then
+	func="$1"
+fi
+if [[ "$func" = "start" || "$func" = "-s" || "$func" = "--start" ]]; then
+	start_np
+fi
+install_path=$(python3 -c "import site; path = site.getusersitepackages(); print (path)")
+export INSTALL_PATH="$install_path/np"
+export PID=$(cat "$PIDFILE")
+#export PID2=$(pgrep np.run.sh)
+echo "PID=$PID, PID2=$PID2"
+if [[ -n "$PID" || -n "$PID2" ]]; then
+	is_running=1
+else
+	is_running=0
+fi
+cd ~/
+echo "is running: $is_running"
+if [ "$is_running" = "0" ]; then
+	#data=$(init_np)
+	#echo "$data"
+	start_np
+	pid=$!
+	echo "pid: $pid"
+	echo $pid > "$PIDFILE"
+else
+	echo "Killing..."
+	kill_np
+	if [ -f "$PIDFILE" ]; then
+		rm "$PIDFILE"
+	fi
+fi
