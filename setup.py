@@ -8,4 +8,5 @@ setup(name='np',
 	packages=['np', 'np.core', 'np.utils'],
 	package_dir={'np': 'np', 'np.core': 'np/core', 'np.utils': 'np/utils', 'np.main': 'np.main'},
 	scripts=['np/main.py'],
+	install_requires=['pygame-gui', 'eyed3', 'PySimpleGUI', 'evdev', 'python3-vlc', 'vlc', 'python-vlc', 'get-video-properties']
 	)

@@ -1,0 +1,2 @@
+python=(pygame-gui, eyed3, PySimpleGUI, evdev, python3-vlc, vlc, python-vlc, get-video-properties)
+apt=(git, curl, xrandr, python3-pil, python3-pil.imagetk)
