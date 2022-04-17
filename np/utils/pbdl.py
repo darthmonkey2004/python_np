@@ -457,7 +457,6 @@ class pbdl():
 				self.selected_file = self.get_files(self.tid)
 		else:
 			self.selected_file = _files
-		global uivalues, uievent
 		self.add_to_db_data = []
 		if type(self.selected_file) != list:
 			self.selected_file = [self.selected_file]
@@ -676,6 +675,9 @@ class pbdl():
 						self.pbdl_win['-Status-'].update(self.torrent_data[self.tid]['status'])
 						self.pbdl_win['-Ratio-'].update(self.torrent_data[self.tid]['ratio'])
 						self.torrent_data[self.tid]['files'] = self.get_files(self.tid)
+					elif self.event == '-PBDL_SEARCH_QUERY-':
+						self.pbdl_query = self.values[self.event]
+						print (self.pbdl_query)
 					elif self.event == '-Migrate Files-':
 						if self.selected_file is None:
 							self.selected_file = self.get_files(self.tid)
@@ -734,25 +736,30 @@ class pbdl():
 								d = ("d_" + str(i))
 								self.pbdl_win[d].update('None')
 						self.pbdl_win.refresh()
-					elif self.event == '-PBDL_SEARCH_QUERY-':
-						self.pbdl_search_query = self.values[self.event]
 					elif self.event == '-PBDL_SEARCH-':
-						self.results = self.get_magnet(self.pbdl_search_query, self.category)
+						print ("searching...")
+						self.results = self.get_magnet(self.pbdl_query, self.category)
 						self.pbdl_dl_win['-PBDL_RESULTS-'].update(self.results)
 					elif self.event == '-PBDL_RESULTS-':
-						picked = self.values[self.event]
-						if type(picked) == list:
-							results = []
-							for item in list:
-								print ("Downloading:", item)
-								com = ("transmission-remote -a '" + str(item) + "'")
-								results.append = self.send_command(com)
-							print (results)
+						print (self.event, self.values[self.event])
+						picked = self.values[self.event][0]
+						
+						print ("Downloading:", picked)
+						magnet = self.results[picked]
+						com = 'ret=$(ping -c 1 -W 1 192.168.2.1 | grep "100% packet loss"); if [ -n "$ret" ]; then echo 1; else echo 0; fi'
+						vpn_status = self.send_command(com)
+						print ("VPN State:", vpn_status)
+						if vpn_status == 0:
+							print ("VPN off. Enabling...")
+							com = "nordvpn connect"
+							ret = self.send_command(com)
+							print (ret)
 						else:
-							print ("Downloading:", picked)
-							com = ("transmission-remote -a '" + str(picked) + "'")
-							results.append = self.send_command(com)
-							print (results)
+							print ("VPN alread enabled!")
+						com = ("transmission-remote -a '" + str(magnet) + "'")
+						r = self.send_command(com)
+						print (r)
+
 						
 					elif self.event == '-0-' or self.event == '-1-' or self.event == '-2-' or self.event == '-3-' or self.event == '-4-' or self.event == '-5-' or self.event == '-6-' or self.event == '-7-' or self.event == '-8-' or self.event == '-9-' or self.event == '-10-':
 						try:

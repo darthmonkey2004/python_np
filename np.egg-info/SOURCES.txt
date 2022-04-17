@@ -1,8 +1,10 @@
 README
+requirements.txt
 setup.py
 np/__init__.py
 np/main.py
 np/np
+np/np.py
 np.egg-info/PKG-INFO
 np.egg-info/SOURCES.txt
 np.egg-info/dependency_links.txt
@@ -23,5 +25,7 @@ np/utils/pbdl_se_isin.py
 np/utils/query_movies.py
 np/utils/query_series.py
 np/utils/scan_music.py
+np/utils/tmdb_query_series.py
+np/utils/torrent_mgr.py
 np/utils/xrandr.py
 np/utils/ytdl.py

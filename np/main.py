@@ -119,6 +119,56 @@ def set_video_out():
 			P.set_xwindow(UI.WINDOW2['-VID_OUT-'].Widget.winfo_id())
 
 
+def change_filter(f):#sets audio filters to vlc instance. returns true on success, false on fail.
+	if ':' in f:
+		t = f.split(':')[0]
+		f = f.split(':')[1]
+	if f in MP.conf['vlc']['opts']:
+		a = 'remove'
+	else:
+		a = 'add'
+	P.stop()
+	P.release()
+	if t == 'audio':
+		f_string = ("--audio-filter=" + f)
+	elif t == 'video':
+		f_string = ("--video-filter=" + f)
+	else:
+		txt = ("Unknown type:" + t + ", Available: 'audio', 'video'")
+		print (txt)
+		return False
+	if a == 'add':
+		try:
+			MP.conf = np.readConf()
+			current_opts = MP.conf['vlc']['opts']
+			opts = (current_opts + " " + f_string)
+			MP.conf['vlc']['opts'] = opts
+			#np.writeConf(MP.conf)
+			print ("Updated audio filter options:", opts)
+		except Exception as e:
+			print ("Failed to set audio filter option:", e, f, MP.conf['vlc']['opts'])
+			return False
+	elif a == 'remove':
+		try:
+			MP.conf = np.readConf()
+			current_opts = MP.conf['vlc']['opts']
+			s = " "
+			_list = current_opts.split(s)
+			_list.remove(f_string)
+			j = ' '
+			MP.conf['vlc']['opts'] = j.join(_list)
+			#np.writeConf(MP.conf)
+			print ("Updated video filter options:", MP.conf['vlc']['opts'])
+		except Exception as e:
+			print ("Failed to remove video filter option:", e, f, MP.conf['vlc']['opts'])
+			return False
+	else:
+		txt = ("Unknown action:" + a + ", Available: 'add', 'remove'")
+		print (txt)
+		return False
+	gui_reset(MP.conf['play_type'], '-player_control_layout-')
+
+
 def rotate(deg):
 	if MP.conf['nowplaying']['filepath'] is not None:
 		filepath = MP.conf['nowplaying']['filepath']
@@ -642,6 +692,11 @@ def start():
 			print ("Set focus on search query input!")
 		elif UI.uievent == 'Screenshot':
 			ret = MP.screenshot()
+			print (ret)
+		elif UI.uievent in np.VLC_VIDEO_FILTERS or UI.uievent in np.VLC_AUDIO_FILTERS:
+			f = UI.uievent
+			print ("Changing filter:", f)
+			ret = change_filter(f)
 			print (ret)
 		else:
 			if UI.uievent != '__TIMEOUT__' and UI.uievent is not None:

@@ -63,9 +63,11 @@ def write_log_old(message=None, loglevel=logging.DEBUG):
 	caller = inspect.getouterframes(f, 5)
 	thisfile = str(__file__)
 	inspect_output = []
+	inspect_output.append(message)
 	for line in caller:
-		if thisfile not in line:
-			inspect_output.append(line)
+		if thisfile != line.filename:
+			out = (str(line.filename) + ", " + str(line.function) + "," + str(line.lineno))
+			inspect_output.append(out)
 	d = '|'
 	debug_data = d.join(inspect_output)
 	numeric_level = getattr(logging, loglevel.upper(), None)
@@ -76,18 +78,16 @@ def write_log_old(message=None, loglevel=logging.DEBUG):
 		print ("Yo! Need a message to log...")
 		return False
 
-	outstring = ("Class:" + str(_class) + ", Function:" + str(function) + ", Line:" + str(line) + ", Message:" + str(message))
 	if numeric_level == 10:#debug log level
-		outstring = (outstring + " TRACE_INFO:" + debug_data)
-		logging.debug(outstring)
+		logging.debug(debug_data)
 	elif numeric_level == 20:#info log level
-		logging.info(outstring)
+		logging.info(debug_data)
 	elif numeric_level == 30:#warning log level
-		print ('Warning:', outstring)
-		logging.warning(outstring)
+		print ('Warning:', message)
+		logging.warning(debug_data)
 	elif numeric_level == 40:
-		print ('Error:', outstring)
-		logging.error(outstring)
+		print ('Error:', message)
+		logging.error(debug_data)
 
 
 def readConf():

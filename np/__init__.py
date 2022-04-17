@@ -1,4 +1,6 @@
+import vlc
 import os
+
 from np.utils.xrandr import xrandr
 from np.utils import nplayer_db as sqldb
 from np.utils.nplayer_db import querydb
@@ -29,3 +31,17 @@ from np.utils.ytdl import ytdl
 #from np.main import start
 MUSIC_DIR = 'var/storage/Music'
 CAPTURE_DIR = '/home/monkey/Pictures/nplayer_caps'
+afilters = []
+vfilters = []
+for f in vlc.Instance().video_filter_list_get():
+	n, x, y, x = f
+	name = n.decode()
+	name = ("video:" + name)
+	vfilters.append(name)
+for f in vlc.Instance().audio_filter_list_get():
+	n, x, y, x = f
+	name = n.decode()
+	name = ("audio:" + name)
+	afilters.append(name)
+VLC_VIDEO_FILTERS = sorted(vfilters)
+VLC_AUDIO_FILTERS = sorted(afilters)

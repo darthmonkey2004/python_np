@@ -4,7 +4,6 @@ import PySimpleGUI as sg
 #-----------main gui creation class------------#
 class gui():
 	def __init__(self):
-		self.menu_def = [['&File', ['&Load::-file_load_key-', '!&Save::-file_save_key-', 'E&xit']], ['&Toolbar', ['Command &1', 'Command &2', 'Command &3', 'Command &4']], ['&Help', '&About...']]
 		self.TAB = '-player_control_layout-'
 		self.RESET = False
 		self.win_type = 'internal'
@@ -123,7 +122,7 @@ class gui():
 		#self.db_mgr_layout.append(ckbox_is_active)
 		self.db_mgr_layout.append(btn_update_info)
 		self.db_mgr_layout.append(self.poster_img)
-		self.menu_def = [['&File', ['&Load', '&Save', 'E&xit']], ['&Toolbar', ['&Pirate Bay Downloader', '&Torrent Manager', '&youtube-dl', 'Command &4']], ['&Help', '&About...']]
+		self.menu_def = [['&File', ['&Load', '&Save', 'E&xit']], ['&Tools', ['&Pirate Bay Downloader', '&Torrent Manager', '&youtube-dl', '&Video Filters', [np.VLC_VIDEO_FILTERS], '&Audio Filters', [np.VLC_AUDIO_FILTERS]]], ['&Help', '&About...']]
 
 		self.layout = [[sg.MenubarCustom(self.menu_def, tearoff=True, key='-menubar_key-'), sg.Button("Close")], [sg.TabGroup([[sg.Tab('MP Controls', self.player_control_layout, key='-player_control_layout-')], [sg.Tab('DB Manager', self.db_mgr_layout, key='-db_mgr_layout-')]], expand_x=True, expand_y=True, enable_events=True)], [sg.Sizegrip(key='-gui_size-')]]
 		#self.conf['windows'] = {}
