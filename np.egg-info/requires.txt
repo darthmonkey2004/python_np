@@ -2,7 +2,5 @@ pygame-gui
 eyed3
 PySimpleGUI
 evdev
-python3-vlc
-vlc
 python-vlc
 get-video-properties

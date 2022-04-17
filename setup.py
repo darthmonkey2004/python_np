@@ -6,7 +6,7 @@ setup(name='np',
 	author_email='monkey@simiantech.biz',
 	url='http://nplayer.simiantech.biz/',
 	packages=['np', 'np.core', 'np.utils'],
-	package_dir={'np': 'np', 'np.core': 'np/core', 'np.utils': 'np/utils', 'np.main': 'np.main'},
-	scripts=['np/main.py'],
-	install_requires=['pygame-gui', 'eyed3', 'PySimpleGUI', 'evdev', 'python3-vlc', 'vlc', 'python-vlc', 'get-video-properties']
+	package_dir={'np': 'np', 'np.core': 'np/core', 'np.utils': 'np/utils', 'np.np': 'np.np'},
+	scripts=['np/np'],
+	install_requires=['pygame-gui', 'eyed3', 'PySimpleGUI', 'evdev', 'python-vlc', 'get-video-properties']
 	)
