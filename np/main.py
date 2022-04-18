@@ -421,11 +421,9 @@ def start():
 				isactive=1
 			else:
 				isactive=1
-		elif UI.uievent == '-VIDEO_SCALE-':
-			val = int(UI.uivalues[UI.uievent])
-			val = val / 10
-			scale = float(val)
-			P.video_set_scale(scale)
+		elif UI.uievent == '-PLAY_POS-':
+			val = float(UI.uivalues[UI.uievent])
+			P.set_position(val)
 		elif UI.uievent == 'play':
 			P.play()
 		elif UI.uievent == 'pause':
@@ -485,6 +483,7 @@ def start():
 				VPN = True
 			UI.toggle_vpn()
 		elif UI.uievent == '-CURRENT_PLAYLIST-':
+			MP.selected_playlist_item
 			val = None
 			_id = None
 			table = None
@@ -721,7 +720,11 @@ def start():
 			filepath = P.get_media().get_mrl().split("file://")[1]
 			MP.conf['nowplaying']['filepath'] = urllib.parse.unquote(filepath)
 			MP.conf['nowplaying']['play_pos'] = P.get_position()
+			pos = (MP.conf['nowplaying']['play_pos'])
+			UI.WINDOW['-PLAY_POS-'].update(MP.conf['nowplaying']['play_pos'])
 			txt = "{:02d}:{:02d} / {:02d}:{:02d}".format(*divmod(P.get_time()//1000, 60), *divmod(P.get_length()//1000, 60))
+			if MP.selected_playlist_item is not None:
+				txt = (txt + "::" + str(MP.selected_playlist_item))
 			UI.WINDOW['-MESSAGE_AREA-'].update(txt)
 		elif P.is_playing() and MP.is_url == True:
 			pass
@@ -729,10 +732,6 @@ def start():
 		else:
 			media['is_playing'] = 0
 			UI.WINDOW['-MESSAGE_AREA-'].update('Load media to start')
-		if MP.scale_needed == 1:#Not what you think it is, only updating the slider.
-			val = MP.scale * 10
-			UI.WINDOW['-VIDEO_SCALE-'].update(float(val))
-			MP.scale_needed = 0
 
 	UI.WINDOW.close()
 	

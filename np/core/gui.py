@@ -55,8 +55,8 @@ class gui():
 		update_line = [self.create_old('btn', ['Refresh from Database'])]
 		player_controls1 = [self.create_old('btn', ['previous']), self.create_old('btn', ['play']), self.create_old('btn', ['next']), self.create_old('btn', ['pause']), self.create_old('btn', ['stop']), self.create_old('btn', ['Record'])]
 		player_controls2 = [self.create_old('btn', ['rotate 90']), self.create_old('btn', ['seek fwd']), self.create_old('btn', ['seek rev']), self.create_old('btn', ['Exit']), self.create_old('btn', ['Screenshot'])]
-
-		slider_scale = [self.create_old('slider', [(1, 100), scale, 'h', '-VIDEO_SCALE-'])]
+		play_pos = float(self.conf['nowplaying']['play_pos'])
+		slider_scale = [sg.Slider(range=(0,1), resolution=0.01, default_value=play_pos, orientation='h', expand_x = True, enable_events = True, change_submits = True, key='-PLAY_POS-')]
 		line_window_ctl = [self.create_old('btn', ['store window location']), self.create_old('btn', ['Hide UI']), self.create_old('btn', ['Recenter UI']), self.create_old('btn', ['Fix Focus'])]
 		self.video_temp_img = self.create_old('image', [temp_img_path, '-VID_OUT-'])
 		

@@ -48,7 +48,7 @@ def get_res(filepath):
 	return out
 
 
-def write_log(message=None, loglevel='INFO'):
+def write_log_old(message=None, loglevel='INFO'):
 	if loglevel == 'DEBUG':
 		print (message)
 	with open('nplayer.log', 'a') as f:
@@ -58,7 +58,7 @@ def write_log(message=None, loglevel='INFO'):
 		return True
 
 
-def write_log_old(message=None, loglevel=logging.DEBUG):
+def write_log(message=None, loglevel=logging.DEBUG):
 	f = inspect.currentframe()
 	caller = inspect.getouterframes(f, 5)
 	thisfile = str(__file__)

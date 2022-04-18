@@ -58,6 +58,7 @@ class nplayer():
 		self.screencaps = np.CAPTURE_DIR
 		self.is_recording = False
 		self.vlcInstance = None
+		self.selected_playlist_item = None
 		
 		try:
 			self.main_keyboard = self.conf['main_keyboard']['path']
@@ -204,6 +205,17 @@ class nplayer():
 
 #------------playlist/dbmgr functions----------------#
 
+	def get_info_string(self, filepath):
+		strings = []
+		qstring = ("filepath = '" + filepath + "'")
+		item = np.querydb(table='series', column='series_name,season,episode_number,episode_name,id', query=qstring)
+		try:
+			series_name, season, episode_number, episode_name, _id = item[0]
+			string = ("series:" + series_name + ":" + str(season) + ":" + str(episode_number) + ":" + episode_name + ":" + str(_id))
+		except:
+			string = ("Unknown: " + filepath)
+		return string
+			
 	def get_next(self):
 		#self.next = None
 		if self.conf['play_type'] == 'series':
@@ -223,16 +235,18 @@ class nplayer():
 				self.last = self.series_history[series_name]
 			except:
 				self.last = None
-			#print ("Last:", self.last, series_name)
 			if self.last in _list and self.last is not None:
+				#print ("Last in list:", self.last)
 				idx = int(_list.index(self.last))
 				idx = idx + 1
 				try:
 					self.next = _list[idx]
-					#print ("Next set! Series Name, Index, Next:", series_name, idx, self.next)
+					self.selected_playlist_item = self.get_info_string(self.next)
+				#	print ("Next set! Series Name, Index, Next:", series_name, idx, self.next)
 				except:
 					self.next = _list[0]
-					#print ("Next not set (reset to 0)! Series Name, Index, Next:", series_name, idx, self.next)
+					self.selected_playlist_item = self.get_info_string(self.next)
+				#	print ("Next not set (reset to 0)! Series Name, Index, Next:", series_name, idx, self.next)
 				if self.history['playing_from_history'] == False:
 					self.history['history'].append(self.next)
 				elif self.history['playing_from_history'] == True:
@@ -244,8 +258,8 @@ class nplayer():
 				self.series_history[series_name] = self.next
 				np.write_history(self.series_history)
 			else:
-				print ("Last file recorded not in playlist:", self.last)
-				#print ("List:", _list)
+				txt = "Last file recorded not in playlist:", self.last, _list
+				np.write_log (str(txt), 'error')
 			#except Exception as e:
 				#print ("line 214,", e)
 			#	self.next = np.querydb(table='series', column='filepath', query=qstring)[0][0]
@@ -428,6 +442,7 @@ class nplayer():
 		elif _file is None and self.conf['nowplaying']['filepath'] is not None:
 			#print ("Resuming playback...")
 			self.next = str(self.conf['nowplaying']['filepath'])
+			self.selected_playlist_item = self.get_info_string(self.next)
 			self.play_pos = float(self.conf['nowplaying']['play_pos'])
 			self.conf['nowplaying']['filepath'] = None
 			#print ('set nowplaying filepath to None...')
@@ -435,7 +450,11 @@ class nplayer():
 		else:
 			#print ("File path provided, setting as next")
 			self.next = _file
+			self.selected_playlist_item = self.get_info_string(self.next)
 			self.play_pos = 0
+			self.conf['nowplaying']['filepath'] = self.next
+			self.conf['nowplaying']['play_pos'] = self.play_pos
+			np.writeConf(self.conf)
 		if self.vlcInstance is None:
 			try:
 				opts = self.conf['vlc']['opts']
