@@ -14,6 +14,7 @@ np/core/gui.py
 np/core/nplayer.py
 np/utils/__init__.py
 np/utils/gui_create.py
+np/utils/init_conf.py
 np/utils/input_handler.py
 np/utils/music_mgr.py
 np/utils/nplayer_db.py

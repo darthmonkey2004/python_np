@@ -216,7 +216,7 @@ class music_mgr():
 		self.win = sg.Window('Music Manager', layout=self.layout, no_titlebar=True, location=(300, 300), size=(1024, 768), grab_anywhere=True, keep_on_top=True, element_justification='center', finalize=True, resizable=True)
 		self.windows.append(self.win)
 		self.gui = True
-		self.default_music_dir = 'var/storage/Music'
+		self.default_music_dir = self.conf['media_directories']['music']
 
 	def file_browse_window(self):
 		filepath = None

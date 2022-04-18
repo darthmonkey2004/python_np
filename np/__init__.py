@@ -28,9 +28,12 @@ from np.utils.query_movies import query_imdb as lookup_movies
 from np.utils.nplayer_db import addtodb
 from np.utils.scan_music import scan_music
 from np.utils.ytdl import ytdl
+from np.utils.init_conf import run_setup
 #from np.main import start
-MUSIC_DIR = 'var/storage/Music'
-CAPTURE_DIR = '/home/monkey/Pictures/nplayer_caps'
+home = os.path.expanduser("~")
+CAPTURE_DIR = (home + os.path.sep + "Pictures" + os.path.sep + "nplayer_caps")
+DATA_DIR = (home + os.path.sep + ".np")
+pathlib.Path(DATA_DIR).mkdir(parents=True, exist_ok=True)
 afilters = []
 vfilters = []
 for f in vlc.Instance().video_filter_list_get():

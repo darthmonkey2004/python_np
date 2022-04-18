@@ -4,8 +4,9 @@ import subprocess
 import eyed3
 
 def scan_music(target_dir=None):
+	conf = np.readConf()
 	if target_dir == None:
-		target_dir = np.MUSIC_DIR
+		target_dir = conf['media_directories']['music']
 	com = ("find '" + target_dir + "' -name '*.mp3'")
 	files = subprocess.check_output(com, shell=True).decode()
 	files = files.split("\n")

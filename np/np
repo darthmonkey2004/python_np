@@ -1,4 +1,10 @@
 #!/usr/bin/env python3
+import os
+import np
 
+conf_path = (DATA_DIR + os.path.sep + "nplayer.conf")
+if not os.path.exists(conf_path):
+	print ("Conf file doesn't exist! Running setup...")
+	np.run_setup()
 from np import main
 main.start()
