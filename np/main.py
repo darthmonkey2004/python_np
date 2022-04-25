@@ -354,7 +354,11 @@ def start():
 				P.set_position(play_pos)
 			else:
 				print ('not resuming...', filepath)
-				MP.play()
+				if MP.play_mode == 'playlist':
+					MP.next = MP.get_playlist_next()
+					MP.play(MP.next)
+				else:
+					MP.play()
 
 			play_needed = 0	
 		if UI.uievent == sg.WIN_CLOSED and media['continuous'] == 0 and UI.RESET == False:
@@ -487,32 +491,53 @@ def start():
 			val = None
 			_id = None
 			table = None
-			if MP.conf['play_type'] == 'series':
-				try:
-					val = UI.uivalues[UI.uievent][0]
-					_id = val.split(':')[5]
-					table = val.split(':')[0]
-					playlist_click(_id, table)
-				except Exception as e:
-					print ("Error: Series list is empty! Details:", e, val, _id, table)
-			elif MP.conf['play_type'] == 'movies':
-				try:
-					val = UI.uivalues[UI.uievent][0]
-					table = val.split(':')[0]
-					title = val.split(':')[1]
-					year = val.split(':')[2]
-					_id = val.split(':')[3]
-				except Exception as e:
-					print ("Error: Movies list is empty! Details:", e, val, _id, table)
-				playlist_click(_id, table)
-			elif MP.conf['play_type'] == 'music':
-				try:
-					val = UI.uivalues[UI.uievent][0]
-					_id = val.split(':')[6]
-					table = val.split(':')[0]
-					playlist_click(_id, table)
-				except Exception as e:
-					print ("Error: List is empty! Details:", e, val, _id, table)
+			if MP.play_mode == 'playlist':
+				val = UI.uivalues[UI.uievent][0]
+				if 'series:' in val or 'movies:' in val or 'music:' in val:
+					if 'series:' in val:
+						_id = val.split(':')[5]
+						table = val.split(':')[0]
+						playlist_click(_id, table)
+					elif 'movies:' in val:
+						table = val.split(':')[0]
+						title = val.split(':')[1]
+						year = val.split(':')[2]
+						_id = val.split(':')[3]
+						playlist_click(_id, table)
+					elif 'music:' in val:
+						val = UI.uivalues[UI.uievent][0]
+						_id = val.split(':')[6]
+						table = val.split(':')[0]
+						playlist_click(_id, table)
+				else:
+					MP.play(val)
+			elif MP.play_mode == 'database':
+				if MP.conf['play_type'] == 'series':
+					try:
+						val = UI.uivalues[UI.uievent][0]
+						_id = val.split(':')[5]
+						table = val.split(':')[0]
+						playlist_click(_id, table)
+					except Exception as e:
+						print ("Error: Series list is empty! Details:", e, val, _id, table)
+				elif MP.conf['play_type'] == 'movies':
+					try:
+						val = UI.uivalues[UI.uievent][0]
+						table = val.split(':')[0]
+						title = val.split(':')[1]
+						year = val.split(':')[2]
+						_id = val.split(':')[3]
+						playlist_click(_id, table)
+					except Exception as e:
+						print ("Error: Movies list is empty! Details:", e, val, _id, table)
+				elif MP.conf['play_type'] == 'music':
+					try:
+						val = UI.uivalues[UI.uievent][0]
+						_id = val.split(':')[6]
+						table = val.split(':')[0]
+						playlist_click(_id, table)
+					except Exception as e:
+						print ("Error: List is empty! Details:", e, val, _id, table)
 		elif UI.uievent == '-DBMGR_PICKED_COLUMNS-':
 			string = None
 			if len(UI.uivalues[UI.uievent]) == 1:
@@ -578,7 +603,8 @@ def start():
 					MP.media = np.create_media(rows=rows)
 					if rows is not None:
 						UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.media['DBMGR_RESULTS'])
-						
+						MP.play_mode = 'playlist'
+						UI.WINDOW['-PLAY_MODE-'].update(MP.play_mode)
 					else:
 						UI.WINDOW['-CURRENT_PLAYLIST-'].update("Looks like you better figure out how to search without that active flag....")
 				elif table == 'movies':
@@ -587,10 +613,12 @@ def start():
 					MP.media = np.create_media(rows=rows)
 					if rows is not None:
 						UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.media['DBMGR_RESULTS'])
-
+						MP.play_mode = 'playlist'
+						UI.WINDOW['-PLAY_MODE-'].update(MP.play_mode)
 				elif table == 'music':
 					print ("TODO: querydb music")
 					#rows = querydb(table = 'music', column='id,title,accoustic_id,album,album_id,artist_id,year,artist,track,track_ct,filepath', query='isactive = 1')
+
 
 		elif UI.uievent == '-DBMGR_RESULTS-':
 			MP.dbmgr_picked_items = UI.uivalues['-DBMGR_RESULTS-']
@@ -645,10 +673,6 @@ def start():
 					magnet = item[key]
 					com = ("transmission-remote -a '" + magnet + "'")
 					print (com)
-			
-			
-			
-			
 		elif UI.uievent == '-PBDL_SEARCH_QUERY-':
 			pbdl.pbdl_query = UI.uivalues[UI.uievent]
 			print (pbdl.pbdl_query)
@@ -657,22 +681,47 @@ def start():
 			Y.start()
 		elif UI.uievent == 'Recenter UI':
 			recenter_ui()
-		elif UI.uievent == "Load":
-			filepath = UI.file_browse_window()
-			#print ("Filepath:", filepath)
+		elif UI.uievent == "-Load Playlist-":
+			filepath = np.file_browse_window()
 			MP.stop()
+			if ".txt" in filepath:
+				MP.media['DBMGR_RESULTS'] = MP.load_playlist(filepath)
+				UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.media['DBMGR_RESULTS'])
+				MP.play_mode = 'playlist'
+				UI.WINDOW['-PLAY_MODE-'].update(MP.play_mode)
+				filepath = MP.media['DBMGR_RESULTS'][0]
+				MP.play(filepath)
+			else:
+				MP.play_mode = 'database'
+				UI.WINDOW['-PLAY_MODE-'].update(MP.play_mode)
+				MP.play(filepath)
+		elif UI.uievent == "-Save Playlist-":
+			filepath = np.file_browse_window()
+			ret = MP.save_playlist(filepath, MP.media['DBMGR_RESULTS'])
+			if ret is True:
+				print ("Success!")
+			else:
+				print ("Failed!")
+		elif UI.uievent== "-Load Directory-":
+			path = np.folder_browse_window()
+			MP.stop()
+			MP.media['DBMGR_RESULTS'] = MP.load_directory(path)
+			UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.media['DBMGR_RESULTS'])
+			MP.play_mode = 'playlist'
+			UI.WINDOW['-PLAY_MODE-'].update(MP.play_mode)
+			filepath = MP.media['DBMGR_RESULTS'][0]
 			MP.play(filepath)
-		elif UI.uievent== "Save":
-			path = UI.folder_browse_window()
-			string = (path + "/playlist.txt")
 			#print (string)
-		elif UI.uievent == '-Read Info-':
-			for item in MP.dbmgr_picked_items:
-				UI.update_series_info_from_row(item)
+		elif UI.uievent == '-PLAY_MODE-':
+			MP.play_mode = UI.uivalues[UI.uievent]
+			print ("Play mode changed:", MP.play_mode)
+#		elif UI.uievent == '-Read Info-':
+#			for item in MP.dbmgr_picked_items:
+#				UI.update_series_info_from_row(item)
 				#print ("Read current database info:", item)
-		elif UI.uievent == '-Update Info-':
-			for item in MP.dbmgr_picked_items:
-				print ("TODO: update database", item)
+#		elif UI.uievent == '-Update Info-':
+#			for item in MP.dbmgr_picked_items:
+#				print ("TODO: update database", item)
 		elif UI.uievent == '-Set Active-':
 			print ("TODO: Set active", MP.dbmgr_picked_items)
 		elif UI.uievent == '-Set Inactive-':
@@ -723,8 +772,8 @@ def start():
 			pos = (MP.conf['nowplaying']['play_pos'])
 			UI.WINDOW['-PLAY_POS-'].update(MP.conf['nowplaying']['play_pos'])
 			txt = "{:02d}:{:02d} / {:02d}:{:02d}".format(*divmod(P.get_time()//1000, 60), *divmod(P.get_length()//1000, 60))
-			if MP.selected_playlist_item is not None:
-				txt = (txt + "::" + str(MP.selected_playlist_item))
+			if MP.next is not None:
+				txt = (txt + "::" + str(MP.next))
 			UI.WINDOW['-MESSAGE_AREA-'].update(txt)
 		elif P.is_playing() and MP.is_url == True:
 			pass

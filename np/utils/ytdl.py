@@ -32,7 +32,9 @@ class ytdl():
 		self.values = None
 		self.target_url = None
 		self.media_type = 'audio'
-		self.sim_opts = {'simulate': True}
+		self.email = None
+		email, pw = self.get_youtube_authstr()
+		self.sim_opts = {'simulate': True, 'username': email, 'password': pw, 'ignoreerrors': True}
 		self.ytdl_infogetter = youtube_dl.YoutubeDL(self.sim_opts)
 
 	def init_ytdl_gui(self):
@@ -64,13 +66,15 @@ class ytdl():
 		return self.info
 
 	def download(self, url, _type='video'):
+		if self.email == None:
+			self.email, pw = self.get_youtube_authstr()
 		ytdl_downloader = None
 		info = self.get_info(url)
 		_id = info['id']
 		ext = info['ext']
 		if _type == 'video':
 			outtmpl = "{_id}.{ext}".format(_id=_id, ext=ext)
-			dl_opts = {'outtmpl': outtmpl, 'logger': logger(), 'progress_hooks': [progress_hook]}
+			dl_opts = {'outtmpl': outtmpl, 'logger': logger(), 'progress_hooks': [progress_hook], 'username': self.email, 'password': pw, 'ignoreerrors': True}
 			ytdl_downloader = youtube_dl.YoutubeDL(dl_opts)
 
 		elif _type == 'audio':
@@ -78,12 +82,19 @@ class ytdl():
 				title = info['title']
 				artist = info['artist']
 				outtmpl = (title + "." + artist + "." + ext)
-				dl_opts = {'outtmpl': outtmpl, 'format': 'bestaudio/best', 'postprocessors': [{'key': 'FFmpegExtractAudio', 'preferredcodec': 'mp3', 'preferredquality': '192'}], 'logger': logger(), 'progress_hooks': [progress_hook]}
+				dl_opts = {'outtmpl': outtmpl, 'format': 'bestaudio/best', 'postprocessors': [{'key': 'FFmpegExtractAudio', 'preferredcodec': 'mp3', 'preferredquality': '192'}], 'logger': logger(), 'progress_hooks': [progress_hook], 'username': self.email, 'password': pw, 'ignoreerrors': True}
 			except:
 				outtmpl = (_id + "." + ext)
-				dl_opts = {'outtmpl': outtmpl, 'format': 'bestaudio/best', 'postprocessors': [{'key': 'FFmpegExtractAudio', 'preferredcodec': 'mp3', 'preferredquality': '192'}], 'logger': logger(), 'progress_hooks': [progress_hook]}
+				dl_opts = {'outtmpl': outtmpl, 'format': 'bestaudio/best', 'postprocessors': [{'key': 'FFmpegExtractAudio', 'preferredcodec': 'mp3', 'preferredquality': '192'}], 'logger': logger(), 'progress_hooks': [progress_hook], 'username': self.email, 'password': pw, 'ignoreerrors': True}
 			ytdl_downloader = youtube_dl.YoutubeDL(dl_opts)
 		ytdl_downloader.download([url])
+
+
+	def get_youtube_authstr(self):
+		authstr = subprocess.check_output('secret-tool lookup authstring user:pass', shell=True).decode().strip()
+		self.email = authstr.split(':')[0]
+		pw = authstr.split(':')[1]
+		return (self.email, pw)
 
 
 	def start(self):

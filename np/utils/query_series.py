@@ -59,6 +59,7 @@ def get_sinfo_from_filepath(filepath):
 
 
 def tmdb_query_series(series_name, season, episode_number):
+	info = {}
 	series_name_nw = urllib.parse.quote(series_name)
 	API_KEY="ac1bdc4046a5e71ef8aa0d0bd93f8e9b"
 	url = ("https://api.themoviedb.org/3/search/tv?api_key=" + str(API_KEY) + "&language=en-US&query=" + series_name_nw)
@@ -83,17 +84,39 @@ def tmdb_query_series(series_name, season, episode_number):
 		j = "_"
 		json_data['results'][0]['name'] = j.join(temp)
 	url = "https://api.themoviedb.org/3/tv/" + str(tmdbid) + "/season/" + str(season) + "/episode/" + str(episode_number) + "?api_key=" + str(API_KEY) + "&language=en-US"
-	print ("URL:", url)
 	r = requests.get(url)
 	if r.status_code != 200:
 		out = ("Error:", r.status_code, "URL:", url)
-		return out
+		info['response'] = out
+		info['tmdbid'] = tmdbid
+		info['series_name'] = series_name
+		info['season'] = season
+		info['episode_number'] = episode_number
+		info['episode_name'] = 'null'
+		info['description'] = 'null'
+		info['air_date'] = 'null'
+		info['still_path'] = 'null'
+		info['duration'] = 'null'
+		info['md5'] = 'null'
+		info['url'] = url
+		return info
 	else:
 		data = r.text
 		json_data = json.loads(data)
-		json_data['tmdbid'] = tmdbid
-		return json_data
-	
+		out = ("OK:", r.status_code, "URL:", url)
+		info['response'] = out
+		info['tmdbid'] = tmdbid
+		info['series_name'] = series_name
+		info['season'] = season
+		info['episode_number'] = episode_number
+		info['episode_name'] = json_data['name']
+		info['description'] = json_data['overview']
+		info['air_date'] = json_data['air_date']
+		info['still_path'] = json_data['still_path']
+		info['duration'] = 'null'
+		info['md5'] = 'null'
+		info['url'] = url
+		return info
 	
 def lookup(arg):
 	if type(arg) == tuple:

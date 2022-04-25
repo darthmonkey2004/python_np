@@ -102,6 +102,7 @@ class pbdl():
 		self.results = []
 		self.torrent_mgr = False
 		self.downloader = False
+		self.play_type = 'series'
 		self.query = None
 
 
@@ -288,7 +289,10 @@ class pbdl():
 					string = (str(tid) + ":" + str(data['name']) + "|" + str(data['percent']))
 					self.active_torrents.append(string)
 					self.torrent_data[tid] = data
-		self.pbdl_win['-TORRENT_SELECT-'].update(self.active_torrents)
+		try:
+			self.pbdl_win['-TORRENT_SELECT-'].update(self.active_torrents)
+		except:
+			pass
 		return self.torrent_data
 
 
@@ -311,7 +315,10 @@ class pbdl():
 					self.files.append(_file)
 				else:
 					pass
-		self.pbdl_win['-TORRENT_FILES-'].update(self.files)
+		try:
+			self.pbdl_win['-TORRENT_FILES-'].update(self.files)
+		except:
+			pass
 		return self.files
 
 		
@@ -362,7 +369,7 @@ class pbdl():
 		[sg.Text('Download Rate:'), sg.Text('', expand_x=True, key='-Download Rate-')],
 		[sg.Text('Status:'), sg.Text('', expand_x=True, key='-Status-')],
 		[sg.Text('Ratio:'), sg.Text('', expand_x=True, key='-Ratio-')],
-		[sg.Listbox(self.files, expand_x=True, enable_events=True, select_mode='multiple', size=(50,10), key='-TORRENT_FILES-')]
+		[sg.Listbox(self.files, expand_x=True, expand_y=True, enable_events=True, select_mode='multiple', size=(50,50), key='-TORRENT_FILES-')]
 
 	]
 		self.title_bar_layout = [sg.MenubarCustom(self.menu_def, tearoff=False, key='-menubar_key-'), sg.Combo(['series', 'movies', 'music'], self.conf['play_type'] , enable_events=True,key='-MEDIA_TYPE-'), sg.Button("Close", key='-Close PBDL-')],
@@ -400,13 +407,13 @@ class pbdl():
 			x = int(self.conf['windows']['pbdl']['x'])
 			y = int(self.conf['windows']['pbdl']['y'])
 			w = int(self.conf['windows']['pbdl']['w'])
-			h = int(self.conf['windows']['pbdl']['h'])
+			h = (int(self.conf['windows']['pbdl']['h']) + 100)
 		except:
 			self.conf['windows'] = np.init_window_position()
 			x = int(self.conf['windows']['pbdl']['x'])
 			y = int(self.conf['windows']['pbdl']['y'])
 			w = int(self.conf['windows']['pbdl']['w'])
-			h = int(self.conf['windows']['pbdl']['h'])
+			h = (int(self.conf['windows']['pbdl']['h']) +100)
 		self.pbdl_win = sg.Window('GUI', self.layout, no_titlebar=True, location=(x,y), size=(w,h), keep_on_top=False, grab_anywhere=True, element_justification='center', finalize=True, resizable=True).Finalize()
 		self.torrent_mgr = True
 		return self.torrent_mgr
@@ -444,7 +451,40 @@ class pbdl():
 		ret = self.send_command(comstr)
 
 
+	def test_media_type(self, filepath):
+		sinfo = None
+		season = None
+		episode_number = None
+		sinfo, season, episode_number = np.seinfo(filepath)
+		testsinfo = ('.' + sinfo)
+		if testsinfo in filepath:
+			sinfo = testsinfo
+		if sinfo is not None and season is not None and episode_number is not None:
+			length = len(filepath.split(sinfo)) - 1
+			series_name = filepath.split(sinfo)[0]
+			if '/' in series_name:
+				series_name = series_name.split('/')[1]
+			return 'series', series_name, sinfo, season, episode_number
+			#except Exception as e:
+			#	print ("can't split filepath:", e, filepath, sinfo)
+			#	return None
+		if '(' in filepath and ')' in filepath:
+			year = int(filepath.split('(')[1].split(')')[0])
+			if year >= 1900:
+				string = (' (' + str(year) + ')')
+				if string in filepath:
+					title = filepath.split(string)[0].split('/')[1]
+				else:
+					string = ('(' + str(year) + ')')
+					title = filepath.split(string)[0].split('/')[1]
+				return 'movie', title, year
+		
+
+
 	def lookup(self, _files=None):
+		if self.play_type == None:
+			conf = np.readConf()
+			self.play_type = conf['play_type']
 		if self.play_type == 'movies':
 			self.columns_list = ['isactive', 'title', 'tmdbid', 'year', 'release_date', 'duration', 'description', 'poster', 'filepath', 'md5', 'url']
 		elif self.play_type == 'series' or self.play_type == 'videos':
@@ -478,10 +518,9 @@ class pbdl():
 						chunks = self.series_name.split("'")
 						j = "_"
 						self.series_name = j.join(chunks)
-					print (self.series_name)
 					self.pbdl_win[sidx].update(self.season)
 					self.pbdl_win[eidx].update(self.episode_number)
-					print (self.series_name, self.sinfo, self.season, self.episode_number)
+					print ("name, season, e-number:", self.series_name, self.season, self.episode_number)
 					test1 = ("." + self.sinfo)
 					test2 = self.sinfo
 					test3 = " Season"
@@ -509,16 +548,16 @@ class pbdl():
 					self.pbdl_win['-0-'].update(self.series_name)
 					print ("Querying:", self.series_name, self.season, self.episode_number)
 					self.media_info = np.query_series(self.series_name, self.season, self.episode_number)
-					self.still_path = str(media_info['still_path'])
+					self.add_to_db_data.append(self.media_info)
+					print (type(self.media_info), self.media_info)
+					self.still_path = str(self.media_info['still_path'])
 					if 'http://' not in self.still_path and 'https://' not in self.still_path:
 						poster = ("https://image.tmdb.org/t/p/original" + self.still_path)
 					else:
 						poster = self.still_path
 					self.get_poster(poster)
-					print ("Series lookup results:", self.series_data)
-					if not ret:
-						print ("Series lookup failed for ", self.series_name, self.season, self.episode_number)
-						pass
+					#print ("Series lookup results:", self.media_info)
+				
 				elif self.play_type == 'movies':
 					try:
 						title = self.media_info['title']
@@ -537,7 +576,8 @@ class pbdl():
 						keys = list(self.media_info.keys())
 						if self.media_info is not None:
 							self.media_info['md5'] = 'null'
-							self.media_info['url'] = 'null'
+							if self.media_info['url'] is None:
+								self.media_info['url'] = 'null'
 							for key in keys:
 								val = self.media_info[key]
 								field = ("-" + str(self.columns_list.index(key)) + "-")
@@ -545,73 +585,82 @@ class pbdl():
 								if key == 'isactive':
 									self.pbdl_win['-SET_ACTIVE-'].update(int(val))
 						self.get_poster(self.media_info['poster'])
+						self.add_to_db_data.append(self.media_info)
 					except Exception as e:
 						print ("Unable to lookup data:", e)
 								
 			
-	def add_series(self, series_data=None):
+	def add_series(self, add_to_db_data=None):
+		self.isactive = 1
 		if series_data == None:
-			series_data = self.media_info
-		self.air_date = series_data['air_date']
-		self.episode_name = series_data['name']
-		if "'" in self.episode_name:
-			chunks = self.episode_name.split("'")
-			j = "_"
-			self.episode_name = j.join(chunks)
-		self.description = series_data['overview']
-		if "'" in self.description:
+			add_to_db_data = self.add_to_db_data
+		for series_data in add_to_db_data:
 			try:
-				j = '_'
-				pieces = self.description.split("'")
-				self.description = j.join(pieces)
+				self.series_name = series_data['series_name']
+				self.tmdbid = series_data['tmdbid']
+				self.season = series_data['season']
+				self.episode_number = series_data['episode_number']
+				self.episode_name = series_data['episode_name']
+				self.description = series_data['description']
+				self.air_date = series_data['air_date']
+				self.still_path = series_data['still_path']
+				self.duration = series_data['duration']
+				self.filepath = series_data['filepath']
+				self.md5 = series_data['md5']
+				self.url = series_data['url']
+			except Exception as e:
+				print ("clusterfuck:", e)
+				return False
+			try:
+				self.sourcePath = urllib.parse.unquote(series_data['source_path'])
 			except:
-				self.description = urllib.parse.quote(self.description)
-		self.tmdbid = series_data['id']
-		self.still_path = str(series_data['still_path'])
-		extlen = len(self.sourcePath.split('.')) - 1
-		ext = str(self.sourcePath.split('.')[extlen])
-		fname = (self.series_name + ".S" + str(self.season) + "E" + str(self.episode_number) + "." + str(self.episode_name) + "." + ext)
-		newdir = ('/var/storage/Series' + os.path.sep + self.series_name + os.path.sep + "S" + str(self.season))
-		pathlib.Path(newdir).mkdir(parents=True, exist_ok=True)
-		self.destinationPath = (newdir + os.path.sep + fname)
-		self.insert_query_string = ("INSERT INTO series (isactive, series_name, tmdbid, season, episode_number, episode_name, description, air_date, still_path, duration, filepath, md5, url) VALUES(1, '" + str(self.series_name) + "', '" + str(self.tmdbid) + "', '" + str(self.season) + "', '" + str(self.episode_number) + "', '" + str(self.episode_name) + "', '" + str(self.description) + "', '" + str(self.air_date) + "', '" + str(self.still_path) + "', 'None', '" + str(self.destinationPath) + "', 'None', 'None');")
-		ret = self.add_to_db(self.insert_query_string)
-		if ret:
-			print (ret)
+				self.sourcePath = input("Enter source path: ")
+			extlen = len(self.sourcePath.split('.')) - 1
+			ext = str(self.sourcePath.split('.')[extlen])
+			fname = (self.series_name + ".S" + str(self.season) + "E" + str(self.episode_number) + "." + str(self.episode_name) + "." + ext)
+			newdir = ('/var/storage/Series' + os.path.sep + self.series_name + os.path.sep + "S" + str(self.season))
+			pathlib.Path(newdir).mkdir(parents=True, exist_ok=True)
+			self.destinationPath = (newdir + os.path.sep + fname)
+			self.insert_query_string = ("INSERT INTO series (isactive, series_name, tmdbid, season, episode_number, episode_name, description, air_date, still_path, duration, filepath, md5, url) VALUES(1, '" + str(self.series_name) + "', '" + str(self.tmdbid) + "', '" + str(self.season) + "', '" + str(self.episode_number) + "', '" + str(self.episode_name) + "', '" + str(self.description) + "', '" + str(self.air_date) + "', '" + str(self.still_path) + "', 'None', '" + str(self.destinationPath) + "', 'None', 'None');")
+			ret = self.add_to_db(self.insert_query_string)
+			if ret:
+				print (ret)
 
 
-	def add_movies(self, movie_data=None):
-		if movie_data == None:
-			movie_data = self.media_info
-		keys = list(movie_data.keys())
-		pos = -1
-		for key in keys:
-			val = movie_data[key]
-			print ("val:", val)
-			if val is not None and key != 'title' and key != 'filepath':
-				if ' ' in str(val) or "'" in str(val) or '"' in str(val):
-					val = urllib.parse.quote(val)
-					movie_data[key] = val
-		sdir = "/var/lib/transmission-daemon/downloads/"
-		if sdir not in self.sourcePath:
-			self.sourcePath = ("/var/lib/transmission-daemon/downloads/" + str(self.selected_file[0]))
-		self.destinationPath = urllib.parse.unquote(movie_data['filepath'])
-		p = pathlib.Path(self.destinationPath)
-		new_dir = (p.parent.absolute())
-		pathlib.Path(new_dir).mkdir(parents=True, exist_ok=True)
-		np.write_log(("pbdl.py, add_movies: media info:", self.media_info), "INFO")
-		vars = "isactive, tmdbid, title, year, release_date, duration, description, poster, filepath, md5, url"
-		values = ("1, '" + str(self.media_info['tmdbid']) + "', '" + str(self.media_info['title']) + "', '" + str(self.media_info['year']) + "', '" + str(self.media_info['release_date']) + "', '" + str(self.media_info['duration']) + "', '" + str(self.media_info['description']) + "', '" + str(self.media_info['poster']) + "', '" + str(self.destinationPath) + "', 'None', 'None'")
-		self.insert_query_string = ("INSERT INTO movies (" + vars + ") VALUES(" + values + ");")
-		ret = self.add_to_db(self.insert_query_string)
-		if ret:
-			print ("Success!")
-		else:
-			print ("Unknown exception...ret=", ret)
+	def add_movies(self, add_to_db_data=None):
+		self.isactive = 1
+		if add_to_db_data == None:
+			add_to_db_data = self.add_to_db_data
+		for movie_data in add_to_db_data:
+			keys = list(movie_data.keys())
+			pos = -1
+			for key in keys:
+				val = movie_data[key]
+				print ("val:", val)
+				if val is not None and key != 'title' and key != 'filepath':
+					if ' ' in str(val) or "'" in str(val) or '"' in str(val):
+						val = urllib.parse.quote(val)
+						movie_data[key] = val
+			sdir = "/var/lib/transmission-daemon/downloads/"
+			if sdir not in self.sourcePath:
+				self.sourcePath = ("/var/lib/transmission-daemon/downloads/" + str(self.selected_file[0]))
+			self.destinationPath = urllib.parse.unquote(movie_data['filepath'])
+			p = pathlib.Path(self.destinationPath)
+			new_dir = (p.parent.absolute())
+			pathlib.Path(new_dir).mkdir(parents=True, exist_ok=True)
+			#np.write_log(("pbdl.py, add_movies: media info:", self.media_info), "INFO")
+			vars = "isactive, tmdbid, title, year, release_date, duration, description, poster, filepath, md5, url"
+			values = ("1, '" + str(self.media_info['tmdbid']) + "', '" + str(self.media_info['title']) + "', '" + str(self.media_info['year']) + "', '" + str(self.media_info['release_date']) + "', '" + str(self.media_info['duration']) + "', '" + str(self.media_info['description']) + "', '" + str(self.media_info['poster']) + "', '" + str(self.destinationPath) + "', 'None', 'None'")
+			self.insert_query_string = ("INSERT INTO movies (" + vars + ") VALUES(" + values + ");")
+			ret = self.add_to_db(self.insert_query_string)
+			if ret:
+				print ("Success!")
+			else:
+				print ("Unknown exception...ret=", ret)
 
 
 
-	def add_to_db(self, insert_query_string=None):
+	def add_to_db(self, play_type='series', insert_query_string=None):
 		if insert_query_string is None:
 			try:
 				insert_query_string = self.insert_query_string

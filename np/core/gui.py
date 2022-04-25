@@ -50,7 +50,7 @@ class gui():
 
 		scale = float(int(self.conf['scale']) * 10)
 		sg.theme(self.theme)
-		search_line = [self.create_old('dropdown_menu', [self.tables, self.conf['play_type'], '-PLAY_TYPE-']), self.create_old('dropdown_menu', [list(self.conf['screens'].keys()), self.conf['screen'], '-SET_SCREEN-']), self.create_old('textbox', ['Search', '-SEARCH-']), self.create_old('text_input', ['Enter search query:', '-SEARCH_QUERY-']), self.create_old('btn', ['Search', 'Search'])]
+		search_line = [self.create_old('dropdown_menu', [self.tables, self.conf['play_type'], '-PLAY_TYPE-']), self.create_old('dropdown_menu', [list(self.conf['screens'].keys()), self.conf['screen'], '-SET_SCREEN-']), self.create_old('dropdown_menu', [['database', 'playlist'], 'database', '-PLAY_MODE-']), self.create_old('textbox', ['Search', '-SEARCH-']), self.create_old('text_input', ['Enter search query:', '-SEARCH_QUERY-']), self.create_old('btn', ['Search', 'Search'])]
 		elem_media_list = [self.create_old('listbox', [self.media['DBMGR_RESULTS'], '-CURRENT_PLAYLIST-'])]
 		update_line = [self.create_old('btn', ['Refresh from Database'])]
 		player_controls1 = [self.create_old('btn', ['previous']), self.create_old('btn', ['play']), self.create_old('btn', ['next']), self.create_old('btn', ['pause']), self.create_old('btn', ['stop']), self.create_old('btn', ['Record'])]
@@ -122,7 +122,7 @@ class gui():
 		#self.db_mgr_layout.append(ckbox_is_active)
 		self.db_mgr_layout.append(btn_update_info)
 		self.db_mgr_layout.append(self.poster_img)
-		self.menu_def = [['&File', ['&Load', '&Save', 'E&xit']], ['&Tools', ['&Pirate Bay Downloader', '&Torrent Manager', '&youtube-dl', '&Video Filters', [np.VLC_VIDEO_FILTERS], '&Audio Filters', [np.VLC_AUDIO_FILTERS]]], ['&Help', '&About...']]
+		self.menu_def = [['&File', ['-&Load Directory-', '-&Load Playlist-', '-&Save Playlist-', 'E&xit']], ['&Tools', ['&Pirate Bay Downloader', '&Torrent Manager', '&youtube-dl', '&Video Filters', [np.VLC_VIDEO_FILTERS], '&Audio Filters', [np.VLC_AUDIO_FILTERS]]], ['&Help', '&About...']]
 
 		self.layout = [[sg.MenubarCustom(self.menu_def, tearoff=True, key='-menubar_key-'), sg.Button("Close")], [sg.TabGroup([[sg.Tab('MP Controls', self.player_control_layout, key='-player_control_layout-')], [sg.Tab('DB Manager', self.db_mgr_layout, key='-db_mgr_layout-')]], expand_x=True, expand_y=True, enable_events=True)], [sg.Sizegrip(key='-gui_size-')]]
 		#self.conf['windows'] = {}
@@ -133,43 +133,6 @@ class gui():
 			#self.conf['windows']['-Viewer-'] = self.WINDOW
 			self.WINDOW2['-VID_OUT-'].expand(True, True)
 		self.RESET = False
-
-
-	def file_browse_window(self):
-		filepath = None
-		file_browser_layout = [[sg.T("")], [sg.Text("Choose a file: "), sg.Input(), sg.FileBrowse(key="-IN-")],[sg.Button("Submit")]]
-		file_browser_window = sg.Window('Load Media file or playlist...', file_browser_layout, location=(int(self.browser_win_x), int(self.browser_win_y)), size=(int(self.browser_win_w), int(self.browser_win_h)))
-		while True:
-			file_browser_event, file_browser_values = file_browser_window.read()
-			if file_browser_event == sg.WIN_CLOSED or file_browser_event=="Exit":
-				filepath = None
-				break
-			elif file_browser_event == "Submit":
-				filepath = file_browser_values["-IN-"]
-				file_browser_window.close()
-				break
-		#print ("filepath (gui):", filepath)
-		return filepath
-
-
-	def folder_browse_window(self):
-		path = None
-		folder_browser_layout = [[sg.T("")], [sg.Text("Choose directory: "), sg.Input(), sg.FolderBrowse(key="-SAVE_PATH-")], sg.Button("Submit")]
-		folder_browser_window = sg.Window("Save playlist file...", folder_browser_layout, location=(int(self.browser_win_x), int(self.browser_win_y)), size=(int(self.browser_win_w), int(self.browser_win_h)))
-		while True:
-			folder_browser_event, folder_browser_values = folder_browser_window.read()
-			if folder_browser_event == sg.WIN_CLOSED or folder_browser_event=="Exit":
-				path = None
-				break
-			elif folder_browser_event == "Submit":
-				path = folder_browser_values["-IN-"]
-				folder_browser_window.close()
-				break
-		
-		j = ' '
-		s2 = 'file://'
-		path = j.join(path.split(s)).split(s2)[1]
-		return path
 
 
 	def init_window_position(self):

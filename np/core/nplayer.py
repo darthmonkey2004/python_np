@@ -1,3 +1,4 @@
+import subprocess
 import pathlib
 import os
 import pafy
@@ -59,7 +60,11 @@ class nplayer():
 		self.is_recording = False
 		self.vlcInstance = None
 		self.selected_playlist_item = None
-		
+		self.play_mode = 'database'
+		self.playlist = []
+		self.playlist_last = None
+		self.playlist_loop_one = False
+		self.playlist_loop_all = True
 		try:
 			self.main_keyboard = self.conf['main_keyboard']['path']
 		except:
@@ -297,7 +302,10 @@ class nplayer():
 		return self.history['pos']
 
 
-	def history_prev_pos(self):
+	def history_prev_pos(self, pos=None):
+		if pos == None:
+			pos = self.history['pos']
+		self.history['pos'] = pos
 		old_pos = self.history['pos']
 		self.history['pos'] = self.history['pos'] - 1
 		#print ("history position changed:", old_pos, self.history['pos'])
@@ -307,11 +315,19 @@ class nplayer():
 		return self.history['pos']
 
 	def skip_next(self):
+		self.conf['nowplaying']['filepath'] = None
+		self.conf['nowplaying']['play_pos'] = 0
+		if self.play_mode == 'playlist':
+			self.play()
+			return True
 		print ("old history pos:", self.history['pos'], len(self.history['history']))
 		if self.history['playing_from_history'] == False:
 			self.stop()
-			self.next = self.get_next()
-			self.play(self.next)
+			if self.play_mode == 'database':
+				self.next = self.get_next()
+				self.play(self.next)
+			elif self.play_mode == 'playlist':
+				self.play()
 			self.history['pos'] = len(self.history['history']) - 1
 			#print ("new history pos:", self.history['pos'], len(self.history['history']))
 			#print ("skip_next, Not using history:", self.history['history'])
@@ -348,11 +364,25 @@ class nplayer():
 
 	def skip_previous(self):
 		self.history['playing_from_history'] = True
-		#print ("old history pos:", self.history['pos'], len(self.history['history']))
+		print ("old history pos:", self.history['pos'], len(self.history['history']))
 		self.history['pos'] = self.history_prev_pos()
 		#self.history['pos'] = self.history['history'].index(self.next) - 1
-		#print ("new history pos:", self.history['pos'], len(self.history['history']))
-		self.next = self.history['history'][self.history['pos']]
+		print ("new history pos:", self.history['pos'], len(self.history['history']))
+		#print (self.history['history'], self.history['pos'])
+		try:
+			self.next = self.history['history'][self.history['pos']]
+		except:
+			self.next = self.media['DBMGR_RESULTS'][self.history['pos']]
+		if 'series:' in self.next:
+			_id = self.next.split(':')[5]
+			qstring = ("id = '" + _id + "'")
+			self.next = np.querydb(table='series', column='filepath', query=qstring)[0][0]
+		elif 'movies:' in self.next:
+			_id = self.next.split(':')[3]
+			qstring = ("id = '" + _id + "'")
+			self.next = np.querydb(table='movies', column='filepath', query=qstring)[0][0]
+		elif 'music:' in self.next:
+			print ("TODO: check playlist item string and parse out filepath!")
 		#print ("Previous:", self.next)
 		self.play(self.next)
 
@@ -435,26 +465,75 @@ class nplayer():
 		return self.is_recording
 	
 	def play(self, _file=None):
-		if _file is None and self.conf['nowplaying']['filepath'] is None:
-			#print ("File and resume is None, getting next...")
-			self.next = self.get_next()
-			self.play_pos = 0
-		elif _file is None and self.conf['nowplaying']['filepath'] is not None:
-			#print ("Resuming playback...")
-			self.next = str(self.conf['nowplaying']['filepath'])
-			self.selected_playlist_item = self.get_info_string(self.next)
-			self.play_pos = float(self.conf['nowplaying']['play_pos'])
-			self.conf['nowplaying']['filepath'] = None
-			#print ('set nowplaying filepath to None...')
-			np.writeConf(self.conf)
-		else:
-			#print ("File path provided, setting as next")
-			self.next = _file
-			self.selected_playlist_item = self.get_info_string(self.next)
-			self.play_pos = 0
-			self.conf['nowplaying']['filepath'] = self.next
-			self.conf['nowplaying']['play_pos'] = self.play_pos
-			np.writeConf(self.conf)
+		if self.next is not None and self.play_mode == 'playlist':
+			self.playlist_last = self.next
+		if self.play_mode == 'database':
+			if _file is None and self.conf['nowplaying']['filepath'] is None:
+				#print ("File and resume is None, getting next...")
+				self.next == self.get_next()
+				self.play_pos = 0
+			elif _file is None and self.conf['nowplaying']['filepath'] is not None:
+				#print ("Resuming playback...")
+				self.next = str(self.conf['nowplaying']['filepath'])
+				if 'series:' in self.next:
+					_id = self.next.split(':')[5]
+					qstring = ("id = '" + _id + "'")
+					self.next = np.querydb(table='series', column='filepath', query=qstring)[0][0]
+				elif 'movies:' in self.next:
+					_id = self.next.split(':')[3]
+					qstring = ("id = '" + _id + "'")
+					self.next = np.querydb(table='movies', column='filepath', query=qstring)[0][0]
+				elif 'music:' in self.next:
+					print ("TODO: check playlist item string and parse out filepath!")
+				self.selected_playlist_item = self.get_info_string(self.next)
+				self.play_pos = float(self.conf['nowplaying']['play_pos'])
+				self.conf['nowplaying']['filepath'] = None
+				#print ('set nowplaying filepath to None...')
+				np.writeConf(self.conf)
+			else:
+				#print ("File path provided, setting as next")
+				self.next = _file
+				self.selected_playlist_item = self.get_info_string(self.next)
+				self.play_pos = 0
+				self.conf['nowplaying']['filepath'] = self.next
+				self.conf['nowplaying']['play_pos'] = self.play_pos
+				np.writeConf(self.conf)
+		elif self.play_mode == 'playlist':
+			if _file is None and self.conf['nowplaying']['filepath'] is None:
+				self.next = self.get_playlist_next()
+				print ("Playlist: Getting next:", self.next)
+				self.play_pos = 0
+				self.playlist_last = self.next
+				self.conf['nowplaying']['filepath'] = self.next
+				self.conf['nowplaying']['play_pos'] = self.play_pos
+			elif _file is None and self.conf['nowplaying']['filepath'] is not None:
+				self.playlist_last = self.next
+				self.next = str(self.conf['nowplaying']['filepath'])
+				print ("Playlist: Resuming from nowplaying...:", self.next)
+				if 'series:' in self.next:
+					_id = self.next.split(':')[5]
+					qstring = ("id = '" + _id + "'")
+					self.next = np.querydb(table='series', column='filepath', query=qstring)[0][0]
+				elif 'movies:' in self.next:
+					_id = self.next.split(':')[3]
+					qstring = ("id = '" + _id + "'")
+					self.next = np.querydb(table='movies', column='filepath', query=qstring)[0][0]
+				elif 'music:' in self.next:
+					print ("TODO: check playlist item string and parse out filepath!")
+				self.selected_playlist_item = self.get_info_string(self.next)
+				self.play_pos = float(self.conf['nowplaying']['play_pos'])
+				self.conf['nowplaying']['filepath'] = None
+				#print ('set nowplaying filepath to None...')
+				np.writeConf(self.conf)
+			else:
+				print ("Playlist: File provided:", _file)
+				self.playlist_last = self.next
+				self.next = _file
+				self.selected_playlist_item = self.get_info_string(self.next)
+				self.play_pos = 0
+				self.conf['nowplaying']['filepath'] = self.next
+				self.conf['nowplaying']['play_pos'] = self.play_pos
+				np.writeConf(self.conf)
 		if self.vlcInstance is None:
 			try:
 				opts = self.conf['vlc']['opts']
@@ -489,7 +568,6 @@ class nplayer():
 			#print ("Set play needed: 0")
 		if self.conf['play_type'] == 'series':
 			try:
-				print ("Next:", self.next)
 				query_string = ("filepath like '%" + self.next + "%'")
 				series_name = np.querydb('series', 'series_name', query_string)[0][0]
 				#print ("Series name:", series_name)
@@ -501,15 +579,16 @@ class nplayer():
 			print ("line 335, play(), Insert album art grabber/display block here")
 		self.conf['nowplaying']['filepath'] = self.next
 		if self.conf['play_type'] == 'music':
-			self.album_art = self.dl_img()
-			self.ART_UPDATE_NEEDED = True
-
+			try:
+				self.album_art = self.dl_img()
+				self.ART_UPDATE_NEEDED = True
+			except:
+				self.ART_UPDATE_NEEDED = False
 
 	def dl_img(self, query_string=None):
 		if query_string is None:
 			filepath = self.conf['nowplaying']['filepath']
 			if filepath is not None:
-				print ("filepath:", filepath, type(filepath))
 				filepath = urllib.parse.unquote(filepath)
 				if self.conf['play_type'] == 'music':
 					a = eyed3.load(filepath)
@@ -522,7 +601,13 @@ class nplayer():
 		url = ("https://serpapi.com/search.json?q=" + query_string + "&tbm=isch&ijn=0&api_key=" + str(api_key))
 		r = requests.get(url)
 		json_data = json.loads(r.text)
-		self.img_url = json_data['images_results'][0]['original']
+		try:
+			self.img_url = json_data['images_results'][0]['original']
+		except:
+			self.img_url = None
+			print ("Chances are the searches for serpApi.com api is exhaused.")
+			print ("TODO: Figure that out")
+			return self.img_url
 
 		com = ("wget --output-document 'poster.jpg' '" + self.img_url + "'")
 		subprocess.check_output(com, shell=True)
@@ -533,3 +618,156 @@ class nplayer():
 		ret = subprocess.check_output(com, shell=True)
 		self.album_art = 'poster.png'
 		return self.album_art
+
+
+	def load_playlist(self, filepath):
+		try:
+			results = []
+			with open(filepath, 'r') as f:
+				lines = f.read().strip().split("\n")
+			f.close()
+			return lines
+		except Exception as e:
+			print ("Unable to load media playlist:", e, filepath)
+			return None
+
+
+	def save_playlist(self, filepath, media_list):
+		try:
+			j = "\n"
+			data = j.join(media_list)
+			with open(filepath, 'w') as f:
+				f.write(data)
+			f.close()
+			return True
+		except Exception as e:
+			print ("Unable to save media playlist:", e, filepath, media_list)
+			return False
+
+	def load_directory(self, path):
+		try:
+			com = ("mkmedialist '" + path + "'")
+			playlist = subprocess.check_output(com, shell=True)
+			items = self.load_playlist(playlist)
+			return items
+		except Exception as e:
+			print ("Unable to load directory:", e, path)
+			return None
+
+
+	def build_info_string_from_filepath(self, filepath):
+		print ("running build info from filepath")
+		qstring = ("filepath = '" + filepath + "'")
+		try:
+			series_name, season, episode_number, episode_name, _id = np.querydb('series', 'series_name,season,episode_number,episode_name,id', qstring)[0]
+			sstring = ("series:" + series_name + ":" + str(season) + ":" + str(episode_number) + ":" + episode_name + ":" + str(_id))
+			print (sstring)
+		except:
+			sstring = None
+		try:
+			title, year, _id = np.querydb('movies', 'title,year,id', qstring)[0]
+			mvstring = ("movies:" + title + ":" + str(year) + ":" + str(_id))
+			print (mvstring)
+		except:
+			mvstring = None
+		try:
+			msstring = np.querydb('music', 'filepath', qstring)[0]
+		except:
+			msstring = None
+		if sstring is not None:
+			return sstring
+		elif mvstring is not None:
+			return mvstring
+		elif msstring is not None:
+			return msstring
+		else:
+			print ("data not found in database:", filepath)
+			return None
+
+
+	def get_playlist_next(self):
+		self.play_mode = 'playlist'
+		items = self.media['DBMGR_RESULTS']
+		print ("DBMGR_RESULTS/items:", items)
+		idx = None
+		if self.playlist_last is None:
+			try:
+				self.next = items[0]
+			except Exception as e:
+				print ("Playlist appears empty!", e)
+				self.play_mode = 'database'
+				return None
+		else:
+			if self.playlist_loop_one == True:
+				self.next = self.playlist_last
+				return self.next
+			else:
+				self.playlist_last = self.next
+			#try:
+
+				if 'series:' in self.playlist_last or 'movies:' in self.playlist_last or 'music:' in self.playlist_last:
+					string = self.build_info_string_from_filepath(self.playlist_last)
+					idx = items.index(string)
+				else:
+					string = self.playlist_last
+					try:
+						idx = items.index(string)
+					except:
+						query_string = ("filepath = '" + string + "'")
+						inseries, inmovies, inmusic = None, None, None
+						try:
+							inseries = np.querydb(table='series', column='filepath', query=query_string)[0]
+						except:
+							pass
+						try:
+							inmovies = np.querydb(table='movies', column='filepath', query=query_string)[0]
+						except:
+							pass
+						try:
+							inmusic = np.querydb(table='music', column='filepath', query=query_string)[0]
+						except:
+							pass
+						if inseries is not None:
+							series_name, season, episode_number, episode_name, _id = np.querydb(table='series', column='series_name,season,episode_number,episode_name,id', query=query_string)[0]
+							string = ('series:' + series_name + ":" + str(season) + ":" + str(episode_number) + ":" + str(episode_name) + ":" + str(_id))
+							idx = items.index(string)
+							#'series:Rick and Morty:5:1:Mort Dinner Rick Andre:1199'
+						elif inmovies is not None:
+							title, year, _id = np.querydb(table='movies', column='title,year,id', query=query_string)[0]
+							string = ("movies:" + title + ":" + str(year) + ":" + str(_id))
+							idx = items.index(string)
+						elif inmusic is not None:
+							table = 'music'
+
+
+				try:
+					idx = idx + 1
+					self.history['pos'] = idx
+					self.next = items[idx]
+					self.history['history'].append(self.next)
+				except:
+					if self.playlist_loop_all == True:
+						self.next = items[0]
+						self.history['history'] = [self.next]
+						self.history['pos'] = 0
+					else:
+						self.playlist_mode = 'database'
+						self.next = None
+						return False
+			#except Exception as e:
+			#	print ("Unable to get next:", idx, e)
+			#	self.play_mode = 'database'
+			#	return None
+		if 'series:' in self.next:
+			_id = self.next.split(':')[5]
+			qstring = ("id = '" + _id + "'")
+			self.next = np.querydb(table='series', column='filepath', query=qstring)[0][0]
+		elif 'movies:' in self.next:
+			_id = self.next.split(':')[3]
+			qstring = ("id = '" + _id + "'")
+			self.next = np.querydb(table='movies', column='filepath', query=qstring)[0][0]
+		elif 'music:' in self.next:
+			print ("TODO: check playlist item string and parse out filepath!")
+
+		return self.next
+	

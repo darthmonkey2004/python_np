@@ -1,18 +1,21 @@
 import vlc
 import os
+import pathlib
 
+from np.utils.guess_intro import guess_intro
 from np.utils.xrandr import xrandr
 from np.utils import nplayer_db as sqldb
 from np.utils.nplayer_db import querydb
 from np.utils.nplayer_db import updatedb
 from np.utils.nplayer_db import removefromdb
 from np.utils.nplayer_db import get_columns
+from np.utils.nplayer_db import addtodb_new as add_to_db
 from np.utils.nplayer_db import addtodb_new
 from np.utils.music_mgr import music_mgr
 from np.utils.input_handler import input_handler as dev
 #from np.utils import torrent_mgr as pbdl_mgr
 from np.utils import input_handler as dev
-from np.utils import query_series as tmdb_series
+from np.utils.query_series import tmdb_query_series as query_series
 from np.core.core import *
 from np.core.gui import gui
 from np.core.nplayer import nplayer
@@ -29,6 +32,7 @@ from np.utils.nplayer_db import addtodb
 from np.utils.scan_music import scan_music
 from np.utils.ytdl import ytdl
 from np.utils.init_conf import run_setup
+from np.utils.pbdl_add_to_series import add_series
 #from np.main import start
 home = os.path.expanduser("~")
 CAPTURE_DIR = (home + os.path.sep + "Pictures" + os.path.sep + "nplayer_caps")

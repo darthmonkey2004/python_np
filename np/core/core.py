@@ -1,3 +1,4 @@
+import PySimpleGUI as sg
 import requests
 import logging
 import vlc
@@ -41,11 +42,15 @@ if not os.path.exists(npdir):
 
 
 def get_res(filepath):
-	props = get_video_properties(filepath)
-	w = props['width']
-	h = props['height']
-	out = (w, h)
-	return out
+	try:
+		props = get_video_properties(filepath)
+		w = props['width']
+		h = props['height']
+		out = (w, h)
+		return out
+	except Exception as e:
+		print ("Get res failed!:", e)
+		return None
 
 
 def write_log_old(message=None, loglevel='INFO'):
@@ -474,3 +479,46 @@ def create_media(play_type=None, rows=None):
 			dic['filepath'] = filepath
 	return media
 
+
+def file_browse_window():
+	x = conf['windows']['browser']['x']
+	y = conf['windows']['browser']['y']
+	w = conf['windows']['browser']['w']
+	h = conf['windows']['browser']['h']
+	filepath = None
+	file_browser_layout = [[sg.T("")], [sg.Text("Choose a file: "), sg.Input(), sg.FileBrowse(key="-IN-")],[sg.Button("Submit")]]
+	file_browser_window = sg.Window('Load Media file or playlist...', file_browser_layout, location=(int(x), int(y)), size=(int(w), int(h)))
+	while True:
+		file_browser_event, file_browser_values = file_browser_window.read()
+		if file_browser_event == sg.WIN_CLOSED or file_browser_event=="Exit":
+			filepath = None
+			break
+		elif file_browser_event == "Submit":
+			filepath = file_browser_values["-IN-"]
+			file_browser_window.close()
+			break
+	#print ("filepath (gui):", filepath)
+	return filepath
+
+
+def folder_browse_window():
+	x = conf['windows']['browser']['x']
+	y = conf['windows']['browser']['y']
+	w = conf['windows']['browser']['w']
+	h = conf['windows']['browser']['h']
+	path = None
+	folder_browser_layout = [[sg.T("")], [sg.Text("Choose directory: "), sg.Input(), sg.FolderBrowse(key="-SAVE_PATH-")], sg.Button("Submit")]
+	folder_browser_window = sg.Window("Save playlist file...", folder_browser_layout, location=(int(x), int(y)), size=(int(w), int(h)))
+	while True:
+		folder_browser_event, folder_browser_values = folder_browser_window.read()
+		if folder_browser_event == sg.WIN_CLOSED or folder_browser_event=="Exit":
+			path = None
+			break
+		elif folder_browser_event == "Submit":
+			path = folder_browser_values["-IN-"]
+			folder_browser_window.close()
+			break
+	j = ' '
+	s2 = 'file://'
+	path = j.join(path.split(s)).split(s2)[1]
+	return path

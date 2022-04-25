@@ -7,6 +7,7 @@ setup(name='np',
 	url='http://nplayer.simiantech.biz/',
 	packages=['np', 'np.core', 'np.utils'],
 	package_dir={'np': 'np', 'np.core': 'np/core', 'np.utils': 'np/utils', 'np.np': 'np.np'},
-	scripts=['np/np'],
+	scripts=['np/np', 'scripts/mkmedialist'],
+	data_files=['poster.png'],
 	install_requires=['pygame-gui', 'eyed3', 'PySimpleGUI', 'evdev', 'python-vlc', 'get-video-properties']
 	)

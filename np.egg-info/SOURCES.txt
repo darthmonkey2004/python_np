@@ -1,8 +1,8 @@
 README
+poster.png
 setup.py
 np/__init__.py
 np/main.py
-np/np
 np.egg-info/PKG-INFO
 np.egg-info/SOURCES.txt
 np.egg-info/dependency_links.txt
@@ -13,12 +13,15 @@ np/core/core.py
 np/core/gui.py
 np/core/nplayer.py
 np/utils/__init__.py
+np/utils/guess_intro.py
 np/utils/gui_create.py
 np/utils/init_conf.py
 np/utils/input_handler.py
+np/utils/migrate_series.py
 np/utils/music_mgr.py
 np/utils/nplayer_db.py
 np/utils/pbdl.py
+np/utils/pbdl_add_to_series.py
 np/utils/pbdl_dl.py
 np/utils/pbdl_se_isin.py
 np/utils/query_movies.py
@@ -26,3 +29,4 @@ np/utils/query_series.py
 np/utils/scan_music.py
 np/utils/xrandr.py
 np/utils/ytdl.py
+scripts/mkmedialist

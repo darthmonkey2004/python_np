@@ -1,0 +1,30 @@
+#!/bin/bash
+
+if [ -n "$1" ]; then
+	dir="$1"
+else
+	dir=$(pwd)
+fi
+movies="$dir/Movies"
+series="$dir/Series"
+medialist="$dir/medialist.txt"
+if [ -f "$medialist" ]; then
+	mv  "$medialist" "$medialist.bak"
+fi
+touch "$medialist"
+find "$movies" -name "*.mp4" >> "$medialist"
+find "$series" -name "*.mp4" >> "$medialist"
+find "$movies" -name "*.mpg" >> "$medialist"
+find "$series" -name "*.mpg" >> "$medialist"
+find "$movies" -name "*.mpeg" >> "$medialist"
+find "$series" -name "*.mpeg" >> "$medialist"
+find "$movies" -name "*.mov" >> "$medialist"
+find "$series" -name "*.mov" >> "$medialist"
+find "$movies" -name "*.mkv" >> "$medialist"
+find "$series" -name "*.mkv" >> "$medialist"
+find "$movies" -name "*.wmv" >> "$medialist"
+find "$series" -name "*.wmv" >> "$medialist"
+find "$movies" -name "*.avi" >> "$medialist"
+find "$series" -name "*.avi" >> "$medialist"
+find "$movies" -name "*.flv" >> "$medialist"
+find "$series" -name "*.flv" >> "$medialist"
