@@ -1,3 +1,6 @@
+import pickle# be sure to remove this and the pickle dump at the end of build_torrent_data(), line 168
+from np.utils.nplayer_db import get_columns
+import tmdbsimple as tmdb
 import pathlib
 import shutil
 import requests
@@ -9,6 +12,8 @@ import urllib
 import json
 from urllib.parse import unquote, quote
 
+tmdb.API_KEY = 'ac1bdc4046a5e71ef8aa0d0bd93f8e9b'
+search = tmdb.Search()
 
 def get_permissions():
 	ret = subprocess.check_output('sudo chmod -R a+rwx /var/lib/transmission-daemon/downloads', shell=True)
@@ -104,6 +109,98 @@ class pbdl():
 		self.downloader = False
 		self.play_type = 'series'
 		self.query = None
+		self.torrents = None
+
+
+	def build_torrent_data(self):
+		self.torrents = self.get_torrents()
+		for tid in self.torrents:
+			files = self.get_files(tid)
+			self.torrents[tid]['info'] = {}
+			pos = -1
+			for filepath in files:
+				if 'sample' not in filepath:
+					pos = pos + 1
+					self.torrents[tid]['info'][pos] = {}
+					type_info = self.test_media_type(filepath)
+					self.torrents[tid]['info'][pos]['oldpath'] = ('/var/lib/transmission-daemon/downloads/' + filepath)
+					if type_info[0] == 'series':
+						play_type, series_name, sinfo, season, episode_number = type_info
+						r = search.tv(query=series_name)
+						self.torrents[tid]['info'][pos]['air_date'] = r['results'][0]['first_air_date']
+						poster = r['results'][0]['poster_path']
+						self.torrents[tid]['info'][pos]['poster'] = ('https://image.tmdb.org/t/p/original' + str(poster))
+						self.torrents[tid]['info'][pos]['still_path'] = ('https://image.tmdb.org/t/p/original' + str(poster))# additional key for redundancy
+						description = r['results'][0]['overview']
+						if "'" in description:
+							description = description.split("'")
+							j = ''
+							description = j.join(description)
+						self.torrents[tid]['info'][pos]['description'] = description
+						self.torrents[tid]['info'][pos]['episode_name'] = 'Unknown'
+						
+						
+						self.torrents[tid]['info'][pos]['isactive'] = 1
+						series_name = r['results'][0]['name']
+						self.torrents[tid]['tmdbid'] = r['results'][0]['id']
+						self.torrents[tid]['info'][pos]['play_type'] = play_type
+						self.torrents[tid]['info'][pos]['duration'] = 'null'
+						self.torrents[tid]['info'][pos]['md5'] = 'null'
+						self.torrents[tid]['info'][pos]['url'] = 'null'
+						if self.torrents[tid]['name'] != series_name:
+							self.torrents[tid]['name'] = series_name
+						self.torrents[tid]['info'][pos]['season'] = season
+						self.torrents[tid]['info'][pos]['episode_number'] = episode_number
+						self.torrents[tid]['info'][pos]['series_name'] = series_name
+						self.torrents[tid]['info'][pos]['tmdbid'] = self.torrents[tid]['tmdbid']
+						try:
+							tv = tmdb.tv.TV_Episodes(self.torrents[tid]['tmdbid'], season, episode_number)
+							info = tv.info()
+							self.torrents[tid]['info'][pos]['air_date'] = info['air_date']
+							episode_name = info['name']
+						except:
+							episode_name = 'Unknown'
+							pass
+						badchars = ['!', '"', "'", ',']
+						for char in badchars:
+							if char in episode_name:
+								episode_name = episode_name.split(char)
+								j = ''
+								episode_name = j.join(episode_name)
+						self.torrents[tid]['info'][pos]['name'] = episode_name
+						try:
+							self.torrents[tid]['info'][pos]['episode_name'] = episode_name
+							description = info['overview']
+							if "'" in description:
+								description = description.split("'")
+								j = ''
+								description = j.join(description)
+							self.torrents[tid]['info'][pos]['description'] = description
+							self.torrents[tid]['info'][pos]['poster'] = info['still_path']
+						except Exception as e:
+							print ("Unable to get episode info:", e)
+						_dir = play_type.capitalize()
+						extlen = len(filepath.split('.')) - 1
+						ext = str(filepath.split('.')[extlen])
+						fname = (series_name + ".S" + str(season) + "E" + str(episode_number) + "." + str(episode_name) + "." + ext)
+						newdir = (os.path.sep + 'var' + os.path.sep + "storage" + os.path.sep + _dir + os.path.sep + series_name + os.path.sep + "S" + str(season))
+						pathlib.Path(newdir).mkdir(parents=True, exist_ok=True)
+						newpath = (newdir + os.path.sep + fname)
+						print (newpath)
+						self.torrents[tid]['info'][pos]['filepath'] = newpath
+		with open ("/home/monkey/temp.pickle", 'wb') as f:
+			pickle.dump(self.torrents, f)
+		f.close()
+		return self.torrents
+
+
+	def move_finished(self):
+		if self.torrents == None:
+			self.torrents = self.build_torrent_data()
+		for tid in torrents:
+			data = torrents[tid]
+			
+
 
 
 	def close_pbdl(self, win):
@@ -837,5 +934,6 @@ class pbdl():
 if __name__ == "__main__":
 	pbdl = pbdl()
 	pbdl.create_window()
-	pbdl.get_torrents()
+	#pbdl.get_torrents()
+	pbdl.build_torrent_data()
 	pbdl.run()
