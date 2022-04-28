@@ -9,6 +9,7 @@ from np.utils.xrandr import xrandr
 import pickle
 from videoprops import get_video_properties
 from np.utils.nplayer_db import querydb
+import np
 
 
 user = os.getlogin()
@@ -41,6 +42,66 @@ if not os.path.exists(npdir):
 	os.makedirs(npdir)
 
 
+class log():
+	def __init__(self):
+		self.log_type = 'debug'
+		self.msg = None
+	def log(self, *args):
+		pos = -1
+		for arg in args:
+			pos = pos + 1
+			if pos == 0:
+				self.msg = arg
+			elif pos == 1:
+				self.log_type = arg
+		self.log_level = getattr(logging, self.log_type.upper(), None)
+		if not isinstance(self.log_level, int):
+			raise ValueError('Invalid log level: %s' % self.log_type)
+			return
+		logging.basicConfig(filename=np.LOGFILE, level=self.log_level)
+		if self.msg == None:
+			raise ValueError('No message data provided!')
+
+		if self.log_level == 10:#debug level
+			logging.debug(self.msg)
+		elif self.log_level == 20:
+			logging.info(self.msg)
+		elif self.log_level == 30:
+			logging.warning(self.msg)
+		elif self.log_level == 40:
+			logging.error(self.msg)
+			try:
+				print("Nplayer logged an error:", self.msg)
+			except Exception as e:
+				ouch=("Unable to print error message, background process(?)", self.msg, e)
+				logging.error(ouch)
+				raise RuntimeError(ouch) from e
+				return
+		return
+class err():
+	def __init__(self):
+		self.err_type = None
+		self.msg = None
+	def err(self, *args):
+		pos = -1
+		for arg in args:
+			pos = pos + 1
+			if pos == 0:
+				self.msg = arg
+			elif pos == 1:
+				self.err_type = arg
+		if self.err_type is None:
+			self.err_type = RuntimeError
+		if self.msg == None:
+			self.msg = None
+			raise RuntimeError('No message data provided!')
+			return
+		else:
+			raise self.err_type(self.msg)
+			return
+	
+
+
 def get_res(filepath):
 	try:
 		props = get_video_properties(filepath)
@@ -53,46 +114,7 @@ def get_res(filepath):
 		return None
 
 
-def write_log_old(message=None, loglevel='INFO'):
-	if loglevel == 'DEBUG':
-		print (message)
-	with open('nplayer.log', 'a') as f:
-		message = (str(message) + "\n")
-		f.write(message)
-		f.close()
-		return True
 
-
-def write_log(message=None, loglevel=logging.DEBUG):
-	f = inspect.currentframe()
-	caller = inspect.getouterframes(f, 5)
-	thisfile = str(__file__)
-	inspect_output = []
-	inspect_output.append(message)
-	for line in caller:
-		if thisfile != line.filename:
-			out = (str(line.filename) + ", " + str(line.function) + "," + str(line.lineno))
-			inspect_output.append(out)
-	d = '|'
-	debug_data = d.join(inspect_output)
-	numeric_level = getattr(logging, loglevel.upper(), None)
-	if not isinstance(numeric_level, int):
-		raise ValueError('Invalid log level: %s' % loglevel)
-	logging.basicConfig(filename=logfile, level=numeric_level)
-	if message == None:
-		print ("Yo! Need a message to log...")
-		return False
-
-	if numeric_level == 10:#debug log level
-		logging.debug(debug_data)
-	elif numeric_level == 20:#info log level
-		logging.info(debug_data)
-	elif numeric_level == 30:#warning log level
-		print ('Warning:', message)
-		logging.warning(debug_data)
-	elif numeric_level == 40:
-		print ('Error:', message)
-		logging.error(debug_data)
 
 
 def readConf():
@@ -522,3 +544,5 @@ def folder_browse_window():
 	s2 = 'file://'
 	path = j.join(path.split(s)).split(s2)[1]
 	return path
+
+

@@ -387,6 +387,26 @@ class nplayer():
 		self.play(self.next)
 
 
+	def volume_up(self):
+		vol = int(self.conf['volume'])
+		if vol <= 90:
+			vol = vol + 10
+		elif vol == 100 or vol >= 90:
+			vol = 100
+			print ("Volume at max!")
+		self.player.audio_set_volume(vol)
+		self.conf['volume'] = vol
+
+	def volume_down(self):
+		vol = int(self.conf['volume'])
+		if vol >= 0:
+			vol = vol - 10
+		elif vol == 0 or vol <= 10:
+			vol = 0
+			print ("Volume at zero!")
+		self.player.audio_set_volume(vol)
+		self.conf['volume'] = vol
+
 	def seek_fwd(self):
 		pos = self.player.get_position()
 		if pos >= 0.992:

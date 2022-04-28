@@ -604,9 +604,9 @@ class pbdl():
 					try:
 						self.sinfo, self.season, self.episode_number = np.seinfo(item)
 					except:
-						self.season = self.media_info['season']
-						self.episode_number = self.media_info['episode_number']
-						self.sinfo = ('S' + str(self.season) + 'E' + str(self.episode_number))
+						self.sinfo = item.split('.')[1]
+						self.season = self.sinfo.split('E')[0].split('S')[1]
+						self.episode_number = self.sinfo.split('E')[1]
 					sidx = ("-" + str(self.columns_list.index('season')) + "-")
 					eidx = ("-" + str(self.columns_list.index('episode_number')) + "-")
 					nidx = ("-" + str(self.columns_list.index('series_name')) + "-")
@@ -644,9 +644,13 @@ class pbdl():
 							self.series_name = j.join(self.series_name.split('.'))
 					self.pbdl_win['-0-'].update(self.series_name)
 					print ("Querying:", self.series_name, self.season, self.episode_number)
-					self.media_info = np.query_series(self.series_name, self.season, self.episode_number)
+					info = np.query_series(self.series_name, self.season, self.episode_number)
+					if info['response'][0] == 'Error:':
+						info = lookup_series_google(self.series_name, self.season)
+						info = info[self.episode_number]
+					self.media_info = info
 					self.add_to_db_data.append(self.media_info)
-					print (type(self.media_info), self.media_info)
+					#print (type(self.media_info), self.media_info)
 					self.still_path = str(self.media_info['still_path'])
 					if 'http://' not in self.still_path and 'https://' not in self.still_path:
 						poster = ("https://image.tmdb.org/t/p/original" + self.still_path)

@@ -34,6 +34,8 @@ from np.utils.ytdl import ytdl
 from np.utils.init_conf import run_setup
 from np.utils.pbdl_add_to_series import add_series
 #from np.main import start
+log = log().log
+err = err().err
 home = os.path.expanduser("~")
 CAPTURE_DIR = (home + os.path.sep + "Pictures" + os.path.sep + "nplayer_caps")
 DATA_DIR = (home + os.path.sep + ".np")
@@ -52,3 +54,4 @@ for f in vlc.Instance().audio_filter_list_get():
 	afilters.append(name)
 VLC_VIDEO_FILTERS = sorted(vfilters)
 VLC_AUDIO_FILTERS = sorted(afilters)
+LOGFILE = (DATA_DIR + os.path.sep + 'nplayer.log')

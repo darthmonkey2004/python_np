@@ -149,6 +149,110 @@ def lookup(arg):
 		tmdbid = str(data['tmdbid'])
 		out = ("series_name='" + str(series_name) + "'" + "\n" + "tmdbid='" + str(tmdbid) + "'" + "\n" + "season=" + str(season) + "\n" + "episode_number=" + str(episode_number) + "\n" + "episode_name='" + str(episode_name) + "'" + "\n" + "description='" + str(description) + "'" + "\n" + "air_date='" + str(air_date) + "'" + "\n" + "still_path='" + str(still_path) + "'" + "\n" + "filepath='" + str(filepath) + "'" + "\n" + "w=" + str(w) + "\n" + "h=" + str(h))
 		return out
+	else:
+		data = lookup_series_google(series_name, season)
+		key = int(episode_number)
+		info = data[key]
+		episode_name = info['episode_name']
+		if "'" in episode_name:
+			chunks = episode_name.split("'")
+			j = '_'
+			episode_name = j.join(chunks)
+		description = 'No description available'
+		air_date = info['air_date']
+		still_path = data['images'][0]
+		if still_path is None:
+			still_path = str(data['poster_path'])
+		tmdbid = 'null'
+		out = ("series_name='" + str(series_name) + "'" + "\n" + "tmdbid='" + str(tmdbid) + "'" + "\n" + "season=" + str(season) + "\n" + "episode_number=" + str(episode_number) + "\n" + "episode_name='" + str(episode_name) + "'" + "\n" + "description='" + str(description) + "'" + "\n" + "air_date='" + str(air_date) + "'" + "\n" + "still_path='" + str(still_path) + "'" + "\n" + "filepath='" + str(filepath) + "'" + "\n" + "w=" + str(w) + "\n" + "h=" + str(h))
+		return out
+
+def lookup_series_google(series_name, season):
+	slength = len(season)
+	if slength >= 1 and '0' not in str(season):
+		qseason=('0' + str(season))
+	target0 = ("S" + qseason + " E")
+	base_url = "https://www.google.com/search?q="
+	query=(series_name + "+Season+" + str(season))
+	url = (base_url + query)
+	r = requests.get(url, allow_redirects=True)
+	chunks = r.text.strip().split("\n")
+	target1=(' · ')
+	target2='href="/imgres?imgurl='
+	pos = -1
+	lpos = -1
+	data = None
+	for chunk in chunks:
+		pos = pos + 1
+		if target0 in chunk:
+			lines = chunk.split("<div class=")
+			for line in lines:
+				lpos = lpos + 1
+				if target1 in line:
+					data = chunks[pos]
+					data = data.split("</style>")[1]
+					import pickle
+					with open("temp.sinfo.pickle", 'wb') as f:
+						pickle.dump(chunks[pos], f)
+					f.close()
+					break
+		if data is not None:
+			break
+	out = {}
+	s='<div class="'
+	lines = data.split(s)
+	pos = -1
+	target2='href="/imgres?imgurl='
+	images = []
+	ct = 0
+	for line in lines:
+		item = {}
+		pos = pos + 1
+		if target2 in line:
+
+			chunks = line.split(target2)
+			for chunk in chunks:
+				img_url = chunk.split('"')[0]
+				if 'http' in img_url:
+					s = 'https://'
+					pieces = img_url.split(s)
+					for p in pieces:
+						s = None
+						if '.jpg' in p:
+							s = '.jpg'
+						elif '.png' in p:
+							s = '.png'
+						elif '.gif' in p:
+							s = '.gif'
+						if s is not None:
+							u = p.split(s)[0]
+							u = ('https://' + u + s)
+							img_url = urllib.parse.unquote(u)
+							images.append(img_url)
+		if ' · ' in line:
+			try:
+				trimmed = line.split('>')[1].split('<')[0]
+				episode_number = int(trimmed.split(' E')[1].split(' ')[0])
+				ten = str(episode_number)
+				if '0' in ten:
+					test = ten[1:2]
+					if test != '0':
+						episode_number = int(test)
+				item['series_name'] = series_name
+				item['season'] = int(season)
+				item['episode_number'] = int(episode_number)
+				item['episode_name'] = trimmed.split(' · ')[1]
+				dpos = pos + 1
+				air_date = lines[dpos].split('>')[1].split('<')[0]
+				t = datetime.strptime(air_date, '%b %d, %Y')
+				ts = (str(t.day) + "-" + str(t.month) + "-" + str(t.year))
+				item['air_date'] = ts
+				out[episode_number] = item
+			except Exception as e:
+				break
+	out['images'] = images
+	json_data = json.dumps(out)
+	return json_data
 
 if __name__ == "__main__":
 	import sys

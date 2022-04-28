@@ -630,6 +630,12 @@ def start():
 			#	print ("Exception:", e)
 			# insert if radio button table == series, conditionals for others.
 			#UI.update_series_info_from_row(row)
+		elif UI.uievent == 'Volume Up':
+			MP.volume_up()
+			print ("Volume up:", MP.conf['volume'])
+		elif UI.uievent == 'Volume Down':
+			MP.volume_down()
+			print ("Volume down:", MP.conf['volume'])
 		elif UI.uievent == '-Remove Selected-':
 			for line in MP.dbmgr_picked_items:
 				table = line.split(':')[0]
