@@ -141,7 +141,7 @@ def writeConf(data):
 
 def initConf():
 	#print ("Init conf running!")
-	write_log('Init conf running from somewhere...', 'DEBUG')
+	np.log('Init conf running from somewhere...', 'debug')
 	conf = {}
 	conf['play_type'] = 'series'
 	conf['play_types'] = ['series', 'movies', 'videos', 'music']
@@ -176,7 +176,7 @@ def initConf():
 
 
 def updateConf(conf, key, val):
-	write_log('core.py.updateConf running from somewhere...', 'DEBUG')
+	np.log('core.py.updateConf running from somewhere...', 'debug')
 	conf = readConf()
 	key = str(key)
 	keys = list(conf.keys())
@@ -259,7 +259,7 @@ else:
 
 
 def init_window_position():
-	write_log('core.py.init_window_position running from somewhere...', 'INFO')
+	np.log('core.py.init_window_position running from somewhere...', 'info')
 	screen = conf['screen']
 	windows = {}
 	windows['viewer'] = {}
