@@ -34,7 +34,7 @@ class gui():
 		self.window = None
 		self.event = None
 		self.values = None
-		temp_img_path = (np.npdir + os.path.sep + 'poster.png')
+		temp_img_path = (np.DEFAULT_POSTER)
 		self.player_window_layout = []
 		line = []
 		self.uievent = None

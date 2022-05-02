@@ -41,6 +41,7 @@ pathlib.Path(DATA_DIR).mkdir(parents=True, exist_ok=True)
 SFTP_DIR = (DATA_DIR + os.path.sep + 'sftp')
 pathlib.Path(DATA_DIR).mkdir(parents=True, exist_ok=True)
 pathlib.Path(SFTP_DIR).mkdir(parents=True, exist_ok=True)
+DEFAULT_POSTER = (home + os.path.sep + '.local' + os.path.sep + 'bin' + os.path.sep + 'poster.png')
 afilters = []
 vfilters = []
 for f in vlc.Instance().video_filter_list_get():
