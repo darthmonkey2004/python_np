@@ -1,3 +1,4 @@
+import datetime
 import PySimpleGUI as sg
 import requests
 import logging
@@ -10,7 +11,6 @@ import pickle
 from videoprops import get_video_properties
 from np.utils.nplayer_db import querydb
 import np
-
 
 user = os.getlogin()
 npdir = (os.path.sep + "home" + os.path.sep + user + os.path.sep + ".np")
@@ -34,86 +34,6 @@ KEY_EVENTS['SKIP_NEXT'] = 115
 KEY_EVENTS['SKIP_PREV'] = 114
 sep = os.path.sep
 conf_file=(npdir + sep + "nplayer.conf")
-history_file = (npdir + sep + "nplayer.series.history")
-logfile = (npdir + sep + "nplayer.log")
-gui_conf_file = (npdir + sep + "np.gui.conf")
-pyfile = (npdir + os.path.sep + "temp_gui.py")
-if not os.path.exists(npdir):
-	os.makedirs(npdir)
-
-
-class log():
-	def __init__(self):
-		self.log_type = 'debug'
-		self.msg = None
-	def log(self, *args):
-		pos = -1
-		for arg in args:
-			pos = pos + 1
-			if pos == 0:
-				self.msg = arg
-			elif pos == 1:
-				self.log_type = arg
-		self.log_level = getattr(logging, self.log_type.upper(), None)
-		if not isinstance(self.log_level, int):
-			raise ValueError('Invalid log level: %s' % self.log_type)
-			return
-		logging.basicConfig(filename=np.LOGFILE, level=self.log_level)
-		if self.msg == None:
-			raise ValueError('No message data provided!')
-
-		if self.log_level == 10:#debug level
-			logging.debug(self.msg)
-		elif self.log_level == 20:
-			logging.info(self.msg)
-		elif self.log_level == 30:
-			logging.warning(self.msg)
-		elif self.log_level == 40:
-			logging.error(self.msg)
-			try:
-				print("Nplayer logged an error:", self.msg)
-			except Exception as e:
-				ouch=("Unable to print error message, background process(?)", self.msg, e)
-				logging.error(ouch)
-				raise RuntimeError(ouch) from e
-				return
-		return
-class err():
-	def __init__(self):
-		self.err_type = None
-		self.msg = None
-	def err(self, *args):
-		pos = -1
-		for arg in args:
-			pos = pos + 1
-			if pos == 0:
-				self.msg = arg
-			elif pos == 1:
-				self.err_type = arg
-		if self.err_type is None:
-			self.err_type = RuntimeError
-		if self.msg == None:
-			self.msg = None
-			raise RuntimeError('No message data provided!')
-			return
-		else:
-			raise self.err_type(self.msg)
-			return
-	
-
-
-def get_res(filepath):
-	try:
-		props = get_video_properties(filepath)
-		w = props['width']
-		h = props['height']
-		out = (w, h)
-		return out
-	except Exception as e:
-		print ("Get res failed!:", e)
-		return None
-
-
 
 
 
@@ -139,9 +59,9 @@ def writeConf(data):
 		return False
 
 
+
 def initConf():
 	#print ("Init conf running!")
-	np.log('Init conf running from somewhere...', 'debug')
 	conf = {}
 	conf['play_type'] = 'series'
 	conf['play_types'] = ['series', 'movies', 'videos', 'music']
@@ -168,15 +88,138 @@ def initConf():
 	conf['nowplaying']['filepath'] = None
 	conf['nowplaying']['play_pos'] = None
 	conf['vlc'] = {}
-	conf['opts'] = "--no-xlib"
+	conf['vlc']['opts'] = "--no-xlib"
+	conf['debug'] = True
+	conf['network_mode'] = {}
+	conf['network_mode']['mode'] = 'local'
+	conf['network_mode']['host'] = '192.168.2.2'
+	conf['network_mode']['user'] = 'monkey'
+	conf['remote'] = {}
 	#conf['watched_devices'] = ['/dev/input/event11', '/dev/input/event2']
 	#conf['grab_devices'] = ['/dev/input/event11']
 	ret = writeConf(conf)
 	return conf
 
+class log():
+	def __init__(self):
+		self.log_type = 'debug'
+		self.msg = None
+		t = datetime.datetime.now()
+		self.ts = (str(t.day) + "-" + str(t.month) + "-" + str(t.year) + " " + str(t.hour) + ":" + str(t.minute) + ":" + str(t.second) + ":" + str(t.microsecond))
+		self.conf = readConf()
+		try:
+			self.debug = self.conf['debug']
+		except:
+			try:
+				self.conf['debug'] = False
+				writeConf(self.conf)
+				self.debug = self.conf['debug']
+			except:
+				self.conf = initConf()
+				self.conf['debug'] = False
+				writeConf(self.conf)
+				self.debug = self.conf['debug']
+	def log(self, *args):
+		pos = -1
+		for arg in args:
+			pos = pos + 1
+			if pos == 0:
+				self.msg = (self.ts + "--" + str(arg))
+			elif pos == 1:
+				self.log_type = arg
+		self.log_level = getattr(logging, self.log_type.upper(), None)
+		if not isinstance(self.log_level, int):
+			raise ValueError('Invalid log level: %s' % self.log_type)
+			return
+		logging.basicConfig(filename=np.LOGFILE, level=self.log_level)
+		if self.msg == None:
+			raise ValueError('No message data provided!')
+		if self.debug == True:
+			print ("DEBUG MESSAGE:", self.msg)
+		if self.log_level == 10:#debug level
+			logging.debug(self.msg)
+		elif self.log_level == 20:
+			logging.info(self.msg)
+		elif self.log_level == 30:
+			logging.warning(self.msg)
+		elif self.log_level == 40:
+			logging.error(self.msg)
+			try:
+				print("Nplayer logged an error:", self.msg)
+			except Exception as e:
+				ouch=("Unable to print error message, background process(?)", self.msg, e)
+				logging.error(ouch)
+				raise RuntimeError(ouch) from e
+				return
+		return
+
+class err():
+	def __init__(self):
+		self.logger = log()
+		self.log = self.logger.log
+		self.err_type = None
+		self.msg = None
+	def err(self, *args):
+		pos = -1
+		for arg in args:
+			pos = pos + 1
+			if pos == 0:
+				self.msg = arg
+			elif pos == 1:
+				self.err_type = arg
+		if self.err_type is None:
+			self.err_type = RuntimeError
+		if self.msg == None:
+			self.log("No error message data provided!", 'error')
+			raise RuntimeError('No message data provided!')
+			return
+		else:
+			self.log(self.msg, 'error')
+			raise self.err_type(self.msg)
+			return
+
+
+
+if not os.path.exists(conf_file):
+	conf = initConf()
+history_file = (npdir + sep + "nplayer.series.history")
+logfile = (npdir + sep + "nplayer.log")
+gui_conf_file = (npdir + sep + "np.gui.conf")
+pyfile = (npdir + os.path.sep + "temp_gui.py")
+if not os.path.exists(npdir):
+	os.makedirs(npdir)
+
+
+
+def get_res(filepath):
+	try:
+		props = get_video_properties(filepath)
+		w = props['width']
+		h = props['height']
+		out = (w, h)
+		return out
+	except Exception as e:
+		print ("Get res failed!:", e)
+		return None
+
+
+
+def enable_debug():
+	conf = readConf()
+	conf['debug'] = True
+	writeConf(conf)
+	log("Debug enabled!", 'info')
+
+
+def disable_debug():
+	conf = readConf()
+	conf['debug'] = False
+	writeConf(conf)
+	log("Debug disabled!", 'info') 
+
 
 def updateConf(conf, key, val):
-	np.log('core.py.updateConf running from somewhere...', 'debug')
+	log('core.py.updateConf running from somewhere...', 'debug')
 	conf = readConf()
 	key = str(key)
 	keys = list(conf.keys())
@@ -259,7 +302,8 @@ else:
 
 
 def init_window_position():
-	np.log('core.py.init_window_position running from somewhere...', 'info')
+	logger = log().log
+	logger('core.py.init_window_position running from somewhere...', 'info')
 	screen = conf['screen']
 	windows = {}
 	windows['viewer'] = {}

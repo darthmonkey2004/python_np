@@ -366,6 +366,9 @@ def start():
 			#now playing file ('next') and position
 			np.writeConf(MP.conf)
 			break
+		if UI.uievent == 'Toggle Network':
+			mode = MP.toggle_network_mode()
+			print ("Network mode changed:", mode)
 		if UI.uievent == 'Hide UI':
 			hide_ui()
 		if UI.uievent == 'store window location':
@@ -655,13 +658,6 @@ def start():
 			pbdl.create_window()
 			pbdl.get_torrents()
 			pbdl.run()
-		elif UI.uievent == 'Record':
-			if MP.is_recording == False:
-				MP.is_recording = MP.screencap()
-			else:
-				MP.stop()
-				MP.is_recording = False
-			print ("Is recording:", MP.is_recording)
 		elif UI.uievent == 'Pirate Bay Downloader':
 			if pbdl.downloader == False:
 				UI.pbdl_dl_win = pbdl.create_downloader()

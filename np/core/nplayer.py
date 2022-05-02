@@ -65,10 +65,20 @@ class nplayer():
 		self.playlist_last = None
 		self.playlist_loop_one = False
 		self.playlist_loop_all = True
+
 		try:
 			self.main_keyboard = self.conf['main_keyboard']['path']
 		except:
 			self.main_keyboard = None
+
+
+	def toggle_network_mode(self):
+		if self.conf['network_mode']['mode'] == 'local':
+			self.conf['network_mode']['mode'] = 'remote'
+		elif self.conf['network_mode']['mode'] == 'remote':
+			self.conf['network_mode']['mode'] = 'local'
+		np.writeConf(self.conf)
+		return self.conf['network_mode']['mode']
 
 
 	def init_events(self):
@@ -94,7 +104,7 @@ class nplayer():
 			self.player.set_position(self.pos)
 			return self.pos
 		except Exception as e:
-			#print ("seek_to_pos, line 236", e)
+			np.log("seek_to_pos, line 236" + str(e))
 			return 1
 
 
@@ -103,7 +113,7 @@ class nplayer():
 		self.play_needed = 0
 	
 	def playback_finished(self):
-		print ("Playback finished!")
+		np.log("Playback finished!")
 		self.nowplaying['filepath'] = None
 		self.play_needed = 1
 
@@ -170,7 +180,7 @@ class nplayer():
 					self.nowplaying['vw'] = self.player.video_get_width()
 					self.nowplaying['vh'] = self.player.video_get_height()
 					if self.conf['nowplaying']['play_pos'] == 1.0 or self.conf['nowplaying']['play_pos'] >= 0.999:
-						#print ("Plaback nearly ending...")
+						np.log("Plaback nearly ending...")
 						self.nowplaying['vw'] = None
 						self.nowplaying['vh'] = None
 					if self.conf['nowplaying']['play_pos'] or self.conf['nowplaying']['play_pos'] <= 0.001:
@@ -198,14 +208,14 @@ class nplayer():
 					self.nowplaying['is_playing'] = self.player.is_playing()
 					self.media['is_playing'] = 0
 				elif event == 'EventType.MediaMPEncounteredError':
-					print ("Uh, oh... spaghetti ohs.")
+					np.log("Uh, oh... spaghetti ohs.")
 				elif event == 'EventType.MediaMPVout':
 					pass
 				elif event == 'EventType.MediaMPChapterChanged':
 					self.chapter = self.player.get_chapter()
-					print ("Chapter changed:", self.chapter)
+					np.log("Chapter changed:" + str(self.chapter))
 				else:
-					print ("VLC Event callback running:", event)
+					np.log("VLC Event callback running:" + str(event))
 
 
 #------------playlist/dbmgr functions----------------#
@@ -224,7 +234,7 @@ class nplayer():
 	def get_next(self):
 		#self.next = None
 		if self.conf['play_type'] == 'series':
-			#print ("get next: series started!")
+			np.log("get next: series started!")
 			_list = np.querydb(table='series', column='distinct series_name', query='isactive = 1')
 			l = len(_list) - 1
 			pickno = random.randint(0, l)
@@ -241,17 +251,17 @@ class nplayer():
 			except:
 				self.last = None
 			if self.last in _list and self.last is not None:
-				#print ("Last in list:", self.last)
+				np.log("Last in list:" + self.last)
 				idx = int(_list.index(self.last))
 				idx = idx + 1
 				try:
 					self.next = _list[idx]
 					self.selected_playlist_item = self.get_info_string(self.next)
-				#	print ("Next set! Series Name, Index, Next:", series_name, idx, self.next)
+					np.log("Next set! Series Name, Index, Next:" + series_name + ", " + str(idx) + ", " + self.next)
 				except:
 					self.next = _list[0]
 					self.selected_playlist_item = self.get_info_string(self.next)
-				#	print ("Next not set (reset to 0)! Series Name, Index, Next:", series_name, idx, self.next)
+					np.log("Next not set (reset to 0)! Series Name, Index, Next:" + series_name + ", " + str(idx) + ", " + self.next)
 				if self.history['playing_from_history'] == False:
 					self.history['history'].append(self.next)
 				elif self.history['playing_from_history'] == True:
@@ -263,15 +273,8 @@ class nplayer():
 				self.series_history[series_name] = self.next
 				np.write_history(self.series_history)
 			else:
-				txt = "Last file recorded not in playlist:", self.last, _list
-				np.write_log (str(txt), 'error')
-			#except Exception as e:
-				#print ("line 214,", e)
-			#	self.next = np.querydb(table='series', column='filepath', query=qstring)[0][0]
-			#	if self.history['playing_from_history'] == False:
-			#		self.history['history'].append(self.next)
-			#	self.series_history[series_name] = self.next
-			#	np.write_history(self.series_history)
+				txt = ("Last file recorded not in playlist:" + self.last + ", " + str(_list))
+				np.log(txt, 'warning')
 			return self.next
 		elif self.conf['play_type'] == 'movies':
 			_list = np.querydb(table='movies', column='filepath', query='isactive = 1')
@@ -294,9 +297,8 @@ class nplayer():
 	def history_next_pos(self):
 		old_pos = self.history['pos']
 		self.history['pos'] = self.history['pos'] + 1
-		#print ("history position changed:", old_pos, self.history['pos'])
 		if self.history['pos'] == len(self.history['history']):
-			#print ("Reached end of history, disabing playing from history flag")
+			np.log("Reached end of history, disabing playing from history flag")
 			self.history['pos'] = len(self.history['history']) - 1
 			self.history['playing_from_history'] = False
 		return self.history['pos']
@@ -308,9 +310,8 @@ class nplayer():
 		self.history['pos'] = pos
 		old_pos = self.history['pos']
 		self.history['pos'] = self.history['pos'] - 1
-		#print ("history position changed:", old_pos, self.history['pos'])
 		if self.history['pos'] == -1:
-			#print ("Reached beginning of history, resetting position to 0")
+			np.log("Reached beginning of history, resetting position to 0")
 			self.history['pos'] = 0
 		return self.history['pos']
 
@@ -320,7 +321,6 @@ class nplayer():
 		if self.play_mode == 'playlist':
 			self.play()
 			return True
-		print ("old history pos:", self.history['pos'], len(self.history['history']))
 		if self.history['playing_from_history'] == False:
 			self.stop()
 			if self.play_mode == 'database':
@@ -329,21 +329,20 @@ class nplayer():
 			elif self.play_mode == 'playlist':
 				self.play()
 			self.history['pos'] = len(self.history['history']) - 1
-			#print ("new history pos:", self.history['pos'], len(self.history['history']))
-			#print ("skip_next, Not using history:", self.history['history'])
+			np.log("skip_next, Not using history:" + str(self.history['history']))
 		elif self.history['playing_from_history'] == True:
 			try:
 				#self.history['pos'] = self.history['history'].index(self.next)
 				self.history['pos'] = self.history_next_pos()
 				self.next = self.history['history'][self.history['pos']]
 				
-				#print ("skip_next: Using History at pos:", self.history_pos, self.next)
+				np.log("skip_next: Using History at pos:" + str(self.history_pos) + ", " + self.next)
 				self.play(self.next)
 			except Exception as e:
-				#print ("line 242: Reached end of playback history. Getting next from media list...", e)
+				np.log("line 242: Reached end of playback history. Getting next from media list:" + str(e))
 				self.history['playing_from_history'] = False
 				self.history['pos'] = len(self.history['history']) - 1
-				#print ("Reset history pos:", self.history['pos'], len(self.history['history']))
+				np.log("Reset history pos:" + str(self.history['pos']) + ", " + str(len(self.history['history'])))
 				self.stop()
 				self.next = self.get_next()
 				self.play(self.next)
@@ -351,10 +350,10 @@ class nplayer():
 
 	def stop(self):
 		self.player.stop()
-		print ("Playback stopped!")
+		np.log("Playback stopped!")
 		self.vlcInstance.release()
 		#self.vlcInstance = None
-		print ("VLC Instance released!", self.vlcInstance)
+		np.log("VLC Instance released!")
 		self.media['is_playing'] = 0
 		self.media['continuous'] = 0
 		self.play_needed = 0
@@ -364,11 +363,10 @@ class nplayer():
 
 	def skip_previous(self):
 		self.history['playing_from_history'] = True
-		print ("old history pos:", self.history['pos'], len(self.history['history']))
+		np.log("old history pos:" + str(self.history['pos']) + ", " + str(len(self.history['history'])))
 		self.history['pos'] = self.history_prev_pos()
 		#self.history['pos'] = self.history['history'].index(self.next) - 1
-		print ("new history pos:", self.history['pos'], len(self.history['history']))
-		#print (self.history['history'], self.history['pos'])
+		np.log("new history pos:" + str(self.history['pos']) + ", " + str(len(self.history['history'])))
 		try:
 			self.next = self.history['history'][self.history['pos']]
 		except:
@@ -382,8 +380,8 @@ class nplayer():
 			qstring = ("id = '" + _id + "'")
 			self.next = np.querydb(table='movies', column='filepath', query=qstring)[0][0]
 		elif 'music:' in self.next:
-			print ("TODO: check playlist item string and parse out filepath!")
-		#print ("Previous:", self.next)
+			np.log("TODO: check playlist item string and parse out filepath!")
+		np.log("Previous:" + self.next)
 		self.play(self.next)
 
 
@@ -393,7 +391,7 @@ class nplayer():
 			vol = vol + 10
 		elif vol == 100 or vol >= 90:
 			vol = 100
-			print ("Volume at max!")
+			np.log("Volume at max!")
 		self.player.audio_set_volume(vol)
 		self.conf['volume'] = vol
 
@@ -403,7 +401,7 @@ class nplayer():
 			vol = vol - 10
 		elif vol == 0 or vol <= 10:
 			vol = 0
-			print ("Volume at zero!")
+			np.log("Volume at zero!")
 		self.player.audio_set_volume(vol)
 		self.conf['volume'] = vol
 
@@ -428,7 +426,7 @@ class nplayer():
 			try:
 				pathlib.Path(self.screencaps).mkdir(parents=True, exist_ok=True)
 			except Exception as e:
-				print ("Failed to create screencapture directory:", e)
+				np.log("Failed to create screencapture directory:" + str(e))
 				return False
 		screen = self.conf['screen']
 		if n == None:
@@ -440,7 +438,7 @@ class nplayer():
 					jpgs.append(_file)
 			ct = (len(jpgs) + 1)
 			n = (self.screencaps + os.path.sep + "nplayer.snapshot." + str(ct) + ".jpg")
-			print ("snapshot filename:", n, type(n))
+			np.log("snapshot filename:" + str(n) + ", " + str(type(n)))
 		if w == None:
 			w = self.conf['windows']['viewer'][screen]['w']
 		if h == None:
@@ -448,52 +446,23 @@ class nplayer():
 		try:
 			ret = self.player.video_take_snapshot(c, n, w, h)
 			if ret:
-				print (ret)
+				np.log("nplayer snapshot return:" + str(ret))
 				return True
 		except Exception as e:
-			print ("failed to take snapshot:", e)
+			np.log("failed to take snapshot:" + str(e))
 			return ("failed to take snapshot:", e)
 
-
-	def screencap(self, filename=None, screen=None, fps=24, vcodec='h264', vid_bitrate=0, scale=0, acodec='mp4a', aud_bitrate=128, chnls=2, smplrt=44100):
-		if filename == None:
-			vids = []
-			files = [f for f in os.listdir(self.screencaps) if os.path.isfile(os.path.join(self.screencaps, f))]
-			pos = -1
-			for _file in files:
-				if '.mp4' in _file:
-					vids.append(_file)
-			ct = (len(vids) + 1)
-			n = (self.screencaps + os.path.sep + "nplayer.screencap." + str(ct) + ".mp4")
-			print ("capture filename:", n, type(n))
-		if screen == None:
-			screen = 'screen://'
-		else:
-			screen = ('screen://' + str(screen))
-		fps = (":screen-fps=" + str(fps))
-		sout = (":sout=#transcode{vocdec=" + str(vcodec) + ",vb=" + str(vid_bitrate) + ",scale=" + str(scale) + ",acodec=" + str(acodec) + ",ab=" + str(aud_bitrate) + ",channels=" + str(chnls) + ",samplerate=" + str(smplrt) + "}:file{dst=" + n + "}")
-		args = ('"' + screen + '","' + fps + '","' + sout + '",":sout-keep"')
-		try:
-			m = self.vlcInstance.media_new(args)
-			self.player.set_media(m)
-			self.player.play()
-			print ("Screen capture running!")
-			self.is_recording = True
-		except Exception as e:
-			print ("Unable to start capture! Data:", e, args)
-			self.is_recording = False
-		return self.is_recording
 	
 	def play(self, _file=None):
 		if self.next is not None and self.play_mode == 'playlist':
 			self.playlist_last = self.next
 		if self.play_mode == 'database':
 			if _file is None and self.conf['nowplaying']['filepath'] is None:
-				#print ("File and resume is None, getting next...")
+				np.log("File and resume is None, getting next...")
 				self.next == self.get_next()
 				self.play_pos = 0
 			elif _file is None and self.conf['nowplaying']['filepath'] is not None:
-				#print ("Resuming playback...")
+				np.log("Resuming playback...")
 				self.next = str(self.conf['nowplaying']['filepath'])
 				if 'series:' in self.next:
 					_id = self.next.split(':')[5]
@@ -504,14 +473,14 @@ class nplayer():
 					qstring = ("id = '" + _id + "'")
 					self.next = np.querydb(table='movies', column='filepath', query=qstring)[0][0]
 				elif 'music:' in self.next:
-					print ("TODO: check playlist item string and parse out filepath!")
+					np.log("TODO: check playlist item string and parse out filepath!")
 				self.selected_playlist_item = self.get_info_string(self.next)
 				self.play_pos = float(self.conf['nowplaying']['play_pos'])
 				self.conf['nowplaying']['filepath'] = None
-				#print ('set nowplaying filepath to None...')
+				np.log('set nowplaying filepath to None...')
 				np.writeConf(self.conf)
 			else:
-				#print ("File path provided, setting as next")
+				np.log("File path provided, setting as next:" + _file)
 				self.next = _file
 				self.selected_playlist_item = self.get_info_string(self.next)
 				self.play_pos = 0
@@ -521,7 +490,7 @@ class nplayer():
 		elif self.play_mode == 'playlist':
 			if _file is None and self.conf['nowplaying']['filepath'] is None:
 				self.next = self.get_playlist_next()
-				print ("Playlist: Getting next:", self.next)
+				np.log("Playlist: Getting next:" + self.next)
 				self.play_pos = 0
 				self.playlist_last = self.next
 				self.conf['nowplaying']['filepath'] = self.next
@@ -529,7 +498,7 @@ class nplayer():
 			elif _file is None and self.conf['nowplaying']['filepath'] is not None:
 				self.playlist_last = self.next
 				self.next = str(self.conf['nowplaying']['filepath'])
-				print ("Playlist: Resuming from nowplaying...:", self.next)
+				np.log("Playlist: Resuming from nowplaying:" + self.next)
 				if 'series:' in self.next:
 					_id = self.next.split(':')[5]
 					qstring = ("id = '" + _id + "'")
@@ -539,14 +508,14 @@ class nplayer():
 					qstring = ("id = '" + _id + "'")
 					self.next = np.querydb(table='movies', column='filepath', query=qstring)[0][0]
 				elif 'music:' in self.next:
-					print ("TODO: check playlist item string and parse out filepath!")
+					np.log("TODO: check playlist item string and parse out filepath!")
 				self.selected_playlist_item = self.get_info_string(self.next)
 				self.play_pos = float(self.conf['nowplaying']['play_pos'])
 				self.conf['nowplaying']['filepath'] = None
-				#print ('set nowplaying filepath to None...')
+				np.log('set nowplaying filepath to None...')
 				np.writeConf(self.conf)
 			else:
-				print ("Playlist: File provided:", _file)
+				np.log("Playlist: File provided:" + _file)
 				self.playlist_last = self.next
 				self.next = _file
 				self.selected_playlist_item = self.get_info_string(self.next)
@@ -561,6 +530,25 @@ class nplayer():
 				opts = "--no-xlib"
 			self.vlcInstance = vlc.Instance(opts)
 			self.player = self.vlcInstance.media_player_new()
+		if self.conf['network_mode']['mode'] == 'remote' and '/.np/sftp' not in self.next:
+			host = self.conf['network_mode']['host']
+			user = self.conf['network_mode']['user']
+			sftp_data_file = (np.SFTP_DIR + os.path.sep + 'info.txt')
+			if not os.path.exists(sftp_data_file):
+				com = ("sshfs '" + user + "@" + host + ":/var/storage' '" + np.SFTP_DIR + "'")
+				ret = subprocess.check_output(com, shell=True).decode()
+				if ret != '':
+					np.log (("sftp mount returned value:" + ret), 'error')
+				line=(user + '@' + host)
+				with open(sftp_data_file, 'w') as f:
+					f.write(line)
+					f.close()
+			with open(sftp_data_file, 'r') as f:
+				user_host = f.read().strip()
+			fpath = self.next.split('/var/storage/')[1]
+			self.next = (np.SFTP_DIR + os.path.sep + fpath)
+			#self.next = ('/run/user/1000/gvfs/sftp:host=' + host + ',user=' + user + self.next)
+			print ("Network uri:", self.next)
 		self.media['current_vlc_media_object'] = self.vlcInstance.media_new_path(self.next)
 		self.player.set_media(self.media['current_vlc_media_object'])
 		self.player.play()
@@ -585,18 +573,18 @@ class nplayer():
 		if self.media['is_playing'] == 1 or self.media['is_playing'] == True:
 			self.media['now_playing']['filepath'] = self.next
 			self.play_needed = 0
-			#print ("Set play needed: 0")
+			np.log("Set play needed: 0")
 		if self.conf['play_type'] == 'series':
 			try:
 				query_string = ("filepath like '%" + self.next + "%'")
 				series_name = np.querydb('series', 'series_name', query_string)[0][0]
-				#print ("Series name:", series_name)
+				np.log("Series name:" + series_name)
 				self.series_history[series_name] = self.next
 				np.write_history(self.series_history)
 			except:
 				pass
 		elif self.conf['play_type'] == 'music':
-			print ("line 335, play(), Insert album art grabber/display block here")
+			np.log("line 335, play(), Insert album art grabber/display block here")
 		self.conf['nowplaying']['filepath'] = self.next
 		if self.conf['play_type'] == 'music':
 			try:
@@ -625,8 +613,8 @@ class nplayer():
 			self.img_url = json_data['images_results'][0]['original']
 		except:
 			self.img_url = None
-			print ("Chances are the searches for serpApi.com api is exhaused.")
-			print ("TODO: Figure that out")
+			np.log("Chances are the searches for serpApi.com api is exhaused.")
+			np.log("TODO: Figure that out")
 			return self.img_url
 
 		com = ("wget --output-document 'poster.jpg' '" + self.img_url + "'")
@@ -648,7 +636,7 @@ class nplayer():
 			f.close()
 			return lines
 		except Exception as e:
-			print ("Unable to load media playlist:", e, filepath)
+			np.log("Unable to load media playlist:" + str(e) + ", " + filepath)
 			return None
 
 
@@ -661,7 +649,7 @@ class nplayer():
 			f.close()
 			return True
 		except Exception as e:
-			print ("Unable to save media playlist:", e, filepath, media_list)
+			np.log("Unable to save media playlist:" + str(e) + ", " + filepath + ", " + str(media_list))
 			return False
 
 	def load_directory(self, path):
@@ -671,23 +659,23 @@ class nplayer():
 			items = self.load_playlist(playlist)
 			return items
 		except Exception as e:
-			print ("Unable to load directory:", e, path)
+			np.log("Unable to load directory:" + str(e) + ", " + path)
 			return None
 
 
 	def build_info_string_from_filepath(self, filepath):
-		print ("running build info from filepath")
+		np.log("running build info from filepath")
 		qstring = ("filepath = '" + filepath + "'")
 		try:
 			series_name, season, episode_number, episode_name, _id = np.querydb('series', 'series_name,season,episode_number,episode_name,id', qstring)[0]
 			sstring = ("series:" + series_name + ":" + str(season) + ":" + str(episode_number) + ":" + episode_name + ":" + str(_id))
-			print (sstring)
+			np.log("Series string:" + sstring)
 		except:
 			sstring = None
 		try:
 			title, year, _id = np.querydb('movies', 'title,year,id', qstring)[0]
 			mvstring = ("movies:" + title + ":" + str(year) + ":" + str(_id))
-			print (mvstring)
+			np.log("Movies string:" + mvstring)
 		except:
 			mvstring = None
 		try:
@@ -701,20 +689,20 @@ class nplayer():
 		elif msstring is not None:
 			return msstring
 		else:
-			print ("data not found in database:", filepath)
+			np.log("data not found in database:" + filepath)
 			return None
 
 
 	def get_playlist_next(self):
 		self.play_mode = 'playlist'
 		items = self.media['DBMGR_RESULTS']
-		print ("DBMGR_RESULTS/items:", items)
+		np.log("DBMGR_RESULTS/items:" + str(items))
 		idx = None
 		if self.playlist_last is None:
 			try:
 				self.next = items[0]
 			except Exception as e:
-				print ("Playlist appears empty!", e)
+				np.log("Playlist appears empty!" + str(e))
 				self.play_mode = 'database'
 				return None
 		else:
@@ -775,7 +763,7 @@ class nplayer():
 						self.next = None
 						return False
 			#except Exception as e:
-			#	print ("Unable to get next:", idx, e)
+			#	np.log("Unable to get next:" + str(idx) + ", " + str(e))
 			#	self.play_mode = 'database'
 			#	return None
 		if 'series:' in self.next:
@@ -787,7 +775,7 @@ class nplayer():
 			qstring = ("id = '" + _id + "'")
 			self.next = np.querydb(table='movies', column='filepath', query=qstring)[0][0]
 		elif 'music:' in self.next:
-			print ("TODO: check playlist item string and parse out filepath!")
+			np.log("TODO: check playlist item string and parse out filepath!")
 
 		return self.next
 	

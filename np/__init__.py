@@ -34,12 +34,13 @@ from np.utils.ytdl import ytdl
 from np.utils.init_conf import run_setup
 from np.utils.pbdl_add_to_series import add_series
 #from np.main import start
-log = log().log
-err = err().err
 home = os.path.expanduser("~")
 CAPTURE_DIR = (home + os.path.sep + "Pictures" + os.path.sep + "nplayer_caps")
 DATA_DIR = (home + os.path.sep + ".np")
 pathlib.Path(DATA_DIR).mkdir(parents=True, exist_ok=True)
+SFTP_DIR = (DATA_DIR + os.path.sep + 'sftp')
+pathlib.Path(DATA_DIR).mkdir(parents=True, exist_ok=True)
+pathlib.Path(SFTP_DIR).mkdir(parents=True, exist_ok=True)
 afilters = []
 vfilters = []
 for f in vlc.Instance().video_filter_list_get():
@@ -55,3 +56,5 @@ for f in vlc.Instance().audio_filter_list_get():
 VLC_VIDEO_FILTERS = sorted(vfilters)
 VLC_AUDIO_FILTERS = sorted(afilters)
 LOGFILE = (DATA_DIR + os.path.sep + 'nplayer.log')
+log = log().log
+err = err().err
