@@ -478,7 +478,7 @@ def create_media(play_type=None, rows=None):
 	media['DBMGR_RESULTS'] = []
 	if play_type == None:
 		try:
-			conf = np.readConf()
+			conf = readConf()
 			play_type = conf['play_type']
 		except:
 			play_type = 'series'

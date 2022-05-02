@@ -30,6 +30,7 @@ class nplayer():
 		self.conf = np.readConf()
 		if self.conf == None:
 			self.conf = np.initConf()
+			self.conf['windows'] = np.init_window_position()
 		self.conf['grab_devices'] = ['/dev/input/event11']
 		if self.conf['vlc']['opts'] is None:
 			self.conf['vlc']['opts'] = "--no-xlib"

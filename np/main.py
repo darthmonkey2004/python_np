@@ -261,6 +261,7 @@ def start():
 		init = MP.conf['init']
 	except:
 		MP.conf['init'] = True
+		MP.conf['windows'] = np.init_window_position()
 		np.writeConf(MP.conf)
 		ui_center()
 	#print ("Loaded play type:", MP.conf['play_type'])
