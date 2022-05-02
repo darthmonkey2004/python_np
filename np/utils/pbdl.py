@@ -16,8 +16,11 @@ tmdb.API_KEY = 'ac1bdc4046a5e71ef8aa0d0bd93f8e9b'
 search = tmdb.Search()
 
 def get_permissions():
-	ret = subprocess.check_output('sudo chmod -R a+rwx /var/lib/transmission-daemon/downloads', shell=True)
-	return ret
+	try:
+		ret = subprocess.check_output('sudo chmod -R a+rwx /var/lib/transmission-daemon/downloads', shell=True)
+		return ret
+	except:
+		return None
 
 
 class pbdl():
