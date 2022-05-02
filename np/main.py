@@ -258,13 +258,6 @@ def start():
 	media = np.create_media()
 	tab = '-player_control_layout-'
 	MP.conf = np.readConf()
-	try:
-		init = MP.conf['init']
-	except:
-		MP.conf['init'] = True
-		MP.conf['windows'] = np.init_window_position()
-		np.writeConf(MP.conf)
-		ui_center()
 	#print ("Loaded play type:", MP.conf['play_type'])
 	if MP.conf is None:
 		print ("conf is None, re-initializing...")
@@ -282,6 +275,14 @@ def start():
 		print ("Series history is empty or couldn't read pickle data: line 557,", e)
 		media['series_history'] = {}
 	UI = np.gui()
+	try:
+		init = MP.conf['init']
+	except:
+		MP.conf['init'] = True
+		MP.conf['windows'] = np.init_window_position()
+		MP.conf['windows']['gui']['visible_status'] = 'visible'
+		np.writeConf(MP.conf)
+		ui_center()
 	pbdl = np.pbdl()
 	set_video_out()
 	media['continuous'] = 1
