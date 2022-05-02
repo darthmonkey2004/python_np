@@ -17,6 +17,7 @@ import time
 
 
 def ui_center():
+	global UI
 	UI.WINDOW.move(0, 0)
 	UI.WINDOW2.move(0, 0)
 
