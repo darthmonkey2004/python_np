@@ -16,6 +16,10 @@ import random
 import time
 
 
+def ui_center():
+	UI.WINDOW.move(0, 0)
+	UI.WINDOW2.move(0, 0)
+
 
 def recenter_ui():
 	screen = MP.conf['screen']
@@ -253,6 +257,12 @@ def start():
 	media = np.create_media()
 	tab = '-player_control_layout-'
 	MP.conf = np.readConf()
+	try:
+		init = MP.conf['init']
+	except:
+		MP.conf['init'] = True
+		np.writeConf(MP.conf)
+		ui_center()
 	#print ("Loaded play type:", MP.conf['play_type'])
 	if MP.conf is None:
 		print ("conf is None, re-initializing...")
