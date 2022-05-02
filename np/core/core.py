@@ -340,8 +340,10 @@ def init_window_position():
 	ytdl_win_h = 300
 	half = viewer_win_h0 / 2
 	if viewer_win_y0 >= 0 and viewer_win_y0 <= half:
-		gui_win_x0 = viewer_win_x0 + viewer_win_w0 - gui_win_w - 147
-		gui_win_y0 = viewer_win_y0 + viewer_win_h0 + 33
+		#gui_win_x0 = viewer_win_x0 + viewer_win_w0 - gui_win_w - 147
+		#gui_win_y0 = viewer_win_y0 + viewer_win_h0 + 33
+		gui_win_x0 = 0
+		gui_win_y0 = 0
 		pbdl_win_x = viewer_win_x0 + viewer_win_w0 - pbdl_win_w - 147
 		pbdl_win_y = viewer_win_y0 + viewer_win_h0 + 33
 		pbdl_dl_win_x = viewer_win_x0 + viewer_win_w0 - pbdl_dl_win_w - 147
@@ -351,8 +353,10 @@ def init_window_position():
 		browser_win_x = gui_win_x0
 		browser_win_y = gui_win_y0 + gui_win_h
 	elif viewer_win_y0 >= half:
-		gui_win_x0 = viewer_win_x0
-		gui_win_y0 = 0 + gui_win_h
+		#gui_win_x0 = viewer_win_x0
+		#gui_win_y0 = 0 + gui_win_h
+		gui_win_x0 = 0
+		gui_win_y0 = 0
 		pbdl_win_x = viewer_win_x0
 		pbdl_win_y = 0 + pbdl_win_h
 		pbdl_dl_win_x = viewer_win_x0
@@ -363,8 +367,10 @@ def init_window_position():
 		browser_win_y = gui_win_y0 + gui_win_h
 	else:
 		print ("window in weird spot...")
-		gui_win_x0 = viewer_win_x0
-		gui_win_y0 = 0 + gui_win_h
+		#gui_win_x0 = viewer_win_x0
+		#gui_win_y0 = 0 + gui_win_h
+		gui_win_x0 = 0
+		gui_win_y0 = 0
 		pbdl_win_x = viewer_win_x0
 		pbdl_win_y = 0 + pbdl_win_h
 		pbdl_dl_win_x = viewer_win_x0
@@ -375,8 +381,10 @@ def init_window_position():
 		browser_win_y = gui_win_y0 + gui_win_h
 	half = viewer_win_h1 / 2
 	if viewer_win_y1 >= 0 and viewer_win_y1 <= half:
-		gui_win_x1 = viewer_win_x1 + viewer_win_w1 - gui_win_w - 147
-		gui_win_y1 = viewer_win_y1 + viewer_win_h1 + 33
+		#gui_win_x1 = viewer_win_x1 + viewer_win_w1 - gui_win_w - 147
+		#gui_win_y1 = viewer_win_y1 + viewer_win_h1 + 33
+		gui_win_x1 = 0
+		gui_win_y1 = 0
 		pbdl_win_x = viewer_win_x1 + viewer_win_w1 - pbdl_win_w - 147
 		pbdl_win_y = viewer_win_y1 + viewer_win_h1 + 33
 		pbdl_dl_win_x = viewer_win_x1 + viewer_win_w1 - pbdl_dl_win_w - 147
@@ -386,8 +394,10 @@ def init_window_position():
 		browser_win_x = gui_win_x1
 		browser_win_y = gui_win_y1 + gui_win_h
 	elif viewer_win_y1 >= half:
-		gui_win_x1 = viewer_win_x1
-		gui_win_y1 = 0 + gui_win_h
+		#gui_win_x1 = viewer_win_x1
+		#gui_win_y1 = 0 + gui_win_h
+		gui_win_x1 = 0
+		gui_win_y1 = 0
 		pbdl_win_x = viewer_win_x1
 		pbdlwin_y = 0 + pbdl_win_h
 		pbdl_dl_win_x = viewer_win_x1
@@ -398,8 +408,10 @@ def init_window_position():
 		browser_win_y = gui_win_y1 + gui_win_h
 	else:
 		print ("window in weird spot...")
-		gui_win_x1 = viewer_win_x1
-		gui_win_y1 = 0 + gui_win_h
+		#gui_win_x1 = viewer_win_x1
+		#gui_win_y1 = 0 + gui_win_h
+		gui_win_x1 = 0
+		gui_win_y1 = 0
 		pbdl_win_x = viewer_win_x1
 		pbdl_win_y = 0 + pbdl_win_h
 		pbdl_dl_win_x = viewer_win_x1

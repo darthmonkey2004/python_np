@@ -16,6 +16,7 @@ import random
 import time
 
 
+
 def recenter_ui():
 	screen = MP.conf['screen']
 	try:
@@ -257,7 +258,7 @@ def start():
 		print ("conf is None, re-initializing...")
 		MP.conf = np.initConf()
 		print ("Defaults restored.")
-	MP.conf['screens'] = xrandr()
+		MP.conf['screens'] = xrandr()
 	screen = MP.conf['screen']
 	MP.conf['w'] = MP.conf['screens'][screen]['w']
 	MP.conf['h'] = MP.conf['screens'][screen]['h']
