@@ -371,7 +371,6 @@ def start():
 				MP.next = str(arg)
 				np.log(txt, 'info')
 				MP.stop()
-				MP.next = UI.uivalues['-VIDEO_LOCATION-']
 				if 'http://' in MP.next or 'https://' in MP.next:
 					MP.is_url = True
 					if '/home' in MP.next:
