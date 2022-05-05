@@ -318,7 +318,10 @@ def start():
 				data = None
 		if data is not None and data != '':
 			com = data.split('=')[0]
-			arg = data.split('=')[1]
+			try:
+				arg = data.split('=')[1]
+			except:
+				arg = None
 			if com == 'play':					
 				MP.play()
 				np.log("REMOTE: Playing!", 'info')
