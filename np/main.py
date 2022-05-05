@@ -248,8 +248,9 @@ def update_media_info(row):
 			UI.WINDOW[key].update(val)
 
 
-def load_playlist(filepath):
-	filepath = np.file_browse_window()
+def load_playlist(filepath=None):
+	if filepath is None:
+		filepath = np.file_browse_window()
 	MP.stop()
 	if ".txt" in filepath:
 		MP.media['DBMGR_RESULTS'] = MP.load_playlist(filepath)
