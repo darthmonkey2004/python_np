@@ -310,6 +310,9 @@ def start():
 			with open (np.COMFILE, 'r') as f:
 				data = f.read().strip()
 				f.close()
+			with open (np.COMFILE, 'w') as f:
+				f.write('')
+				f.close()
 		except:
 			with open (np.COMFILE, 'w') as f:
 				data = ''
