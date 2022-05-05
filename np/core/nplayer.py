@@ -386,6 +386,17 @@ class nplayer():
 		self.play(self.next)
 
 
+	def volume_set(self, vol):
+		vol = int(vol)
+		if vol <= 90:
+			vol = vol + 10
+		elif vol == 100 or vol >= 90:
+			vol = 100
+			np.log("Volume at max!")
+		self.player.audio_set_volume(vol)
+		self.conf['volume'] = vol
+
+
 	def volume_up(self):
 		vol = int(self.conf['volume'])
 		if vol <= 90:

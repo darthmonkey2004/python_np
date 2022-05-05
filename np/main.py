@@ -248,6 +248,22 @@ def update_media_info(row):
 			UI.WINDOW[key].update(val)
 
 
+def load_playlist(filepath):
+	filepath = np.file_browse_window()
+	MP.stop()
+	if ".txt" in filepath:
+		MP.media['DBMGR_RESULTS'] = MP.load_playlist(filepath)
+		UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.media['DBMGR_RESULTS'])
+		MP.play_mode = 'playlist'
+		UI.WINDOW['-PLAY_MODE-'].update(MP.play_mode)
+		filepath = MP.media['DBMGR_RESULTS'][0]
+		MP.play(filepath)
+	else:
+		MP.play_mode = 'database'
+		UI.WINDOW['-PLAY_MODE-'].update(MP.play_mode)
+		MP.play(filepath)
+
+
 def start():
 	global P, MP, UI, conf
 	conf = None
@@ -289,9 +305,72 @@ def start():
 	input_enabled = 0
 	btn = None
 	while True:
+		try:
+			com = None
+			with open (np.COMFILE, 'r') as f:
+				data = f.read().strip()
+				f.close()
+		except:
+			with open (np.COMFILE, 'w') as f:
+				data = ''
+				f.write(data)
+				f.close()
+				data = None
+		if data is not None and data != '':
+			com = data.split('=')[0]
+			arg = data.split('=')[1]
+			if com == 'play':					
+				MP.play()
+				np.log("REMOTE: Playing!", 'info')
+			elif com == 'pause':
+				P.pause()
+				np.log("REMOTE: Paused")
+			elif com == 'stop':
+				MP.stop()
+				np.log("REMOTE: Stopped", 'info')
+			elif com == 'skip_next':
+				MP.skip_next()
+				np.log("REMOTE: Skipped Next", 'info')
+			elif com == 'skip_prev':
+				MP.skip_previous()
+				np.log("REMOTE: Skipped Previous")
+			elif com == 'vol_set':
+				MP.volume_set(arg)
+				np.log("REMOTE: vol_set", 'info')
+			elif com == 'vol_up':
+				np.log("REMOTE: volume_up", 'info')
+				MP.volume_up()
+			elif com == 'vol_down':
+				MP.volume_down()
+				np.log("REMOTE: volume_down", 'info')
+			elif com == 'mute':
+				MP.volume_set(0)
+				np.log("REMOTE: Mute")
+			elif com == 'unmute':
+				vol = int(self.conf['volume'])
+				MP.volume_set(vol)
+				np.log("REMOTE: Unmuted", 'info')
+			elif com == 'quit':
+				np.log("REMOTE: Quitting...", 'info')
+				UI.WINDOW.close()
+				UI.WINDOW2.close()
+				break
+			elif com == 'load':
+				txt = ("REMOTE: Loading file:" + str(arg))
+				np.log(txt, 'info')
+				load_playlist(arg)
+			elif com == 'play_mode':
+				MP.play_mode = arg
+				txt = ("REMOTE: Play mode set:" + str(arg))
+				np.log(txt, 'info')
+			elif com == 'play_type':
+				MP.play_type = arg
+				txt = ("REMOTE: Play type set:" + str(arg))
+				np.log(txt, 'info')
 		UI.window, UI.uievent, UI.uivalues = UI.get_events()
 		if UI.uievent is None and UI.uivalues is None:
 			pass
+		
 		if btn is not None:
 			if btn == MP.KEY_EVENTS['SEEK_FWD']:
 				seek_fwd()
@@ -678,6 +757,7 @@ def start():
 				print ("Loaded pirate bay downloader!")
 			else:
 				print ("Pirate bay downloader alread running!")
+			pbdl.run()
 		elif UI.uievent == '-PBDL_SEARCH-':
 			pbdl.results = pbdl.get_magnet(pbdl.pbdl_query, pbdl.category)
 			print (pbdl.results)
@@ -698,19 +778,7 @@ def start():
 		elif UI.uievent == 'Recenter UI':
 			recenter_ui()
 		elif UI.uievent == "-Load Playlist-":
-			filepath = np.file_browse_window()
-			MP.stop()
-			if ".txt" in filepath:
-				MP.media['DBMGR_RESULTS'] = MP.load_playlist(filepath)
-				UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.media['DBMGR_RESULTS'])
-				MP.play_mode = 'playlist'
-				UI.WINDOW['-PLAY_MODE-'].update(MP.play_mode)
-				filepath = MP.media['DBMGR_RESULTS'][0]
-				MP.play(filepath)
-			else:
-				MP.play_mode = 'database'
-				UI.WINDOW['-PLAY_MODE-'].update(MP.play_mode)
-				MP.play(filepath)
+			load_playlist(UI.uivalues[UI.uievent])
 		elif UI.uievent == "-Save Playlist-":
 			filepath = np.file_browse_window()
 			ret = MP.save_playlist(filepath, MP.media['DBMGR_RESULTS'])

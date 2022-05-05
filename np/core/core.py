@@ -334,7 +334,7 @@ def init_window_position():
 	browser_win_h = 150
 	pbdl_win_w = 900
 	pbdl_win_h = 900
-	pbdl_dl_win_w = 750
+	pbdl_dl_win_w = 600
 	pbdl_dl_win_h = 300
 	ytdl_win_w = 750
 	ytdl_win_h = 300

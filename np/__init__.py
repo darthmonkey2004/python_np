@@ -59,3 +59,4 @@ VLC_AUDIO_FILTERS = sorted(afilters)
 LOGFILE = (DATA_DIR + os.path.sep + 'nplayer.log')
 log = log().log
 err = err().err
+COMFILE = (DATA_DIR + os.path.sep + 'nplayer.com')
