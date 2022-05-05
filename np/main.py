@@ -387,6 +387,8 @@ def start():
 				txt = ("REMOTE: Play mode set:" + str(arg))
 				np.log(txt, 'info')
 			elif com == 'play_type':
+				MP.conf['play_type'] = arg
+				np.writeConf(MP.conf)
 				MP.play_type = arg
 				txt = ("REMOTE: Play type set:" + str(arg))
 				np.log(txt, 'info')
