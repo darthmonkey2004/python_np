@@ -366,6 +366,23 @@ def start():
 				txt = ("REMOTE: Loading file:" + str(arg))
 				np.log(txt, 'info')
 				load_playlist(arg)
+			elif com == 'yt':
+				txt = ("REMOTE: Loading youtube video:", str(arg))
+				MP.next = str(arg)
+				np.log(txt, 'info')
+				MP.stop()
+				MP.next = UI.uivalues['-VIDEO_LOCATION-']
+				if 'http://' in MP.next or 'https://' in MP.next:
+					MP.is_url = True
+					if '/home' in MP.next:
+						split='https://'
+						MP.next = MP.next.split(split)[1]
+						MP.next = ('https://' + MP.next)
+					v = pafy.new(MP.next)
+					stream = v.getbest()
+					P = MP.init_vlc(stream.url)
+					set_video_out()
+					P.play()
 			elif com == 'play_mode':
 				MP.play_mode = arg
 				txt = ("REMOTE: Play mode set:" + str(arg))
