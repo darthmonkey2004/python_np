@@ -464,6 +464,37 @@ class nplayer():
 			np.log("failed to take snapshot:" + str(e))
 			return ("failed to take snapshot:", e)
 
+
+	def test_sftp(self, data_file):
+		if not os.path.exists(data_file):
+			return False
+		else:
+			return True
+
+
+	def mount_sftp(self):
+		sftp_data_file = (np.SFTP_DIR + os.path.sep + 'info.txt')
+		is_mounted = self.test_sftp(sftp_data_file)
+		if not is_mounted:
+			try:
+				com = ("sshfs '" + user + "@" + host + ":/var/storage' '" + np.SFTP_DIR + "'")
+				ret = subprocess.check_output(com, shell=True).decode()
+				if ret != '':
+					np.log (("sftp mount returned value:" + ret), 'error')
+				line=(user + '@' + host)
+				with open(sftp_data_file, 'w') as f:
+					f.write(line)
+					f.close()
+				with open(sftp_data_file, 'r') as f:
+					user_host = f.read().strip()
+				return True
+			except Exception as e:
+				txt = ("Unable to mount sftp:" + e)
+				np.log(txt, 'error')
+				return False
+		else:
+			return True
+
 	
 	def play(self, _file=None):
 		if self.next is not None and self.play_mode == 'playlist':
@@ -543,20 +574,7 @@ class nplayer():
 			self.vlcInstance = vlc.Instance(opts)
 			self.player = self.vlcInstance.media_player_new()
 		if self.conf['network_mode']['mode'] == 'remote' and '/.np/sftp' not in self.next:
-			host = self.conf['network_mode']['host']
-			user = self.conf['network_mode']['user']
-			sftp_data_file = (np.SFTP_DIR + os.path.sep + 'info.txt')
-			if not os.path.exists(sftp_data_file):
-				com = ("sshfs '" + user + "@" + host + ":/var/storage' '" + np.SFTP_DIR + "'")
-				ret = subprocess.check_output(com, shell=True).decode()
-				if ret != '':
-					np.log (("sftp mount returned value:" + ret), 'error')
-				line=(user + '@' + host)
-				with open(sftp_data_file, 'w') as f:
-					f.write(line)
-					f.close()
-			with open(sftp_data_file, 'r') as f:
-				user_host = f.read().strip()
+			is_mounted = mount_sftp()
 			fpath = self.next.split('/var/storage/')[1]
 			self.next = (np.SFTP_DIR + os.path.sep + fpath)
 			#self.next = ('/run/user/1000/gvfs/sftp:host=' + host + ',user=' + user + self.next)
