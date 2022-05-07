@@ -413,7 +413,7 @@ def start():
 				txt = ("REMOTE: Play type set:" + str(arg))
 				np.log(txt, 'info')
 			elif com == 'seek':
-				pos = int(arg)
+				pos = float(float(arg) / 100)
 				P.set_position(pos)
 				txt = ("seek to position:" + str(pos))
 				np.log(txt, 'info')
