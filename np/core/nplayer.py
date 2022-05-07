@@ -474,8 +474,8 @@ class nplayer():
 
 
 	def mount_sftp(self):
-		user = conf['network_mode']['user']
-		host = conf['network_mode']['host']
+		user = self.conf['network_mode']['user']
+		host = self.conf['network_mode']['host']
 		sftp_data_file = (np.SFTP_DIR + os.path.sep + 'info.txt')
 		try:
 			com = ("sshfs '" + user + "@" + host + ":/var/storage' '" + np.SFTP_DIR + "'")
