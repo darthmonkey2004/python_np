@@ -41,6 +41,16 @@ com() {
 	ssh "$NP_REMOTE_USER@$NP_REMOTE_IP" "cd '$HOME/.np'; echo '$com' > nplayer.com"
 }
 
+commands() {
+	commands=('setup' 'reset' 'update' 'commands' 'start' 'readConf' 'clearLog' 'play' 'pause' 'stop' 'skip_next' 'skip_prev' 'vol_set' 'vol_up' 'vol_down' 'mute' 'unmute' 'quit' 'load' 'yt' 'play_mode' 'play_type')
+	echo "Command list:"
+	pos=0
+	for com in "${commands[@]}"; do
+		pos=$(( pos + 1 ))
+		echo "$pos:$com"
+	done
+}
+
 start() {
 	ssh "$NP_REMOTE_USER@$NP_REMOTE_IP" "export DISPLAY=:0; python3 '/home/monkey/.local/bin/np'"& disown
 	sleep 2
@@ -71,6 +81,7 @@ if [ ! -f "$remote_conf" ]; then
 fi
 . "$remote_conf"
 
+echo "Use 'np.remote commands' for a list of options."
 if [ "$func" = "reset" ]; then
 	reset
 elif [ "$func" = "update" ]; then
@@ -83,6 +94,8 @@ elif [ "$func" = "readLog" ]; then
 	readLog
 elif [ "$func" = "clearLog" ]; then
 	clearLog
+elif [ "$func" = "commands" ] || [ "$func" = "-h" ] || [ "$func" = "--help" ] || [ "$func" = "help" ]; then
+	commands
 else
 	com "$func"
 fi
