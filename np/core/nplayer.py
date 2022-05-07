@@ -491,8 +491,6 @@ class nplayer():
 			txt = ("Unable to mount sftp:" + e)
 			np.log(txt, 'error')
 			return False
-	else:
-		return True
 
 	
 	def play(self, _file=None):
