@@ -385,7 +385,8 @@ def start():
 						MP.next = MP.next.split(split)[1]
 						MP.next = ('https://' + MP.next)
 					v = pafy.new(MP.next)
-					stream = v.getbest()
+					stream = v.streams[0]
+					#stream = v.getbest()
 					P = MP.init_vlc(stream.url)
 					set_video_out()
 					P.play()
