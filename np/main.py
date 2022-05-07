@@ -290,7 +290,7 @@ def start():
 	except Exception as e:
 		print ("Series history is empty or couldn't read pickle data: line 557,", e)
 		media['series_history'] = {}
-	if MP.conf['network_mode']['mode'] = 'local':
+	if MP.conf['network_mode']['mode'] == 'local':
 		try:
 			media_dirs = MP.conf['media_directories']
 			np.log("Media directories found in conf!", 'info')
