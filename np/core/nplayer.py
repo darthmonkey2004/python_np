@@ -467,7 +467,7 @@ class nplayer():
 
 	def test_sftp(self):
 		sftp_data_file = (np.SFTP_DIR + os.path.sep + 'info.txt')
-		if not os.path.exists(data_file):
+		if not os.path.exists(sftp_data_file):
 			return False
 		else:
 			return True
