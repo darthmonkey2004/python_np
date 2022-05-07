@@ -572,6 +572,8 @@ class nplayer():
 				opts = "--no-xlib"
 			self.vlcInstance = vlc.Instance(opts)
 			self.player = self.vlcInstance.media_player_new()
+		if self.conf['network_mode']['mode'] == 'remote':
+			self.mount_sftp()
 		if self.conf['network_mode']['mode'] == 'remote' and '/.np/sftp' not in self.next:
 			is_mounted = self.test_sftp()
 			if not is_mounted:
