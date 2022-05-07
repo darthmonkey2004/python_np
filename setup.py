@@ -11,4 +11,3 @@ setup(name='np',
 	scripts=['np/scripts/mkmedialist', 'np/scripts/np.remote', 'np/np'],
 	data_files=['poster.png'],
 	)
-	Sat 07 May 2022 02∶39∶17 PM CDT
