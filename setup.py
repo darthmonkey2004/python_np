@@ -10,8 +10,7 @@ setup(name='np',
 	url='http://nplayer.simiantech.biz/',
 	packages=['np', 'np.core', 'np.utils'],
 	package_dir={'np': 'np', 'np.core': 'np/core', 'np.utils': 'np/utils', 'np.np': 'np.np'},
-	scripts=['scripts/mkmedialist', 'scripts/np.remote'],
+	scripts=['scripts/mkmedialist', 'scripts/np.remote', 'np/main.py'],
 	data_files=['poster.png'],
-	install_requires=REQUIREMENTS,
-	entry_points={'console_scripts': ['np=np.main:start']}
+	install_requires=REQUIREMENTS
 	)
