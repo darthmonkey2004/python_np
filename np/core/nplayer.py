@@ -6,7 +6,7 @@ from PIL import Image, ImageTk
 import requests
 import subprocess
 import eyed3
-import urllib
+from urllib.parse import quote, unquote
 import np
 #input_handler = np.dev.input_handler
 import vlc
@@ -596,39 +596,30 @@ class nplayer():
 			except:
 				pass
 		elif self.conf['play_type'] == 'music':
-			np.log("line 335, play(), Insert album art grabber/display block here")
-		self.conf['nowplaying']['filepath'] = self.next
-		if self.conf['play_type'] == 'music':
 			try:
 				self.album_art = self.dl_img()
 				self.ART_UPDATE_NEEDED = True
 			except:
 				self.ART_UPDATE_NEEDED = False
+		self.conf['nowplaying']['filepath'] = self.next
 
-	def dl_img(self, query_string=None):
-		if query_string is None:
-			filepath = self.conf['nowplaying']['filepath']
-			if filepath is not None:
-				filepath = urllib.parse.unquote(filepath)
-				if self.conf['play_type'] == 'music':
-					a = eyed3.load(filepath)
-					artist = a.tag.artist
-					title = a.tag.title
-					query_string = (artist + " " + title)
-				
-		api_key = '482f3866594242e97dcc1573601a9fb13b4345479d97b4ef03e1b7a76523a58d'
-		query_string = urllib.parse.quote(query_string)
-		url = ("https://serpapi.com/search.json?q=" + query_string + "&tbm=isch&ijn=0&api_key=" + str(api_key))
+	def dl_img(self, filepath=None):
+		if filepath is None:
+			filepath = self.next
+		test='https://www.google.com/imgres?imgurl='
+		s = '&amp;imgrefurl'
+		song = eyed3.load(filepath)
+		artist = song.tag.artist
+		title = song.tag.title
+		query = (artist + " " + title + " album art")
+		q = quote(query)
+		url = ("https://www.google.com/search?q=" + q)
 		r = requests.get(url)
-		json_data = json.loads(r.text)
-		try:
-			self.img_url = json_data['images_results'][0]['original']
-		except:
-			self.img_url = None
-			np.log("Chances are the searches for serpApi.com api is exhaused.")
-			np.log("TODO: Figure that out")
-			return self.img_url
-
+		data = r.text.split("\n")
+		for item in data:
+			if test in item:
+				self.img_url = item.split(test)[1].split(s)[0]
+				break
 		com = ("wget --output-document 'poster.jpg' '" + self.img_url + "'")
 		subprocess.check_output(com, shell=True)
 		screen = self.conf['screen']
