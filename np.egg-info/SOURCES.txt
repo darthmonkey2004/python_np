@@ -13,6 +13,7 @@ np/core/__init__.py
 np/core/core.py
 np/core/gui.py
 np/core/nplayer.py
+np/core/nplayer_db.py
 np/utils/__init__.py
 np/utils/guess_intro.py
 np/utils/gui_create.py

@@ -4,13 +4,15 @@ import pathlib
 
 from np.utils.guess_intro import guess_intro
 from np.utils.xrandr import xrandr
-from np.utils import nplayer_db as sqldb
-from np.utils.nplayer_db import querydb
-from np.utils.nplayer_db import updatedb
-from np.utils.nplayer_db import removefromdb
-from np.utils.nplayer_db import get_columns
-from np.utils.nplayer_db import addtodb_new as add_to_db
-from np.utils.nplayer_db import addtodb_new
+from np.core import nplayer_db as sqldb
+from np.core.nplayer_db import querydb
+from np.core.nplayer_db import updatedb
+from np.core.nplayer_db import removefromdb
+from np.core.nplayer_db import get_columns
+from np.core.nplayer_db import addtodb_new as add_to_db
+from np.core.nplayer_db import addtodb_new
+from np.core.nplayer_db import create_db
+from np.core.nplayer_db import test_db
 from np.utils.music_mgr import music_mgr
 from np.utils.input_handler import input_handler as dev
 #from np.utils import torrent_mgr as pbdl_mgr
@@ -28,15 +30,15 @@ from np.utils.pbdl import pbdl
 from np.utils.query_series import tmdb_query_series as lookup_series
 from np.utils.query_series import get_sinfo_from_filepath as seinfo
 from np.utils.query_movies import query_imdb as lookup_movies
-from np.utils.nplayer_db import addtodb
+from np.core.nplayer_db import addtodb
 from np.utils.scan_music import scan_music
 from np.utils.ytdl import ytdl
 from np.utils.init_conf import run_setup
 from np.utils.pbdl_add_to_series import add_series
 #from np.main import start
 home = os.path.expanduser("~")
-CAPTURE_DIR = (home + os.path.sep + "Pictures" + os.path.sep + "nplayer_caps")
 DATA_DIR = (home + os.path.sep + ".np")
+CAPTURE_DIR = (home + os.path.sep + "Pictures" + os.path.sep + "nplayer_caps")
 pathlib.Path(DATA_DIR).mkdir(parents=True, exist_ok=True)
 SFTP_DIR = (DATA_DIR + os.path.sep + 'sftp')
 pathlib.Path(DATA_DIR).mkdir(parents=True, exist_ok=True)

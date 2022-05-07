@@ -275,7 +275,6 @@ def start():
 	media = np.create_media()
 	tab = '-player_control_layout-'
 	MP.conf = np.readConf()
-	#print ("Loaded play type:", MP.conf['play_type'])
 	if MP.conf is None:
 		print ("conf is None, re-initializing...")
 		MP.conf = np.initConf()
@@ -291,6 +290,14 @@ def start():
 	except Exception as e:
 		print ("Series history is empty or couldn't read pickle data: line 557,", e)
 		media['series_history'] = {}
+	if MP.conf['network_mode']['mode'] = 'local':
+		try:
+			media_dirs = MP.conf['media_directories']
+			np.log("Media directories found in conf!", 'info')
+		except Exception as e:
+			txt = ("Error: media directories not found inf conf file:" + e)
+			np.log(txt, 'error')
+			np.set_media_paths()
 	UI = np.gui()
 	try:
 		init = MP.conf['init']

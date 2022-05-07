@@ -1,5 +1,5 @@
 import pickle# be sure to remove this and the pickle dump at the end of build_torrent_data(), line 168
-from np.utils.nplayer_db import get_columns
+from np.core.nplayer_db import get_columns
 import tmdbsimple as tmdb
 import pathlib
 import shutil
