@@ -1,3 +1,0 @@
-[console_scripts]
-np = np.main:start
-
