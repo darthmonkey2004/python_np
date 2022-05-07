@@ -412,6 +412,11 @@ def start():
 				MP.play_type = arg
 				txt = ("REMOTE: Play type set:" + str(arg))
 				np.log(txt, 'info')
+			elif com == 'seek':
+				pos = int(arg)
+				P.set_position(pos)
+				txt = ("seek to position:" + str(pos))
+				np.log(txt, 'info')
 		UI.window, UI.uievent, UI.uivalues = UI.get_events()
 		if UI.uievent is None and UI.uivalues is None:
 			pass
