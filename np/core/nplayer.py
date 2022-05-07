@@ -474,6 +474,8 @@ class nplayer():
 
 
 	def mount_sftp(self):
+		user = os.path.expanduser("~").split('/')[2]
+		host = '192.168.2.4'
 		sftp_data_file = (np.SFTP_DIR + os.path.sep + 'info.txt')
 		try:
 			com = ("sshfs '" + user + "@" + host + ":/var/storage' '" + np.SFTP_DIR + "'")
@@ -488,7 +490,7 @@ class nplayer():
 				user_host = f.read().strip()
 			return True
 		except Exception as e:
-			txt = ("Unable to mount sftp:" + e)
+			txt = ("Unable to mount sftp:" + str(e))
 			np.log(txt, 'error')
 			return False
 
