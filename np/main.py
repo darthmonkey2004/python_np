@@ -386,8 +386,20 @@ def start():
 						MP.next = ('https://' + MP.next)
 					v = pafy.new(MP.next)
 					stream = v.streams[0]
+					r = requests.get(url)
+					status = r.status_code
+					if str(code).startswith('2') or str(code).startswith('3'):
+						txt = ("PLAYER: Youtube uri checked ok!, url=" + url)
+						np.log(txt, 'info')
+					else:
+						txt = ("PLAYER: Youtube url check Failed!, url=" + url + ", status=" + status + ", message=" + r.text)
+						np.log(txt, 'error')
+						MP.stop()
 					#stream = v.getbest()
-					P = MP.init_vlc(stream.url)
+					P = MP.init_vlc()
+					M = self.vlcInstance.media_new(self.next)
+					mrl = Media.get_mrl()
+					P.set_media(M)
 					set_video_out()
 					P.play()
 			elif com == 'play_mode':
