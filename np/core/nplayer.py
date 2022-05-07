@@ -645,6 +645,8 @@ class nplayer():
 		for item in data:
 			if test in item:
 				self.img_url = item.split(test)[1].split(s)[0]
+				if '%' in self.img_url:
+					self.img_url = unquote(self.img_url)
 				break
 		com = ("wget --output-document 'poster.jpg' '" + self.img_url + "'")
 		subprocess.check_output(com, shell=True)
