@@ -6,7 +6,7 @@ np/main.py
 np.egg-info/PKG-INFO
 np.egg-info/SOURCES.txt
 np.egg-info/dependency_links.txt
-np.egg-info/requires.txt
+np.egg-info/entry_points.txt
 np.egg-info/top_level.txt
 np/core/__init__.py
 np/core/core.py
