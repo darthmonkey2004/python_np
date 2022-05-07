@@ -21,7 +21,6 @@ np/utils/init_conf.py
 np/utils/input_handler.py
 np/utils/migrate_series.py
 np/utils/music_mgr.py
-np/utils/nplayer_db.py
 np/utils/pbdl.py
 np/utils/pbdl_add_to_series.py
 np/utils/pbdl_dl.py
