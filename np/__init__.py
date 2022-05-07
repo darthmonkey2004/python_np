@@ -60,3 +60,4 @@ LOGFILE = (DATA_DIR + os.path.sep + 'nplayer.log')
 log = log().log
 err = err().err
 COMFILE = (DATA_DIR + os.path.sep + 'nplayer.com')
+MEDIA_DIR = ('/var/storage')

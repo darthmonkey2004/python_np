@@ -31,3 +31,4 @@ np/utils/scan_music.py
 np/utils/xrandr.py
 np/utils/ytdl.py
 scripts/mkmedialist
+scripts/np.remote
