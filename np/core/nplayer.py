@@ -465,7 +465,7 @@ class nplayer():
 			return ("failed to take snapshot:", e)
 
 
-	def test_sftp(self, data_file):
+	def test_sftp(self):
 		sftp_data_file = (np.SFTP_DIR + os.path.sep + 'info.txt')
 		if not os.path.exists(data_file):
 			return False
