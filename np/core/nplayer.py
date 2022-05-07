@@ -466,6 +466,7 @@ class nplayer():
 
 
 	def test_sftp(self, data_file):
+		sftp_data_file = (np.SFTP_DIR + os.path.sep + 'info.txt')
 		if not os.path.exists(data_file):
 			return False
 		else:
@@ -474,26 +475,24 @@ class nplayer():
 
 	def mount_sftp(self):
 		sftp_data_file = (np.SFTP_DIR + os.path.sep + 'info.txt')
-		is_mounted = self.test_sftp(sftp_data_file)
-		if not is_mounted:
-			try:
-				com = ("sshfs '" + user + "@" + host + ":/var/storage' '" + np.SFTP_DIR + "'")
-				ret = subprocess.check_output(com, shell=True).decode()
-				if ret != '':
-					np.log (("sftp mount returned value:" + ret), 'error')
-				line=(user + '@' + host)
-				with open(sftp_data_file, 'w') as f:
-					f.write(line)
-					f.close()
-				with open(sftp_data_file, 'r') as f:
-					user_host = f.read().strip()
-				return True
-			except Exception as e:
-				txt = ("Unable to mount sftp:" + e)
-				np.log(txt, 'error')
-				return False
-		else:
+		try:
+			com = ("sshfs '" + user + "@" + host + ":/var/storage' '" + np.SFTP_DIR + "'")
+			ret = subprocess.check_output(com, shell=True).decode()
+			if ret != '':
+				np.log (("sftp mount returned value:" + ret), 'error')
+			line=(user + '@' + host)
+			with open(sftp_data_file, 'w') as f:
+				f.write(line)
+				f.close()
+			with open(sftp_data_file, 'r') as f:
+				user_host = f.read().strip()
 			return True
+		except Exception as e:
+			txt = ("Unable to mount sftp:" + e)
+			np.log(txt, 'error')
+			return False
+	else:
+		return True
 
 	
 	def play(self, _file=None):
@@ -574,16 +573,27 @@ class nplayer():
 			self.vlcInstance = vlc.Instance(opts)
 			self.player = self.vlcInstance.media_player_new()
 		if self.conf['network_mode']['mode'] == 'remote' and '/.np/sftp' not in self.next:
-			is_mounted = mount_sftp()
+			is_mounted = self.test_sftp()
+			if not is_mounted:
+				self.mount_sftp()
 			fpath = self.next.split('/var/storage/')[1]
 			self.next = (np.SFTP_DIR + os.path.sep + fpath)
 			#self.next = ('/run/user/1000/gvfs/sftp:host=' + host + ',user=' + user + self.next)
 			print ("Network uri:", self.next)
-		self.media['current_vlc_media_object'] = self.vlcInstance.media_new_path(self.next)
-		self.player.set_media(self.media['current_vlc_media_object'])
-		self.player.play()
-		self.is_url = False
-			
+		try:
+			self.media['current_vlc_media_object'] = self.vlcInstance.media_new_path(self.next)
+			self.player.set_media(self.media['current_vlc_media_object'])
+			self.player.play()
+			self.is_url = False
+		except Exception as e:
+			txt = ("Unable to open media item:" + e + ", filepath=" + self.next)
+			np.log(txt, 'error')
+			if self.conf['network_mode']['mode'] == 'remote':
+				self.mount_sftp()
+				self.media['current_vlc_media_object'] = self.vlcInstance.media_new_path(self.next)
+				self.player.set_media(self.media['current_vlc_media_object'])
+				self.player.play()
+				self.is_url = False
 		if self.play_pos >= 0:
 			self.player.set_position(self.play_pos)
 		self.media['continuous'] = 1
