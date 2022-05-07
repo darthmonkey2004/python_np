@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import pafy
 import urllib.parse
 import PySimpleGUI as sg
 import os
@@ -13,6 +14,12 @@ import pickle
 import vlc
 import random
 import time
+
+
+def ui_center():
+	global UI
+	UI.WINDOW.move(0, 0)
+	UI.WINDOW2.move(0, 0)
 
 
 def recenter_ui():
@@ -118,6 +125,56 @@ def set_video_out():
 			P.set_xwindow(UI.WINDOW2['-VID_OUT-'].Widget.winfo_id())
 
 
+def change_filter(f):#sets audio filters to vlc instance. returns true on success, false on fail.
+	if ':' in f:
+		t = f.split(':')[0]
+		f = f.split(':')[1]
+	if f in MP.conf['vlc']['opts']:
+		a = 'remove'
+	else:
+		a = 'add'
+	P.stop()
+	P.release()
+	if t == 'audio':
+		f_string = ("--audio-filter=" + f)
+	elif t == 'video':
+		f_string = ("--video-filter=" + f)
+	else:
+		txt = ("Unknown type:" + t + ", Available: 'audio', 'video'")
+		print (txt)
+		return False
+	if a == 'add':
+		try:
+			MP.conf = np.readConf()
+			current_opts = MP.conf['vlc']['opts']
+			opts = (current_opts + " " + f_string)
+			MP.conf['vlc']['opts'] = opts
+			#np.writeConf(MP.conf)
+			print ("Updated audio filter options:", opts)
+		except Exception as e:
+			print ("Failed to set audio filter option:", e, f, MP.conf['vlc']['opts'])
+			return False
+	elif a == 'remove':
+		try:
+			MP.conf = np.readConf()
+			current_opts = MP.conf['vlc']['opts']
+			s = " "
+			_list = current_opts.split(s)
+			_list.remove(f_string)
+			j = ' '
+			MP.conf['vlc']['opts'] = j.join(_list)
+			#np.writeConf(MP.conf)
+			print ("Updated video filter options:", MP.conf['vlc']['opts'])
+		except Exception as e:
+			print ("Failed to remove video filter option:", e, f, MP.conf['vlc']['opts'])
+			return False
+	else:
+		txt = ("Unknown action:" + a + ", Available: 'add', 'remove'")
+		print (txt)
+		return False
+	gui_reset(MP.conf['play_type'], '-player_control_layout-')
+
+
 def rotate(deg):
 	if MP.conf['nowplaying']['filepath'] is not None:
 		filepath = MP.conf['nowplaying']['filepath']
@@ -191,6 +248,23 @@ def update_media_info(row):
 			UI.WINDOW[key].update(val)
 
 
+def load_playlist(filepath=None):
+	if filepath is None:
+		filepath = np.file_browse_window()
+	MP.stop()
+	if ".txt" in filepath:
+		MP.media['DBMGR_RESULTS'] = MP.load_playlist(filepath)
+		UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.media['DBMGR_RESULTS'])
+		MP.play_mode = 'playlist'
+		UI.WINDOW['-PLAY_MODE-'].update(MP.play_mode)
+		filepath = MP.media['DBMGR_RESULTS'][0]
+		MP.play(filepath)
+	else:
+		MP.play_mode = 'database'
+		UI.WINDOW['-PLAY_MODE-'].update(MP.play_mode)
+		MP.play(filepath)
+
+
 def start():
 	global P, MP, UI, conf
 	conf = None
@@ -201,12 +275,11 @@ def start():
 	media = np.create_media()
 	tab = '-player_control_layout-'
 	MP.conf = np.readConf()
-	#print ("Loaded play type:", MP.conf['play_type'])
 	if MP.conf is None:
 		print ("conf is None, re-initializing...")
 		MP.conf = np.initConf()
 		print ("Defaults restored.")
-	MP.conf['screens'] = xrandr()
+		MP.conf['screens'] = xrandr()
 	screen = MP.conf['screen']
 	MP.conf['w'] = MP.conf['screens'][screen]['w']
 	MP.conf['h'] = MP.conf['screens'][screen]['h']
@@ -217,15 +290,132 @@ def start():
 	except Exception as e:
 		print ("Series history is empty or couldn't read pickle data: line 557,", e)
 		media['series_history'] = {}
+	if MP.conf['network_mode']['mode'] == 'local':
+		try:
+			media_dirs = MP.conf['media_directories']
+			np.log("Media directories found in conf!", 'info')
+		except Exception as e:
+			txt = ("Error: media directories not found inf conf file:" + e)
+			np.log(txt, 'error')
+			np.set_media_paths()
 	UI = np.gui()
+	try:
+		init = MP.conf['init']
+	except:
+		MP.conf['init'] = True
+		MP.conf['windows'] = np.init_window_position()
+		MP.conf['windows']['gui']['visible_status'] = 'visible'
+		np.writeConf(MP.conf)
+		ui_center()
+	pbdl = np.pbdl()
 	set_video_out()
 	media['continuous'] = 1
 	input_enabled = 0
 	btn = None
 	while True:
+		try:
+			com = None
+			with open (np.COMFILE, 'r') as f:
+				data = f.read().strip()
+				f.close()
+			with open (np.COMFILE, 'w') as f:
+				f.write('')
+				f.close()
+		except:
+			with open (np.COMFILE, 'w') as f:
+				data = ''
+				f.write(data)
+				f.close()
+				data = None
+		if data is not None and data != '':
+			com = data.split('=')[0]
+			try:
+				arg = data.split('=')[1]
+			except:
+				arg = None
+			if com == 'play':					
+				MP.play()
+				np.log("REMOTE: Playing!", 'info')
+			elif com == 'pause':
+				P.pause()
+				np.log("REMOTE: Paused")
+			elif com == 'stop':
+				MP.stop()
+				np.log("REMOTE: Stopped", 'info')
+			elif com == 'skip_next':
+				MP.skip_next()
+				np.log("REMOTE: Skipped Next", 'info')
+			elif com == 'skip_prev':
+				MP.skip_previous()
+				np.log("REMOTE: Skipped Previous")
+			elif com == 'vol_set':
+				MP.volume_set(arg)
+				np.log("REMOTE: vol_set", 'info')
+			elif com == 'vol_up':
+				np.log("REMOTE: volume_up", 'info')
+				MP.volume_up()
+			elif com == 'vol_down':
+				MP.volume_down()
+				np.log("REMOTE: volume_down", 'info')
+			elif com == 'mute':
+				MP.volume_set(0)
+				np.log("REMOTE: Mute")
+			elif com == 'unmute':
+				vol = int(self.conf['volume'])
+				MP.volume_set(vol)
+				np.log("REMOTE: Unmuted", 'info')
+			elif com == 'quit':
+				np.log("REMOTE: Quitting...", 'info')
+				UI.WINDOW.close()
+				UI.WINDOW2.close()
+				break
+			elif com == 'load':
+				txt = ("REMOTE: Loading file:" + str(arg))
+				np.log(txt, 'info')
+				load_playlist(arg)
+			elif com == 'yt':
+				txt = ("REMOTE: Loading youtube video:", str(arg))
+				MP.next = str(arg)
+				np.log(txt, 'info')
+				MP.stop()
+				if 'http://' in MP.next or 'https://' in MP.next:
+					MP.is_url = True
+					if '/home' in MP.next:
+						split='https://'
+						MP.next = MP.next.split(split)[1]
+						MP.next = ('https://' + MP.next)
+					v = pafy.new(MP.next)
+					stream = v.streams[0]
+					r = requests.get(url)
+					status = r.status_code
+					if str(code).startswith('2') or str(code).startswith('3'):
+						txt = ("PLAYER: Youtube uri checked ok!, url=" + url)
+						np.log(txt, 'info')
+					else:
+						txt = ("PLAYER: Youtube url check Failed!, url=" + url + ", status=" + status + ", message=" + r.text)
+						np.log(txt, 'error')
+						MP.stop()
+					#stream = v.getbest()
+					P = MP.init_vlc()
+					M = self.vlcInstance.media_new(self.next)
+					mrl = Media.get_mrl()
+					P.set_media(M)
+					set_video_out()
+					P.play()
+			elif com == 'play_mode':
+				MP.play_mode = arg
+				txt = ("REMOTE: Play mode set:" + str(arg))
+				np.log(txt, 'info')
+			elif com == 'play_type':
+				MP.conf['play_type'] = arg
+				np.writeConf(MP.conf)
+				MP.play_type = arg
+				txt = ("REMOTE: Play type set:" + str(arg))
+				np.log(txt, 'info')
 		UI.window, UI.uievent, UI.uivalues = UI.get_events()
 		if UI.uievent is None and UI.uivalues is None:
 			pass
+		
 		if btn is not None:
 			if btn == MP.KEY_EVENTS['SEEK_FWD']:
 				seek_fwd()
@@ -301,8 +491,12 @@ def start():
 				MP.play(filepath)
 				P.set_position(play_pos)
 			else:
-				#print ('not resuming...', filepath)
-				MP.play()
+				print ('not resuming...', filepath)
+				if MP.play_mode == 'playlist':
+					MP.next = MP.get_playlist_next()
+					MP.play(MP.next)
+				else:
+					MP.play()
 
 			play_needed = 0	
 		if UI.uievent == sg.WIN_CLOSED and media['continuous'] == 0 and UI.RESET == False:
@@ -310,6 +504,9 @@ def start():
 			#now playing file ('next') and position
 			np.writeConf(MP.conf)
 			break
+		if UI.uievent == 'Toggle Network':
+			mode = MP.toggle_network_mode()
+			print ("Network mode changed:", mode)
 		if UI.uievent == 'Hide UI':
 			hide_ui()
 		if UI.uievent == 'store window location':
@@ -369,11 +566,9 @@ def start():
 				isactive=1
 			else:
 				isactive=1
-		elif UI.uievent == '-VIDEO_SCALE-':
-			val = int(UI.uivalues[UI.uievent])
-			val = val / 10
-			scale = float(val)
-			P.video_set_scale(scale)
+		elif UI.uievent == '-PLAY_POS-':
+			val = float(UI.uivalues[UI.uievent])
+			P.set_position(val)
 		elif UI.uievent == 'play':
 			P.play()
 		elif UI.uievent == 'pause':
@@ -406,7 +601,22 @@ def start():
 			#print ("Active screen updated! Needs restart", MP.conf['screen'])
 			gui_reset(MP.conf['play_type'], '-player_control_layout-')	
 		elif UI.uievent == 'load':
-			UI.load(UI.uivalues['-VIDEO_LOCATION-'])
+			MP.stop()
+			MP.next = UI.uivalues['-VIDEO_LOCATION-']
+			if 'http://' in MP.next or 'https://' in MP.next:
+				MP.is_url = True
+				if '/home' in MP.next:
+					split='https://'
+					MP.next = MP.next.split(split)[1]
+					MP.next = ('https://' + MP.next)
+				v = pafy.new(MP.next)
+				stream = v.getbest()
+				P = MP.init_vlc(stream.url)
+				set_video_out()
+				P.play()
+			else:
+				MP.is_url = False
+				MP.play(MP.next)
 		elif UI.uievent == 'Refresh from Database':
 			MP.media = np.create_media()
 			UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.DBMGR_RESULTS)
@@ -418,25 +628,57 @@ def start():
 				VPN = True
 			UI.toggle_vpn()
 		elif UI.uievent == '-CURRENT_PLAYLIST-':
+			MP.selected_playlist_item
 			val = None
 			_id = None
 			table = None
-			if MP.conf['play_type'] == 'series' or MP.conf['play_type'] == 'movies':
-				try:
-					val = UI.uivalues[UI.uievent][0]
-					_id = val.split(':')[5]
-					table = val.split(':')[0]
-					playlist_click(_id, table)
-				except Exception as e:
-					print ("Error: List is empty! Details:", e, val, _id, table)
-			elif MP.conf['play_type'] == 'music':
-				try:
-					val = UI.uivalues[UI.uievent][0]
-					_id = val.split(':')[6]
-					table = val.split(':')[0]
-					playlist_click(_id, table)
-				except Exception as e:
-					print ("Error: List is empty! Details:", e, val, _id, table)
+			if MP.play_mode == 'playlist':
+				val = UI.uivalues[UI.uievent][0]
+				if 'series:' in val or 'movies:' in val or 'music:' in val:
+					if 'series:' in val:
+						_id = val.split(':')[5]
+						table = val.split(':')[0]
+						playlist_click(_id, table)
+					elif 'movies:' in val:
+						table = val.split(':')[0]
+						title = val.split(':')[1]
+						year = val.split(':')[2]
+						_id = val.split(':')[3]
+						playlist_click(_id, table)
+					elif 'music:' in val:
+						val = UI.uivalues[UI.uievent][0]
+						_id = val.split(':')[6]
+						table = val.split(':')[0]
+						playlist_click(_id, table)
+				else:
+					MP.play(val)
+			elif MP.play_mode == 'database':
+				if MP.conf['play_type'] == 'series':
+					try:
+						val = UI.uivalues[UI.uievent][0]
+						_id = val.split(':')[5]
+						table = val.split(':')[0]
+						playlist_click(_id, table)
+					except Exception as e:
+						print ("Error: Series list is empty! Details:", e, val, _id, table)
+				elif MP.conf['play_type'] == 'movies':
+					try:
+						val = UI.uivalues[UI.uievent][0]
+						table = val.split(':')[0]
+						title = val.split(':')[1]
+						year = val.split(':')[2]
+						_id = val.split(':')[3]
+						playlist_click(_id, table)
+					except Exception as e:
+						print ("Error: Movies list is empty! Details:", e, val, _id, table)
+				elif MP.conf['play_type'] == 'music':
+					try:
+						val = UI.uivalues[UI.uievent][0]
+						_id = val.split(':')[6]
+						table = val.split(':')[0]
+						playlist_click(_id, table)
+					except Exception as e:
+						print ("Error: List is empty! Details:", e, val, _id, table)
 		elif UI.uievent == '-DBMGR_PICKED_COLUMNS-':
 			string = None
 			if len(UI.uivalues[UI.uievent]) == 1:
@@ -502,7 +744,8 @@ def start():
 					MP.media = np.create_media(rows=rows)
 					if rows is not None:
 						UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.media['DBMGR_RESULTS'])
-						
+						MP.play_mode = 'playlist'
+						UI.WINDOW['-PLAY_MODE-'].update(MP.play_mode)
 					else:
 						UI.WINDOW['-CURRENT_PLAYLIST-'].update("Looks like you better figure out how to search without that active flag....")
 				elif table == 'movies':
@@ -511,10 +754,12 @@ def start():
 					MP.media = np.create_media(rows=rows)
 					if rows is not None:
 						UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.media['DBMGR_RESULTS'])
-
+						MP.play_mode = 'playlist'
+						UI.WINDOW['-PLAY_MODE-'].update(MP.play_mode)
 				elif table == 'music':
 					print ("TODO: querydb music")
 					#rows = querydb(table = 'music', column='id,title,accoustic_id,album,album_id,artist_id,year,artist,track,track_ct,filepath', query='isactive = 1')
+
 
 		elif UI.uievent == '-DBMGR_RESULTS-':
 			MP.dbmgr_picked_items = UI.uivalues['-DBMGR_RESULTS-']
@@ -526,6 +771,12 @@ def start():
 			#	print ("Exception:", e)
 			# insert if radio button table == series, conditionals for others.
 			#UI.update_series_info_from_row(row)
+		elif UI.uievent == 'Volume Up':
+			MP.volume_up()
+			print ("Volume up:", MP.conf['volume'])
+		elif UI.uievent == 'Volume Down':
+			MP.volume_down()
+			print ("Volume down:", MP.conf['volume'])
 		elif UI.uievent == '-Remove Selected-':
 			for line in MP.dbmgr_picked_items:
 				table = line.split(':')[0]
@@ -542,28 +793,64 @@ def start():
 			#print ("Remove selected:", MP.dbmgr_picked_items)
 			UI.window['-DBMGR_RESULTS-'].update(MP.media['DBMGR_RESULTS'])
 		elif UI.uievent == 'Torrent Manager':
-			pbdl = np.pbdl()
 			pbdl.create_window()
 			pbdl.get_torrents()
 			pbdl.run()
+		elif UI.uievent == 'Pirate Bay Downloader':
+			if pbdl.downloader == False:
+				UI.pbdl_dl_win = pbdl.create_downloader()
+				print ("Loaded pirate bay downloader!")
+			else:
+				print ("Pirate bay downloader alread running!")
+			pbdl.run()
+		elif UI.uievent == '-PBDL_SEARCH-':
+			pbdl.results = pbdl.get_magnet(pbdl.pbdl_query, pbdl.category)
+			print (pbdl.results)
+			UI.pbdl_dl_win['-PBDL_RESULTS-'].update(pbdl.results)
+		elif UI.uievent == '-PBDL_RESULTS-':
+			key = UI.uivalues[UI.uievent]
+			if type(pbdl.results) == list:
+				for item in pbdl.results:
+					magnet = item[key]
+					com = ("transmission-remote -a '" + magnet + "'")
+					print (com)
+		elif UI.uievent == '-PBDL_SEARCH_QUERY-':
+			pbdl.pbdl_query = UI.uivalues[UI.uievent]
+			print (pbdl.pbdl_query)
+		elif UI.uievent == 'youtube-dl':
+			Y = np.ytdl()
+			Y.start()
 		elif UI.uievent == 'Recenter UI':
 			recenter_ui()
-		elif UI.uievent == "Load":
-			filepath = UI.file_browse_window()
-			#print ("Filepath:", filepath)
+		elif UI.uievent == "-Load Playlist-":
+			load_playlist(UI.uivalues[UI.uievent])
+		elif UI.uievent == "-Save Playlist-":
+			filepath = np.file_browse_window()
+			ret = MP.save_playlist(filepath, MP.media['DBMGR_RESULTS'])
+			if ret is True:
+				print ("Success!")
+			else:
+				print ("Failed!")
+		elif UI.uievent== "-Load Directory-":
+			path = np.folder_browse_window()
 			MP.stop()
+			MP.media['DBMGR_RESULTS'] = MP.load_directory(path)
+			UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.media['DBMGR_RESULTS'])
+			MP.play_mode = 'playlist'
+			UI.WINDOW['-PLAY_MODE-'].update(MP.play_mode)
+			filepath = MP.media['DBMGR_RESULTS'][0]
 			MP.play(filepath)
-		elif UI.uievent== "Save":
-			path = UI.folder_browse_window()
-			string = (path + "/playlist.txt")
 			#print (string)
-		elif UI.uievent == '-Read Info-':
-			for item in MP.dbmgr_picked_items:
-				UI.update_series_info_from_row(item)
+		elif UI.uievent == '-PLAY_MODE-':
+			MP.play_mode = UI.uivalues[UI.uievent]
+			print ("Play mode changed:", MP.play_mode)
+#		elif UI.uievent == '-Read Info-':
+#			for item in MP.dbmgr_picked_items:
+#				UI.update_series_info_from_row(item)
 				#print ("Read current database info:", item)
-		elif UI.uievent == '-Update Info-':
-			for item in MP.dbmgr_picked_items:
-				print ("TODO: update database", item)
+#		elif UI.uievent == '-Update Info-':
+#			for item in MP.dbmgr_picked_items:
+#				print ("TODO: update database", item)
 		elif UI.uievent == '-Set Active-':
 			print ("TODO: Set active", MP.dbmgr_picked_items)
 		elif UI.uievent == '-Set Inactive-':
@@ -574,12 +861,26 @@ def start():
 			dbmgr_clear_all()
 		elif UI.uievent == 'Hide UI':
 			print ("GUI Menu hidden!")
+		elif UI.uievent == '-VID_OUT-':
+			print ("Don't touch me, booger blaster!")
+		elif UI.uievent == 'Fix Focus':
+			UI.WINDOW.TKroot.focus_force()
+			UI.WINDOW.Element('-SEARCH_QUERY-').SetFocus()
+			print ("Set focus on search query input!")
+		elif UI.uievent == 'Screenshot':
+			ret = MP.screenshot()
+			print (ret)
+		elif UI.uievent in np.VLC_VIDEO_FILTERS or UI.uievent in np.VLC_AUDIO_FILTERS:
+			f = UI.uievent
+			print ("Changing filter:", f)
+			ret = change_filter(f)
+			print (ret)
 		else:
 			if UI.uievent != '__TIMEOUT__' and UI.uievent is not None:
 				try:
 					print (UI.uievent, UI.uivalues[UI.uievent])
 				except Exception as e:
-					print ("np_main_test.start, line 572, no value for event:", UI.uievent, UI.uivalues)
+					print ("np.py, function=start(), line 598, no value for event:", UI.uievent, UI.uivalues)
 #-----------------UI Event section end------------------#
 
 #-----------------
@@ -589,7 +890,7 @@ def start():
 			UI.WINDOW2.refresh()
 			MP.ART_UPDATE_NEEDED = False
 	# update elapsed time if there is a video loaded and the media is playing
-		if P.is_playing():
+		if P.is_playing() and MP.is_url == False:
 			s='%20'
 			j = ' '
 			s2 = 'file://'
@@ -597,16 +898,18 @@ def start():
 			filepath = P.get_media().get_mrl().split("file://")[1]
 			MP.conf['nowplaying']['filepath'] = urllib.parse.unquote(filepath)
 			MP.conf['nowplaying']['play_pos'] = P.get_position()
+			pos = (MP.conf['nowplaying']['play_pos'])
+			UI.WINDOW['-PLAY_POS-'].update(MP.conf['nowplaying']['play_pos'])
 			txt = "{:02d}:{:02d} / {:02d}:{:02d}".format(*divmod(P.get_time()//1000, 60), *divmod(P.get_length()//1000, 60))
+			if MP.next is not None:
+				txt = (txt + "::" + str(MP.next))
 			UI.WINDOW['-MESSAGE_AREA-'].update(txt)
+		elif P.is_playing() and MP.is_url == True:
+			pass
 
 		else:
 			media['is_playing'] = 0
 			UI.WINDOW['-MESSAGE_AREA-'].update('Load media to start')
-		if MP.scale_needed == 1:
-			val = MP.scale * 10
-			UI.WINDOW['-VIDEO_SCALE-'].update(float(val))
-			MP.unset_scale_flag()
 
 	UI.WINDOW.close()
 	
