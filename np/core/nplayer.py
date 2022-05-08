@@ -737,8 +737,6 @@ class nplayer():
 		items = self.media['DBMGR_RESULTS']
 		np.log("DBMGR_RESULTS/items:" + str(items))
 		idx = None
-		txt = ("last:" + self.playlist_last)
-		np.log(txt, 'info')
 		if self.playlist_last is None:
 			try:
 				self.next = items[0]
@@ -760,7 +758,7 @@ class nplayer():
 				else:
 					string = self.playlist_last
 					try:
-						idx = items.index(string)
+						idx = items.index(string) + 1
 					except:
 						query_string = ("filepath = '" + string + "'")
 						inseries, inmovies, inmusic = None, None, None
