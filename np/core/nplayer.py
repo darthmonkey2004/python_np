@@ -737,6 +737,8 @@ class nplayer():
 		items = self.media['DBMGR_RESULTS']
 		np.log("DBMGR_RESULTS/items:" + str(items))
 		idx = None
+		txt = ("last:" + self.playlist_last)
+		np.log(txt, 'info')
 		if self.playlist_last is None:
 			try:
 				self.next = items[0]
