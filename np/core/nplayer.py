@@ -477,22 +477,23 @@ class nplayer():
 		user = self.conf['network_mode']['user']
 		host = self.conf['network_mode']['host']
 		sftp_data_file = (np.SFTP_DIR + os.path.sep + 'info.txt')
-		try:
-			com = ("sshfs '" + user + "@" + host + ":/var/storage' '" + np.SFTP_DIR + "'")
-			ret = subprocess.check_output(com, shell=True).decode()
-			if ret != '':
-				np.log (("sftp mount returned value:" + ret), 'error')
-			line=(user + '@' + host)
-			with open(sftp_data_file, 'w') as f:
-				f.write(line)
-				f.close()
-			with open(sftp_data_file, 'r') as f:
-				user_host = f.read().strip()
-			return True
-		except Exception as e:
-			txt = ("Unable to mount sftp:" + str(e))
-			np.log(txt, 'error')
-			return False
+		if not os.path.exists(sftp_data_file):
+			try:
+				com = ("sshfs '" + user + "@" + host + ":/var/storage' '" + np.SFTP_DIR + "'")
+				ret = subprocess.check_output(com, shell=True).decode()
+				if ret != '':
+					np.log (("sftp mount returned value:" + ret), 'error')
+				line=(user + '@' + host)
+				with open(sftp_data_file, 'w') as f:
+					f.write(line)
+					f.close()
+				with open(sftp_data_file, 'r') as f:
+					user_host = f.read().strip()
+				return True
+			except Exception as e:
+				txt = ("Unable to mount sftp:" + str(e))
+				np.log(txt, 'error')
+				return False
 
 	
 	def play(self, _file=None):

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import eyed3
 import threading
 import subprocess
 import sys
@@ -36,6 +37,7 @@ class ytdl():
 		email, pw = self.get_youtube_authstr()
 		self.sim_opts = {'simulate': True, 'username': email, 'password': pw, 'ignoreerrors': True}
 		self.ytdl_infogetter = youtube_dl.YoutubeDL(self.sim_opts)
+		
 
 	def init_ytdl_gui(self):
 		url_line = [sg.Text('Target URL:'), sg.Input(expand_x=True, enable_events=True, key='-YTDL_TARGET_URL-')]
@@ -65,29 +67,73 @@ class ytdl():
 		self.info = self.ytdl_infogetter.extract_info(url)
 		return self.info
 
-	def download(self, url, _type='video'):
+	def download(self, url, _type='video', fname=None):
 		if self.email == None:
 			self.email, pw = self.get_youtube_authstr()
 		ytdl_downloader = None
-		info = self.get_info(url)
-		_id = info['id']
-		ext = info['ext']
 		if _type == 'video':
-			outtmpl = "{_id}.{ext}".format(_id=_id, ext=ext)
+			if fname == None:
+				info = self.get_info(url)
+				_id = info['id']
+				ext = info['ext']
+				outtmpl = "{_id}.{ext}".format(_id=_id, ext=ext)
+			else:
+				outtmpl = fname
 			dl_opts = {'outtmpl': outtmpl, 'logger': logger(), 'progress_hooks': [progress_hook], 'username': self.email, 'password': pw, 'ignoreerrors': True}
 			ytdl_downloader = youtube_dl.YoutubeDL(dl_opts)
 
 		elif _type == 'audio':
-			try:
-				title = info['title']
-				artist = info['artist']
-				outtmpl = (title + "." + artist + "." + ext)
-				dl_opts = {'outtmpl': outtmpl, 'format': 'bestaudio/best', 'postprocessors': [{'key': 'FFmpegExtractAudio', 'preferredcodec': 'mp3', 'preferredquality': '192'}], 'logger': logger(), 'progress_hooks': [progress_hook], 'username': self.email, 'password': pw, 'ignoreerrors': True}
-			except:
-				outtmpl = (_id + "." + ext)
-				dl_opts = {'outtmpl': outtmpl, 'format': 'bestaudio/best', 'postprocessors': [{'key': 'FFmpegExtractAudio', 'preferredcodec': 'mp3', 'preferredquality': '192'}], 'logger': logger(), 'progress_hooks': [progress_hook], 'username': self.email, 'password': pw, 'ignoreerrors': True}
+			if fname == None:
+				try:
+					title = info['title']
+					artist = info['artist']
+					outtmpl = (title + "." + artist + "." + ext)
+				except:
+					outtmpl = (_id + "." + ext)
+			else:
+				outtmpl = fname
+			dl_opts = {'outtmpl': outtmpl, 'format': 'bestaudio/best', 'postprocessors': [{'key': 'FFmpegExtractAudio', 'preferredcodec': 'mp3', 'preferredquality': '192'}], 'logger': logger(), 'progress_hooks': [progress_hook], 'username': self.email, 'password': pw, 'ignoreerrors': True}
 			ytdl_downloader = youtube_dl.YoutubeDL(dl_opts)
 		ytdl_downloader.download([url])
+
+
+	def download_list(self, data, _type=None):
+		self.email, pw = self.get_youtube_authstr()
+		base_url = 'https://www.youtube.com/watch?v='
+		if _type == None:
+			_type = self.media_type
+		ct = len(data)
+		pos = 0
+		for filepath in data:
+			pos = pos + 1
+			try:
+				print ("Working (" + str(pos) + "/" + str(ct) + "):", filepath)
+				vals = data[filepath]
+				_id = vals['id']
+				ext = vals['ext']
+				title = vals['title']
+				album_art = vals['thumbnail']
+				description = vals['description']
+				try:
+					album = vals['album']
+				except:
+					album = 'Unknown'
+				try:
+					artist = vals['artist']
+				except:
+					artist = 'Unknown'
+				try:
+					track = vals['track']
+				except:
+					track = 'null'
+				url = (base_url + str(_id))
+				fname = ("{title}.{artist}.{album}.{_id}.mp4".format(title=title, artist=artist, album=album, _id=_id))
+				dl_opts = {'outtmpl': fname, 'format': 'bestaudio/best', 'postprocessors': [{'key': 'FFmpegExtractAudio', 'preferredcodec': 'mp3', 'preferredquality': '192'}], 'logger': logger(), 'progress_hooks': [progress_hook], 'username': self.email, 'password': pw, 'ignoreerrors': True}
+				ytdl_downloader = youtube_dl.YoutubeDL(dl_opts)
+				ret = ytdl_downloader.download([url])
+				print (ret)
+			except Exception as e:
+				print ("Error:", e)
 
 
 	def get_youtube_authstr(self):
@@ -96,6 +142,22 @@ class ytdl():
 		pw = authstr.split(':')[1]
 		return (self.email, pw)
 
+
+	def set_media_type(self, _type):
+		if _type == 'music' or _type == 'video':
+			self.media_type = _type
+			return
+		else:
+			print ("Unknown type!", _type)
+			return
+		
+
+
+	def start_downloader(self, url, media_type=None):
+		if media_type == None:
+			media_type = self.media_type
+		ret = downloader(u, self.media_type)
+		print (ret)
 
 	def start(self):
 		win = self.init_ytdl_gui()
@@ -111,7 +173,7 @@ class ytdl():
 					break
 				elif e == '-YTDL_TARGET_URL-':
 					self.target_url = str(v[e])
-					np.write_log(("Target Url:", self.target_url), 'INFO')
+					print (self.target_url)
 				elif e == '-YTDL_DOWLOAD-':
 					u = self.target_url
 					if u is not None:
@@ -130,6 +192,7 @@ class ytdl():
 							print ("Event loop output:", e)
 
 
+
 def downloader(url, _type='video'):
 	def worker():
 		return Y.download(url, _type)
@@ -146,10 +209,14 @@ def progress_hook(d):
 		p = float(p)
 	except:
 		p = 100
-	win['progress'].update_bar(p)
+	try:
+		win['progress'].update_bar(p)
+	except:
+		pass
 
 
 if __name__ == "__main__":
 	Y = ytdl()
-	win = Y.init_ytdl_gui()
 	Y.start()
+
+
