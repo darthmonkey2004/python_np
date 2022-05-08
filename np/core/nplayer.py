@@ -665,6 +665,9 @@ class nplayer():
 
 
 	def load_playlist(self, filepath):
+		if self.conf['network_mode']['mode'] == 'remote':
+			fpath = filepath.split('/var/storage/')[1]
+			filepath = (np.SFTP_DIR + os.path.sep + fpath)
 		try:
 			results = []
 			with open(filepath, 'r') as f:
