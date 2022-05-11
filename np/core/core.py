@@ -36,31 +36,6 @@ sep = os.path.sep
 conf_file=(npdir + sep + "nplayer.conf")
 
 
-def readConf():
-	try:
-		with open(conf_file, 'rb') as f:
-			data = pickle.load(f)
-		f.close()
-		return data
-	except Exception as e:
-		print ("Exception in core.py, readConf, line 87:", e)
-		return None
-conf = readConf()
-
-def writeConf(data):
-	np.log(f"Current log class state: {log}", 'info')
-	try:
-		with open(conf_file, 'wb') as f:
-			pickle.dump(data, f)
-		f.close()
-		log('core.py, writeConf: Conf updated!', 'info')
-		return True
-	except Exception as e:
-		print(f"Exception in core.py, writeConf, line 59:{e}")
-		return False
-
-
-
 def initConf():
 	#print ("Init conf running!")
 	conf = {}
@@ -147,6 +122,32 @@ class log():
 				raise RuntimeError(ouch) from e
 				return
 		return
+
+
+def readConf():
+	try:
+		with open(conf_file, 'rb') as f:
+			data = pickle.load(f)
+		f.close()
+		return data
+	except Exception as e:
+		print ("Exception in core.py, readConf, line 87:", e)
+		return None
+conf = readConf()
+
+def writeConf(data):
+	i = isinstance(log, log)
+	np.log(f"Logger instance state: {i}", 'info')
+	try:
+		with open(conf_file, 'wb') as f:
+			pickle.dump(data, f)
+		f.close()
+		
+		log('core.py, writeConf: Conf updated!', 'info')
+		return True
+	except Exception as e:
+		print(f"Exception in core.py, writeConf, line 59:{e}")
+		return False
 
 class err():
 	def __init__(self):

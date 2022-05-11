@@ -1,8 +1,8 @@
 README
 poster.png
+requirements.txt
 setup.py
 np/__init__.py
-np/np
 np.egg-info/PKG-INFO
 np.egg-info/SOURCES.txt
 np.egg-info/dependency_links.txt
