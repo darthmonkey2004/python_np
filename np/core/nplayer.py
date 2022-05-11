@@ -606,11 +606,13 @@ class nplayer():
 				self.scale = np.calculate_scale(self.next)
 				if self.scale == None:
 					self.scale_needed = 0
+					np.log (f"Scale is None, setting scale_needed = 0", 'info')
 				else:
 					self.player.video_set_scale(self.scale)
 					test_scale = self.player.video_get_scale()
 					if test_scale:
 						self.scale_needed = 1
+						np.log (f"Scale is {self.scale}, setting scale needed = 1", 'info')
 		self.volume = self.player.audio_get_volume()
 		self.media['is_playing'] = self.player.is_playing()
 		if self.media['is_playing'] == 1 or self.media['is_playing'] == True:

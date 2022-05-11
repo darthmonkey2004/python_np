@@ -139,6 +139,91 @@ class gui():
 		self.RESET = False
 
 
+	def create_gui_window(self):
+		scale = float(int(self.conf['scale']) * 10)
+		search_line = [self.create_old('dropdown_menu', [self.tables, self.conf['play_type'], '-PLAY_TYPE-']), self.create_old('dropdown_menu', [list(self.conf['screens'].keys()), self.conf['screen'], '-SET_SCREEN-']), self.create_old('dropdown_menu', [['database', 'playlist'], 'database', '-PLAY_MODE-']), self.create_old('textbox', ['Search', '-SEARCH-']), self.create_old('text_input', ['Enter search query:', '-SEARCH_QUERY-']), self.create_old('btn', ['Search', 'Search'])]
+		elem_media_list = [self.create_old('listbox', [self.media['DBMGR_RESULTS'], '-CURRENT_PLAYLIST-'])]
+		update_line = [self.create_old('btn', ['Refresh from Database'])]
+		player_controls1 = [self.create_old('btn', ['Volume Up']), self.create_old('btn', ['previous']), self.create_old('btn', ['play']), self.create_old('btn', ['next']), self.create_old('btn', ['pause']), self.create_old('btn', ['stop'])]
+		player_controls2 = [self.create_old('btn', ['Volume Down']), self.create_old('btn', ['seek fwd']), self.create_old('btn', ['seek rev']), self.create_old('btn', ['Exit']), self.create_old('btn', ['Screenshot']), self.create_old('btn', ['Toggle Network'])]
+		try:
+			play_pos = float(self.conf['nowplaying']['play_pos'])
+		except:
+			play_pos = 0
+			self.conf['nowplaying']['play_pos'] = play_pos
+		slider_scale = [sg.Slider(range=(0,1), resolution=0.01, default_value=play_pos, orientation='h', expand_x = True, enable_events = True, change_submits = True, key='-PLAY_POS-')]
+		line_window_ctl = [self.create_old('btn', ['store window location']), self.create_old('btn', ['Hide UI']), self.create_old('btn', ['Recenter UI']), self.create_old('btn', ['Fix Focus'])]
+		self.video_temp_img = self.create_old('image', [temp_img_path, '-VID_OUT-'])
+		
+		line.append(self.video_temp_img)
+		
+		self.player_window_layout.append(line)
+		self.player_window_layout.append([sg.Sizegrip(key='-viewer_size-')])
+		if self.play_type == 'movies':
+			columns_list = ['id', 'isactive', 'tmdbid', 'title', 'year', 'release_date', 'duration', 'description', 'poster', 'filepath', 'md5', 'url']
+			radio_sql_table_select = [[sg.Radio('series', "TABLES", default=False, enable_events=True, key='-table_series-'), sg.Radio('movies', "TABLES", default=True, enable_events=True, key='-table_movies-'), sg.Radio('music', "TABLES", default=False, enable_events=True, key='-table_music-'), self.create_old('btn', ['Select All', '-Select All-']), self.create_old('btn', ['Clear All', '-Clear All-'])]]
+		elif self.play_type == 'series' or self.play_type == 'videos':
+			columns_list = ['id', 'isactive', 'series_name', 'tmdbid', 'season', 'episode_number', 'episode_name', 'description', 'air_date', 'still_path', 'duration', 'filepath', 'md5', 'url']
+			radio_sql_table_select = [[sg.Radio('series', "TABLES", default=True, enable_events=True, key='-table_series-'), sg.Radio('movies', "TABLES", default=False, enable_events=True, key='-table_movies-'), sg.Radio('music', "TABLES", default=False, enable_events=True, key='-table_music-'), self.create_old('btn', ['Select All', '-Select All-']), self.create_old('btn', ['Clear All', '-Clear All-'])]]
+		elif self.play_type == 'music':
+			columns_list = ['id', 'isactive', 'title', 'accoustic_id', 'album', 'album_id', 'artist_id', 'year', 'artist', 'track', 'track_ct', 'filepath']
+			radio_sql_table_select = [[sg.Radio('series', "TABLES", default=False, enable_events=True, key='-table_series-'), sg.Radio('movies', "TABLES", default=False, enable_events=True, key='-table_movies-'), sg.Radio('music', "TABLES", default=True, enable_events=True, key='-table_music-'), self.create_old('btn', ['Select All', '-Select All-']), self.create_old('btn', ['Clear All', '-Clear All-'])]]
+		radio_frame = sg.Frame(title='', layout=radio_sql_table_select, key='table_select', expand_x=True, grab=True, element_justification="left", vertical_alignment="top")
+		self.player_control_layout = [
+			search_line,
+			elem_media_list,
+			update_line,
+			[sg.Input(default_text='Video URL or Local Path:', size=(30, 1), expand_x=True, key='-VIDEO_LOCATION-'), sg.Button('load')],
+			player_controls1,
+			player_controls2,
+			slider_scale,
+			[sg.Text('Load media to start', key='-MESSAGE_AREA-')],
+			line_window_ctl,
+			[]
+		]
+		dbitems = []
+		listbox_dbitems = [[sg.Listbox(columns_list, size=(20, 10), select_mode='multiple', change_submits=True, auto_size_text=True, enable_events=True, key='-DBMGR_PICKED_COLUMNS-'), sg.Listbox(dbitems, size=(70, 10), select_mode='multiple', change_submits=True, auto_size_text=True, expand_x=True, enable_events=True, key='-DBMGR_RESULTS-'), sg.Listbox(self.dbmgr_picked_items, size=(20, 10), select_mode='multiple', change_submits=True, auto_size_text=True, enable_events=True, key='-DBMGR_SELECTED_ROWS-')]]
+		listbox_dbitems = sg.Frame(title='', layout=listbox_dbitems, key='listbox_dbitems', expand_x=True, grab=True, element_justification="left", vertical_alignment="top")
+		#ckbox_is_active = [self.create_old('checkbox', ['Active:', '-setactive-'])]
+		btn_update_info = [self.create_old('btn', ['Query TMDB', '-Query TMDB-']), self.create_old('btn', ['Read Info', '-Read Info-']), self.create_old('btn', ['Update Info', '-Update Info-']), self.create_old('btn', ['Set Active', '-Set Active-']), self.create_old('btn', ['Set Inactive', '-Set Inactive-']), self.create_old('btn', ['Remove Selected', '-Remove Selected-'])]
+		textinput_query_string = [[sg.Input(size=(30, 1), expand_x=True, enable_events=True, key='-DBMGR_QUERY_STRING-'), self.create_old('btn', ['SQL Search'])]]
+		textinput_query_string = sg.Frame(title='', layout=textinput_query_string, key='textinput_query_string', expand_x=True, grab=True, element_justification="left", vertical_alignment="top")
+		self.poster_img = [sg.Image(poster_path, subsample=4, key='-poster_img-')]
+		self.db_mgr_layout = [
+			[radio_frame],
+			[listbox_dbitems],
+			[sg.Text()],
+			[textinput_query_string],
+			[sg.Text()],
+		]
+		cct = len(columns_list)
+		cct = cct - 1
+		pos = -1
+		while pos != cct:
+			pos = pos + 1
+			column = columns_list[pos]
+			pos = pos + 1
+			column2 = columns_list[pos]
+			text = (column + ":")
+			key=("-" + column + "-")
+			text2 = (column2 + ":")
+			key2=("-" + column2 + "-")
+			field = sg.Input(size=(30, 1), default_text=text, enable_events=True, expand_x=True, key=key), sg.Text(), sg.Input(size=(30,1), enable_events=True, default_text=text2, expand_x=True, key=key2)
+			self.db_mgr_layout.append(field)
+			text = None
+			text2 = None
+			key = None
+			key2 = None
+		#self.db_mgr_layout.append(ckbox_is_active)
+		self.db_mgr_layout.append(btn_update_info)
+		self.db_mgr_layout.append(self.poster_img)
+		self.menu_def = [['&File', ['-&Load Directory-', '-&Load Playlist-', '-&Save Playlist-', 'E&xit']], ['&Tools', ['&Pirate Bay Downloader', '&Torrent Manager', '&youtube-dl', '&Video Filters', [np.VLC_VIDEO_FILTERS], '&Audio Filters', [np.VLC_AUDIO_FILTERS]]], ['&Help', '&About...']]
+
+		self.layout = [[sg.MenubarCustom(self.menu_def, tearoff=True, key='-menubar_key-'), sg.Button("Close")], [sg.TabGroup([[sg.Tab('MP Controls', self.player_control_layout, key='-player_control_layout-')], [sg.Tab('DB Manager', self.db_mgr_layout, key='-db_mgr_layout-')]], expand_x=True, expand_y=True, enable_events=True)], [sg.Sizegrip(key='-gui_size-')]]
+		#self.conf['windows'] = {}
+		self.WINDOW = sg.Window('GUI', self.layout, no_titlebar=True, location=(int(self.gui_win_x),int(self.gui_win_y)), size=(self.gui_win_w,self.gui_win_h), keep_on_top=False, grab_anywhere=True, element_justification='center', finalize=True, resizable=True).Finalize()
+
+
 	def init_window_position(self):
 		screen = self.conf['screen']
 		self.conf['windows'] = np.init_window_position()

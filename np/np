@@ -265,6 +265,20 @@ def load_playlist(filepath=None):
 		MP.play(filepath)
 
 
+def set_debug(mode=None):
+	if mode == None:
+		debug = MP.conf['debug']
+		if debug == True:
+			debug = False
+		elif debug == False:
+			debug = True
+	else:
+		debug = mode
+	MP.conf['debug'] = debug
+	np.writeConf(MP.conf)
+	np.log(f"Debug option changed: {MP.conf['debug']}!", 'info')
+
+
 def start():
 	global P, MP, UI, conf
 	conf = None
@@ -417,6 +431,26 @@ def start():
 				P.set_position(pos)
 				txt = ("seek to position:" + str(pos))
 				np.log(txt, 'info')
+			elif com == 'hide_gui':
+				UI.WINDOW.close(()
+				np.log(f"GUI Window closed by remote!", 'info')
+			elif com == 'show_gui':
+				UI.create_gui_window()
+				np.log(f"GUI Window opened by remote!", 'info')
+			elif com == 'move_gui':
+				x, y = int(arg.split(',')[0]), int(arg.split(',')[1])
+				UI.move_window(UI.WINDOW, x, y)
+				np.log(f"GUI Window moved by remote: ({x},{y})", 'info')
+			elif com == 'move_player':
+				x, y = int(arg.split(',')[0]), int(arg.split(',')[1])
+				UI.move_window(UI.WINDOW2, x, y)
+				np.log(f"Player Window moved by remote: ({x},{y})", 'info')
+			elif com == 'debug':
+				try:
+					debug = bool(arg)
+					set_debug(debug)
+				except Exception as e:
+					np.log(f"Failed to set debug mode: {e}", 'error')
 		UI.window, UI.uievent, UI.uivalues = UI.get_events()
 		if UI.uievent is None and UI.uivalues is None:
 			pass
