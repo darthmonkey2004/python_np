@@ -508,12 +508,12 @@ def start():
 			#	UI.WINDOW['-table_movies-'].update(False)
 			#	UI.WINDOW['-table_music-'].update(True)
 			#if MP.conf['nowplaying']['filepath'] is not None:
-			#print ("Resuming from reset = True...")
+			np.log("np.py: Resuming from reset = True...", 'info')
 			#MP.play(MP.conf['nowplaying']['filepath'])
 			MP.play()
 			time.sleep(0.5)
 			P.set_position(MP.conf['nowplaying']['play_pos'])
-			#print ("Skipped to ", play_pos)
+			np.log(f"Skipped to {MP.conf['nowplaying']['play_pos']}", 'info')
 			media['continuous'] = 1
 			#MP.conf['nowplaying']['filepath'] = None
 			np.writeConf(MP.conf)
@@ -521,7 +521,7 @@ def start():
 			#MP.play_needed = 0
 			#print ("Reset flag unset:", UI.RESET)
 		if MP.play_needed == 1:
-			#print ("Playing from 'play needed'")
+			np.log("Playing from 'play needed'", 'info')
 			filepath = MP.conf['nowplaying']['filepath']
 			play_pos = MP.conf['nowplaying']['play_pos']
 			if filepath is not None:
