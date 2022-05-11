@@ -1,4 +1,10 @@
 #!/bin/bash
+#TODO: server:
+#		1. sftp ssh provider, mount sshfs, watch io file for instructions
+#		2. shared sshfs resources (media, (io?))
+				-or-
+#		3. server sends message to clients with execAt timestamp, and file uri.
+
 
 setup() {
 	read -p "Enter remote player ip: " remote_ip
@@ -41,8 +47,12 @@ com() {
 	ssh "$NP_REMOTE_USER@$NP_REMOTE_IP" "cd '$HOME/.np'; echo '$com' > nplayer.com"
 }
 
+
+
+
+
 commands() {
-	commands=('setup' 'reset' 'update' 'commands' 'start' 'readConf' 'clearLog' 'play' 'pause' 'stop' 'skip_next' 'skip_prev' 'vol_set' 'vol_up' 'vol_down' 'mute' 'unmute' 'quit' 'load' 'yt' 'play_mode' 'play_type')
+	commands=('debug', 'hide_gui', 'show_gui', 'move_gui', 'move_player', 'seek' 'setup' 'reset' 'update' 'commands' 'start' 'readConf' 'clearLog' 'play' 'pause' 'stop' 'skip_next' 'skip_prev' 'vol_set' 'vol_up' 'vol_down' 'mute' 'unmute' 'quit' 'load' 'yt' 'play_mode' 'play_type')
 	echo "Command list:"
 	pos=0
 	for com in "${commands[@]}"; do
