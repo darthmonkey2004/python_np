@@ -55,7 +55,7 @@ def writeConf(data):
 		log('core.py, writeConf: Conf updated!', 'info')
 		return True
 	except Exception as e:
-		log(f"Exception in core.py, writeConf, line 59:{e}")
+		print(f"Exception in core.py, writeConf, line 59:{e}")
 		return False
 
 
