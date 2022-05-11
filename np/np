@@ -208,7 +208,7 @@ def update_resume():
 	filepath = P.get_media().get_mrl().split("file://")[1]
 	MP.conf['nowplaying']['filepath'] = urllib.parse.unquote(filepath)
 	MP.conf['nowplaying']['play_pos'] = P.get_position()
-	#print ('set play pos:', MP.conf['nowplaying']['play_pos'])
+	np.log(f"np.py, update_resume: modified conf with play_pos and now_playing: play_pos={MP.conf['nowplaying']['play_pos']}, now_playing={MP.conf['nowplaying']['filepath']}", 'info')
 	#print ('set nowplaying filepath:', MP.conf['nowplaying']['filepath'])
 	np.writeConf(MP.conf)
 
@@ -529,6 +529,7 @@ def start():
 				#print ('using resume from file:', filepath)
 				MP.play(filepath)
 				P.set_position(play_pos)
+				np.log(f"np.py, Skipped to {play_pos} by play_needed = 1", 'info')
 			else:
 				print ('not resuming...', filepath)
 				if MP.play_mode == 'playlist':
@@ -608,6 +609,7 @@ def start():
 		elif UI.uievent == '-PLAY_POS-':
 			val = float(UI.uivalues[UI.uievent])
 			P.set_position(val)
+			np.log(f"UI: Skipped to position {val}", 'info')
 		elif UI.uievent == 'play':
 			P.play()
 		elif UI.uievent == 'pause':

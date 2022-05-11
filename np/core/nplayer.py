@@ -157,6 +157,7 @@ class nplayer():
 		self.nowplaying['state'] = self.player.get_state()
 		self.nowplaying['xwindow'] = self.player.get_xwindow()
 		self.conf['nowplaying']['play_pos'] = self.player.get_position()
+		np.log(f"nplayer.py, set_now_playing: play_pos set={MP.conf['nowplaying']['filepath']}", 'info')
 		return self.nowplaying
 		
 	def vlc_event(self, event):
@@ -178,6 +179,7 @@ class nplayer():
 					self.nowplaying['duration'] = self.player.get_length()
 				elif event == 'EventType.MediaMPPositionChanged':
 					self.conf['nowplaying']['play_pos'] = self.player.get_position()
+					np.log(f"nplayer.py, vlc_event: play_pos set={MP.conf['nowplaying']['play_pos']}", 'info')
 					self.nowplaying['vw'] = self.player.video_get_width()
 					self.nowplaying['vh'] = self.player.video_get_height()
 					if self.conf['nowplaying']['play_pos'] == 1.0 or self.conf['nowplaying']['play_pos'] >= 0.999:
@@ -319,6 +321,7 @@ class nplayer():
 	def skip_next(self):
 		self.conf['nowplaying']['filepath'] = None
 		self.conf['nowplaying']['play_pos'] = 0
+		np.log(f"nplayer.py, skip_next: blanked nowplaying info (None, 0)", 'info')
 		if self.play_mode == 'playlist':
 			self.play()
 			return True
@@ -555,7 +558,7 @@ class nplayer():
 				self.selected_playlist_item = self.get_info_string(self.next)
 				self.play_pos = float(self.conf['nowplaying']['play_pos'])
 				self.conf['nowplaying']['filepath'] = None
-				np.log('set nowplaying filepath to None...')
+				np.log(f"set nowplaying: filepath=None, play_pos={self.conf['nowplaying']['play_pos']}...", 'info')
 				np.writeConf(self.conf)
 			else:
 				np.log("Playlist: File provided:" + _file)

@@ -53,9 +53,10 @@ def writeConf(data):
 		with open(conf_file, 'wb') as f:
 			pickle.dump(data, f)
 		f.close()
+		log('core.py, writeConf: Conf updated!', 'info')
 		return True
 	except Exception as e:
-		print ("Exception in core.py, writeConf, line 98:", e)
+		log(f"Exception in core.py, writeConf, line 59:{e}")
 		return False
 
 
@@ -226,9 +227,10 @@ def updateConf(conf, key, val):
 	if key in keys:
 		conf[key] = val
 		writeConf(conf)
+		log("Conf updated!", 'info)
 		return True
 	else:
-		print ("key not found:", key)
+		log(f"key not found: {key}", 'error')
 		return False
 
 
@@ -258,6 +260,7 @@ def set_play_type(play_type):
 	play_type = play_type
 	conf['play_type'] = play_type
 	writeConf(conf)
+	np.log('core.py, set_play_type: Conf file written!', 'info')
 
 
 def calculate_scale(_file, conf=None, _type='file'):
