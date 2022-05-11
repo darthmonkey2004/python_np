@@ -380,8 +380,7 @@ def start():
 				np.log("REMOTE: Unmuted", 'info')
 			elif com == 'quit':
 				np.log("REMOTE: Quitting...", 'info')
-				UI.WINDOW.close()
-				UI.WINDOW2.close()
+				update_resume()
 				break
 			elif com == 'load':
 				txt = ("REMOTE: Loading file:" + str(arg))
