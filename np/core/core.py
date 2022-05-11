@@ -34,7 +34,6 @@ KEY_EVENTS['SKIP_NEXT'] = 115
 KEY_EVENTS['SKIP_PREV'] = 114
 sep = os.path.sep
 conf_file=(npdir + sep + "nplayer.conf")
-conf = readConf()
 
 
 def readConf():
@@ -46,7 +45,7 @@ def readConf():
 	except Exception as e:
 		print ("Exception in core.py, readConf, line 87:", e)
 		return None
-
+conf = readConf()
 
 def writeConf(data):
 	try:
