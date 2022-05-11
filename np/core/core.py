@@ -227,7 +227,7 @@ def updateConf(conf, key, val):
 	if key in keys:
 		conf[key] = val
 		writeConf(conf)
-		log("Conf updated!", 'info)
+		log("Conf updated!", 'info')
 		return True
 	else:
 		log(f"key not found: {key}", 'error')
