@@ -135,7 +135,6 @@ class log():
 		if self.msg == None:
 			raise ValueError('No message data provided!')
 		if self.debug == True:
-			print ("Debug value is true:", self.debug)
 			print ("DEBUG MESSAGE:", self.msg)
 		if self.log_level == 10:#debug level
 			logging.debug(self.msg)
