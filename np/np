@@ -432,7 +432,7 @@ def start():
 				txt = ("seek to position:" + str(pos))
 				np.log(txt, 'info')
 			elif com == 'hide_gui':
-				UI.WINDOW.close(()
+				UI.WINDOW.close()
 				np.log(f"GUI Window closed by remote!", 'info')
 			elif com == 'show_gui':
 				UI.create_gui_window()
