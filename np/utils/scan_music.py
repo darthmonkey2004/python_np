@@ -58,7 +58,7 @@ def scan_music(target_dir=None):
 					data['track'] = 'null'
 				tag.track_num = data['track']
 				data['filepath'] = filepath
-				tag.save()
+				tag.save(filepath)
 			ret = np.addtodb_new('music', data)
 			if ret is not True:
 				print (ret)

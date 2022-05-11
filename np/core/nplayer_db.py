@@ -107,6 +107,7 @@ def addtodb_new(table=None, data={}):
 	j = ', '
 	query_vars = j.join(query_vars)
 	query_vals = j.join(query_vals)
+	print (query_vars, query_vals)
 	string = ("INSERT INTO " + str(table) + "(" + query_vars + ") VALUES(" + query_vals + ");")
 	try:
 		cur.execute(string)

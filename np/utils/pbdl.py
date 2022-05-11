@@ -892,8 +892,7 @@ class pbdl():
 
 if __name__ == "__main__":
 	pbdl = pbdl()
-	#pbdl.create_window()
-	#pbdl.create_downloader()
+	pbdl.create_window()
+	pbdl.create_downloader()
 	pbdl.torrents = pbdl.build_torrent_data()
-	print (pbdl.torrents)
-	#pbdl.run()
+	pbdl.run()
