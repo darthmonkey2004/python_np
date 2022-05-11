@@ -179,7 +179,7 @@ class nplayer():
 					self.nowplaying['duration'] = self.player.get_length()
 				elif event == 'EventType.MediaMPPositionChanged':
 					self.conf['nowplaying']['play_pos'] = self.player.get_position()
-					np.log(f"nplayer.py, vlc_event: play_pos set={self.conf['nowplaying']['play_pos']}", 'info')
+					#np.log(f"nplayer.py, vlc_event: play_pos set={self.conf['nowplaying']['play_pos']}", 'info')
 					self.nowplaying['vw'] = self.player.video_get_width()
 					self.nowplaying['vh'] = self.player.video_get_height()
 					if self.conf['nowplaying']['play_pos'] == 1.0 or self.conf['nowplaying']['play_pos'] >= 0.999:
