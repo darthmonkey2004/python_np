@@ -17,6 +17,9 @@ setup() {
 	echo '#!/bin/bash' > "$remote_conf"
 	echo "export NP_REMOTE_USER='$user'" >> "$remote_conf"
 	echo "export NP_REMOTE_IP='$remote_ip'" >> "$remote_conf"
+	echo "export NP_LOCAL_USER='$USER'" >> "$remote_conf"
+	localip=$(ip -o -4 a s | awk -F'[ /]+' '$2!~/lo/{print $4}')
+	echo "$export NP_LOCAL_IP='$localip'" >> "$remote_conf"
 	echo "Connection source file created!"
 	echo ""
 	echo "1. Server (Machine in which all media files are stored)"
@@ -34,17 +37,17 @@ setup() {
 }
 
 reset() {
-	ssh "$NP_REMOTE_USER@$NP_REMOTE_IP" "export DISPLAY=:0; python3 -c \"import np; conf = np.readConf(); conf['nowplaying']['filepath'] = None; np.writeConf(conf); exit()\"; exit"
+	ssh "$NP_CONNSTRING" "export DISPLAY=:0; python3 -c \"import np; conf = np.readConf(); conf['nowplaying']['filepath'] = None; np.writeConf(conf); exit()\"; exit"
 }
 
 update() {
-	ssh "$NP_REMOTE_USER@$NP_REMOTE_IP" "cd \"$HOME\"; rm -rf python_np; git clone 'https://github.com/darthmonkey2004/python_np.git'; cd python_np; python3 setup.py install --user"
+	ssh "$NP_CONNSTRING" "cd \"$HOME\"; rm -rf python_np; git clone 'https://github.com/darthmonkey2004/python_np.git'; cd python_np; python3 setup.py install --user"
 }
 
 com() {
 	com="$1"
 	echo "Executing: '$com'"
-	ssh "$NP_REMOTE_USER@$NP_REMOTE_IP" "cd '$HOME/.np'; echo '$com' > nplayer.com"
+	ssh "$NP_CONNSTRING" "cd '$HOME/.np'; echo '$com' > nplayer.com"
 }
 
 
@@ -62,36 +65,42 @@ commands() {
 }
 
 start() {
-	ssh "$NP_REMOTE_USER@$NP_REMOTE_IP" "export DISPLAY=:0; python3 '/home/monkey/.local/bin/np'"& disown
+	ssh "$NP_CONNSTRING" "export DISPLAY=:0; python3 '/home/monkey/.local/bin/np'"& disown
 	sleep 2
 	com "vol_set=30"
 }
 
 readConf() {
-	ssh "$NP_REMOTE_USER@$NP_REMOTE_IP" "export DISPLAY=:0; python3 -c 'import np; conf = np.readConf(); print (conf); exit()'"
+	ssh "$NP_CONNSTRING" "export DISPLAY=:0; python3 -c 'import np; conf = np.readConf(); print (conf); exit()'"
 }
 
 readLog() {
-	ssh "$NP_REMOTE_USER@$NP_REMOTE_IP" "cd '$HOME/.np'; cat nplayer.log"
+	ssh "$NP_CONNSTRING" "cd '$HOME/.np'; cat nplayer.log"
 }
 
 clearLog() {
 	echo "Clearing log..."
-	ssh "$NP_REMOTE_USER@$NP_REMOTE_IP" "cd '$HOME/.np'; rm nplayer.log; touch nplayer.log"
+	ssh "$NP_CONNSTRING" "cd '$HOME/.np'; rm nplayer.log; touch nplayer.log"
 	echo "Log cleared!"
 }
-if [ -n "$1" ]; then
-	func="$1"
-fi
-echo "Function: '$func'"
-
 remote_conf="$HOME/.np/np.remote.conf"
 if [ ! -f "$remote_conf" ]; then
 	setup
 fi
 . "$remote_conf"
-
-echo "Use 'np.remote commands' for a list of options."
+if [ -n "$1" ]; then
+	func="$1"
+fi
+if [ -n "$2" ]; then
+	if [ "$2" = "local" ] || [ "$2" = "-l" ] || [ "$2" = "--local" ]; then
+	method="local"
+	export NP_CONNSTRING="$NP_LOCAL_USER@$NP_LOCAL_IP"
+else
+	method="remote"
+	export NP_CONNSTRING="$NP_REMOTE_USER@$NP_REMOTE_IP"
+fi
+echo "Function: '$func', Method: '$method'"
+echo "Use 'np.remote commands' or '-h/--help' flag for a list of options."
 if [ "$func" = "reset" ]; then
 	reset
 elif [ "$func" = "update" ]; then
@@ -106,6 +115,8 @@ elif [ "$func" = "clearLog" ]; then
 	clearLog
 elif [ "$func" = "commands" ] || [ "$func" = "-h" ] || [ "$func" = "--help" ] || [ "$func" = "help" ]; then
 	commands
+elif [ "$func" = "setup" ] || [ "$func" = "-s" ] || [ "$func" = "--setup" ]; then
+	setup
 else
 	com "$func"
 fi
