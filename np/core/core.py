@@ -48,7 +48,7 @@ def readConf():
 conf = readConf()
 
 def writeConf(data):
-	print (f"Current log class state: {log}")
+	np.log(f"Current log class state: {log}", 'info')
 	try:
 		with open(conf_file, 'wb') as f:
 			pickle.dump(data, f)
