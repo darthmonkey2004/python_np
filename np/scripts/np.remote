@@ -41,7 +41,7 @@ reset() {
 }
 
 update() {
-	ssh "$NP_CONNSTRING" "cd \"$HOME\"; rm -rf python_np; git clone 'https://github.com/darthmonkey2004/python_np.git'; cd python_np; python3 setup.py install --user"
+	ssh "$NP_CONNSTRING" "cd \"$HOME\"; if [ -d python_np ]; then rm -rf python_np; fi; git clone 'https://github.com/darthmonkey2004/python_np.git'; cd python_np/dist; pip3 install --user 'np-1.0.tar.gz'"
 }
 
 com() {
