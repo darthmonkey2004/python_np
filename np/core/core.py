@@ -34,7 +34,7 @@ KEY_EVENTS['SKIP_NEXT'] = 115
 KEY_EVENTS['SKIP_PREV'] = 114
 sep = os.path.sep
 conf_file=(npdir + sep + "nplayer.conf")
-
+conf = readConf()
 
 
 def readConf():
@@ -96,6 +96,7 @@ def initConf():
 	conf['network_mode']['host'] = '192.168.2.2'
 	conf['network_mode']['user'] = 'monkey'
 	conf['remote'] = {}
+	conf['debug'] = False
 	#conf['watched_devices'] = ['/dev/input/event11', '/dev/input/event2']
 	#conf['grab_devices'] = ['/dev/input/event11']
 	ret = writeConf(conf)
@@ -103,23 +104,16 @@ def initConf():
 
 class log():
 	def __init__(self):
+		global conf
+		self.conf = conf
 		self.log_type = 'debug'
 		self.msg = None
 		t = datetime.datetime.now()
 		self.ts = (str(t.day) + "-" + str(t.month) + "-" + str(t.year) + " " + str(t.hour) + ":" + str(t.minute) + ":" + str(t.second) + ":" + str(t.microsecond))
-		self.conf = readConf()
 		try:
 			self.debug = self.conf['debug']
-		except:
-			try:
-				self.conf['debug'] = False
-				writeConf(self.conf)
-				self.debug = self.conf['debug']
-			except:
-				self.conf = initConf()
-				self.conf['debug'] = False
-				writeConf(self.conf)
-				self.debug = self.conf['debug']
+		except Exception as e:
+			print (f"Error: debug setting not in conf: {e}")
 	def log(self, *args):
 		pos = -1
 		for arg in args:
