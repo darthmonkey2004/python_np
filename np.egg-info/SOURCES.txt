@@ -1,6 +1,5 @@
 README
 poster.png
-requirements.txt
 setup.py
 np/__init__.py
 np/np

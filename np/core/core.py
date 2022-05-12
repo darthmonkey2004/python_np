@@ -136,17 +136,19 @@ def readConf():
 conf = readConf()
 
 def writeConf(data):
-	i = isinstance(log, log)
-	np.log(f"Logger instance state: {i}", 'info')
+	try:
+		logger = log().log
+	except:
+		pass
 	try:
 		with open(conf_file, 'wb') as f:
 			pickle.dump(data, f)
 		f.close()
 		
-		log('core.py, writeConf: Conf updated!', 'info')
+		logger('core.py, writeConf: Conf updated!', 'info')
 		return True
 	except Exception as e:
-		print(f"Exception in core.py, writeConf, line 59:{e}")
+		print(f"Exception in core.py, writeConf, line 149:{e}")
 		return False
 
 class err():
