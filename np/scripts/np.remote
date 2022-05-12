@@ -55,7 +55,11 @@ com() {
 
 
 commands() {
-	commands=('debug', 'hide_gui', 'show_gui', 'move_gui', 'move_player', 'seek' 'setup' 'reset' 'update' 'commands' 'start' 'readConf' 'clearLog' 'play' 'pause' 'stop' 'skip_next' 'skip_prev' 'vol_set' 'vol_up' 'vol_down' 'mute' 'unmute' 'quit' 'load' 'yt' 'play_mode' 'play_type')
+	echo "Usage: 'np.remote <command> <options>'"
+	echo "Options:"
+	echo "	1. '-h/--help/commands' - Show this menu"
+	echo "	2. '-l/--local/local' - Runs remote in local cli mode (this machine)"
+	commands=('debug - Sets debug to True/False. Example: np.remote debug=True' 'hide_gui - closes gui window' 'show_gui - opens gui window' 'move_gui - relocates gui window to provided coordinates.' 'move_player - relocates player window to provided coordinates.' 'get_window_location - Retreives current window position for the named window provided. Usage: "np.remote get_window_location=player/viewer/gui".' 'seek - seek to position (playback percentage)' 'setup - creates np.remote.conf in "$HOME/.np".' 'reset - Resets conf file in event of bad data saved that cause crash on startup.' 'update - updates to latest version from github.com' 'commands - This help menu.' 'start - Run nplayer.' 'readConf - Reads conf file. Used for manually changing data in python3 interpreter or using "python3 -c"' 'clearLog - Clears "$HOME/.np/nplayer.log".' 'play - Starts or unpauses nplayer.' 'pause - Pause playback.' 'stop - Stops playback.' 'skip_next - Skips to next playlist item or next randomized database item dependant on conf["play_type"].' 'skip_prev - Skips backward through history.' 'vol_set - sets volume. Usage: "np.remote vol_set=<0:100>.' 'vol_up - Turn volume up by 10.' 'vol_down - Turn volume down by 10.' 'mute - Mutes volume.' 'unmute - Unmutes volume.' 'quit - Exit nplayer, preserving last played item and play position in conf file for resume on next start.' 'load - Load a specific file or playlist.' 'yt - Loads youtube video (WARNING: SLOW, skippy, and buggy. Unfinished)' 'play_mode - Sets mode. Options: "database", "playlist". ' 'play_type - "Sets play type. Options: "series", "music", "movies".')
 	echo "Command list:"
 	pos=0
 	for com in "${commands[@]}"; do
@@ -83,6 +87,25 @@ clearLog() {
 	ssh "$NP_CONNSTRING" "cd '$HOME/.np'; rm nplayer.log; touch nplayer.log"
 	echo "Log cleared!"
 }
+
+get_window_location() {
+	echo "Retreiving window location:"
+	if [ -n "$arg" ]; then
+		com "get_window_location=$arg"
+	else
+		echo "No window name provided! Aborting..."
+		exit 1
+	fi
+	sleep 2
+	data=$(readLog | grep 'Window location: Name=')
+	IFS=$'\n' data=($data)
+	ct="${#data[@]}"
+	ct=$(( ct - 1 ))
+	line="${data[$ct]}"
+	coords=$(echo "$line" | cut -d '(' -f 2 | cut -d ')' -f 1)
+	coords="${coords// /}"
+	echo "$coords"
+}
 remote_conf="$HOME/.np/np.remote.conf"
 if [ ! -f "$remote_conf" ]; then
 	setup
@@ -93,13 +116,21 @@ if [ -n "$1" ]; then
 fi
 if [ -n "$2" ]; then
 	if [ "$2" = "local" ] || [ "$2" = "-l" ] || [ "$2" = "--local" ]; then
-	method="local"
-	export NP_CONNSTRING="$NP_LOCAL_USER@$NP_LOCAL_IP"
+		method="local"
+		export NP_CONNSTRING="$NP_LOCAL_USER@$NP_LOCAL_IP"
+	else
+		echo "Unrecongized option. Options are 'local', '-l', or '--local'. To run in remote, simply omit the '-l' flag."
+	fi
 else
 	method="remote"
 	export NP_CONNSTRING="$NP_REMOTE_USER@$NP_REMOTE_IP"
 fi
-echo "Function: '$func', Method: '$method'"
+haseq=$(echo "$func" | grep '=')
+if [ -n "$haseq" ]; then
+	arg=$(echo "$func" | cut -d '=' -f 2)
+	func=$(echo "$func" | cut -d '=' -f 1)
+fi
+echo "Function: '$func', Argument: '$arg', Method: '$method'"
 echo "Use 'np.remote commands' or '-h/--help' flag for a list of options."
 if [ "$func" = "reset" ]; then
 	reset
@@ -117,6 +148,16 @@ elif [ "$func" = "commands" ] || [ "$func" = "-h" ] || [ "$func" = "--help" ] ||
 	commands
 elif [ "$func" = "setup" ] || [ "$func" = "-s" ] || [ "$func" = "--setup" ]; then
 	setup
+elif [ "$func" = "get_window_location" ]; then
+	if [ -z "$arg" ]; then
+		echo "Error: No window name provided. Usage: 'np.remote get_window_location=player/viewer/gui'"
+		exit 1
+	fi
+	get_window_location "$arg"
 else
-	com "$func"
+	if [ -n "$arg" ]; then
+		com "$func=$arg"
+	else
+		com "$func"
+	fi
 fi
