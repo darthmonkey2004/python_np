@@ -34,7 +34,6 @@ class gui():
 		self.window = None
 		self.event = None
 		self.values = None
-		temp_img_path = (np.DEFAULT_POSTER)
 		self.player_window_layout = []
 		line = []
 		self.uievent = None
@@ -46,7 +45,6 @@ class gui():
 		self.pbdl_dl_win = None
 		if self.conf['play_type'] == 'videos':
 			self.table = 'series'
-		poster_path = None
 
 		scale = float(int(self.conf['scale']) * 10)
 		sg.theme(self.theme)
@@ -62,7 +60,7 @@ class gui():
 			self.conf['nowplaying']['play_pos'] = play_pos
 		slider_scale = [sg.Slider(range=(0,1), resolution=0.01, default_value=play_pos, orientation='h', expand_x = True, enable_events = True, change_submits = True, key='-PLAY_POS-')]
 		line_window_ctl = [self.create_old('btn', ['store window location']), self.create_old('btn', ['Hide UI']), self.create_old('btn', ['Recenter UI']), self.create_old('btn', ['Fix Focus'])]
-		self.video_temp_img = self.create_old('image', [temp_img_path, '-VID_OUT-'])
+		self.video_temp_img = self.create_old('image', [np.DEFAULT_POSTER, '-VID_OUT-'])
 		
 		line.append(self.video_temp_img)
 		
@@ -97,7 +95,7 @@ class gui():
 		btn_update_info = [self.create_old('btn', ['Query TMDB', '-Query TMDB-']), self.create_old('btn', ['Read Info', '-Read Info-']), self.create_old('btn', ['Update Info', '-Update Info-']), self.create_old('btn', ['Set Active', '-Set Active-']), self.create_old('btn', ['Set Inactive', '-Set Inactive-']), self.create_old('btn', ['Remove Selected', '-Remove Selected-'])]
 		textinput_query_string = [[sg.Input(size=(30, 1), expand_x=True, enable_events=True, key='-DBMGR_QUERY_STRING-'), self.create_old('btn', ['SQL Search'])]]
 		textinput_query_string = sg.Frame(title='', layout=textinput_query_string, key='textinput_query_string', expand_x=True, grab=True, element_justification="left", vertical_alignment="top")
-		self.poster_img = [sg.Image(poster_path, subsample=4, key='-poster_img-')]
+		self.poster_img = [sg.Image(np.DEFAULT_POSTER, subsample=4, key='-poster_img-')]
 		self.db_mgr_layout = [
 			[radio_frame],
 			[listbox_dbitems],
@@ -140,6 +138,7 @@ class gui():
 
 
 	def create_gui_window(self):
+		line = []
 		scale = float(int(self.conf['scale']) * 10)
 		search_line = [self.create_old('dropdown_menu', [self.tables, self.conf['play_type'], '-PLAY_TYPE-']), self.create_old('dropdown_menu', [list(self.conf['screens'].keys()), self.conf['screen'], '-SET_SCREEN-']), self.create_old('dropdown_menu', [['database', 'playlist'], 'database', '-PLAY_MODE-']), self.create_old('textbox', ['Search', '-SEARCH-']), self.create_old('text_input', ['Enter search query:', '-SEARCH_QUERY-']), self.create_old('btn', ['Search', 'Search'])]
 		elem_media_list = [self.create_old('listbox', [self.media['DBMGR_RESULTS'], '-CURRENT_PLAYLIST-'])]
@@ -153,7 +152,7 @@ class gui():
 			self.conf['nowplaying']['play_pos'] = play_pos
 		slider_scale = [sg.Slider(range=(0,1), resolution=0.01, default_value=play_pos, orientation='h', expand_x = True, enable_events = True, change_submits = True, key='-PLAY_POS-')]
 		line_window_ctl = [self.create_old('btn', ['store window location']), self.create_old('btn', ['Hide UI']), self.create_old('btn', ['Recenter UI']), self.create_old('btn', ['Fix Focus'])]
-		self.video_temp_img = self.create_old('image', [temp_img_path, '-VID_OUT-'])
+		self.video_temp_img = self.create_old('image', [np.DEFAULT_POSTER, '-VID_OUT-'])
 		
 		line.append(self.video_temp_img)
 		
@@ -188,7 +187,7 @@ class gui():
 		btn_update_info = [self.create_old('btn', ['Query TMDB', '-Query TMDB-']), self.create_old('btn', ['Read Info', '-Read Info-']), self.create_old('btn', ['Update Info', '-Update Info-']), self.create_old('btn', ['Set Active', '-Set Active-']), self.create_old('btn', ['Set Inactive', '-Set Inactive-']), self.create_old('btn', ['Remove Selected', '-Remove Selected-'])]
 		textinput_query_string = [[sg.Input(size=(30, 1), expand_x=True, enable_events=True, key='-DBMGR_QUERY_STRING-'), self.create_old('btn', ['SQL Search'])]]
 		textinput_query_string = sg.Frame(title='', layout=textinput_query_string, key='textinput_query_string', expand_x=True, grab=True, element_justification="left", vertical_alignment="top")
-		self.poster_img = [sg.Image(poster_path, subsample=4, key='-poster_img-')]
+		self.poster_img = [sg.Image(np.DEFAULT_POSTER, subsample=4, key='-poster_img-')]
 		self.db_mgr_layout = [
 			[radio_frame],
 			[listbox_dbitems],
@@ -224,6 +223,7 @@ class gui():
 		self.WINDOW = sg.Window('GUI', self.layout, no_titlebar=True, location=(int(self.gui_win_x),int(self.gui_win_y)), size=(self.gui_win_w,self.gui_win_h), keep_on_top=False, grab_anywhere=True, element_justification='center', finalize=True, resizable=True).Finalize()
 
 
+
 	def init_window_position(self):
 		screen = self.conf['screen']
 		self.conf['windows'] = np.init_window_position()
@@ -231,21 +231,72 @@ class gui():
 		return self.conf['windows']
 
 
+	def get_window_location(self, window=None):
+		if window == None:
+			np.log(f"Error Getting Window location: Name=None, no name provided. Options are 'viewer/player', and 'gui'.", 'error')
+			return False
+		elif window == 'player' or window == 'viewer':
+			try:
+				coords = self.WINDOW2.CurrentLocation()
+			except Exception as e:
+				np.log(f"Error Getting Window location: Name={window} appears to be closed!", 'error')
+				return None
+		elif window == 'gui':
+			try:
+				coords = self.WINDOW.CurrentLocation()
+			except Exception as e:
+				np.log(f"Error Getting Window location: Name=appears to be closed!", 'error')
+				return None
+		np.log(f"Window location: Name={window}, Coords={coords}", 'info')
+		return coords
+	
+
+
 	def move_window(self, window, x=None, y=None):
-		state = self.conf['windows']['visible_state']
-		screen = self.conf['screen']
-		self.gui_win_x = self.conf['windows']['gui'][state]['x']
-		self.gui_win_y = self.conf['windows']['gui'][state]['y']
-		self.gui_win_w = self.conf['windows']['gui'][state]['w']
-		self.gui_win_h = self.conf['windows']['gui'][state]['h']
-		self.viewer_win_x = self.conf['windows'][screen]['viewer']['x']
-		self.viewer_win_y = self.conf['windows'][screen]['viewer']['y']
-		self.viewer_win_w = self.conf['windows'][screen]['viewer']['w']
-		self.viewer_win_h = self.conf['windows'][screen]['viewer']['h']
-		if window == 'gui':
-			UI.WINDOW.move(self.gui_win_x , self.gui_win_y)
-		elif window == 'viewer':
-			UI.WINDOW2.move(self.viewer_win_x, self.viewer_win_y)
+		try:
+			state = self.conf['windows']['visible_state']
+			screen = self.conf['screen']
+			self.gui_win_w = self.conf['windows']['gui'][state][screen]['w']
+			self.gui_win_h = self.conf['windows']['gui'][state][screen]['h']
+			self.viewer_win_w = self.conf['windows']['viewer'][screen]['w']
+			self.viewer_win_h = self.conf['windows']['viewer'][screen]['h']
+		except:
+			self.conf = np.readConf()
+			state = self.conf['windows']['visible_state']
+			screen = self.conf['screen']
+			self.gui_win_w = self.conf['windows']['gui'][state][screen]['w']
+			self.gui_win_h = self.conf['windows']['gui'][state][screen]['h']
+			self.viewer_win_w = self.conf['windows']['viewer'][screen]['w']
+			self.viewer_win_h = self.conf['windows']['viewer'][screen]['h']
+		if x is None:
+			if window == 'player' or window == 'viewer':
+				self.viewer_win_x = self.conf['windows']['viewer'][screen]['x']
+				self.WINDOW2.move(self.viewer_win_x, self.viewer_win_y)
+			elif window == 'gui':
+				self.gui_win_x = self.conf['windows']['gui'][state][screen]['x']
+				self.WINDOW.move(self.gui_win_x , self.gui_win_y)
+		else:
+			if window == 'player' or window == 'viewer':
+				self.viewer_win_x = x
+				self.WINDOW2.move(self.viewer_win_x, self.viewer_win_y)
+			elif window == 'gui':
+				self.gui_win_x = x
+				self.WINDOW.move(self.gui_win_x , self.gui_win_y)
+		if y is None:
+			if window == 'player' or window == 'viewer':
+				self.viewer_win_y = self.conf['windows']['viewer'][screen]['y']
+				self.WINDOW2.move(self.viewer_win_x, self.viewer_win_y)
+			elif window == 'gui':
+				self.gui_win_y = self.conf['windows']['gui'][state][screen]['y']
+				self.WINDOW.move(self.gui_win_x , self.gui_win_y)
+		else:
+			if window == 'player' or window == 'viewer':
+				self.viewer_win_y = y
+				self.WINDOW2.move(self.viewer_win_x, self.viewer_win_y)
+			elif window == 'gui':
+				self.gui_win_y = y
+				self.WINDOW.move(self.gui_win_x , self.gui_win_y)
+		np.log(f"{window} window moved to!", 'info')
 			
 			
 	def create(self, elem, args={}):
