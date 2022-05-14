@@ -447,7 +447,7 @@ def start():
 				pos = MP.get_position()
 				np.log(f"PLAYBACK_POSITION={pos}", 'info')
 			elif com == 'get_window_location':
-				UI.get_window_location()
+				UI.get_window_location(arg)
 			elif com == 'debug':
 				try:
 					debug = bool(arg)
