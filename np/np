@@ -437,11 +437,11 @@ def start():
 				np.log(f"GUI Window opened by remote!", 'info')
 			elif com == 'move_gui':
 				x, y = int(arg.split(',')[0]), int(arg.split(',')[1])
-				UI.move_window(UI.WINDOW, x, y)
+				UI.move_window('gui', x, y)
 				np.log(f"GUI Window moved by remote: ({x},{y})", 'info')
 			elif com == 'move_player':
 				x, y = int(arg.split(',')[0]), int(arg.split(',')[1])
-				UI.move_window(UI.WINDOW2, x, y)
+				UI.move_window('player', x, y)
 				np.log(f"Player Window moved by remote: ({x},{y})", 'info')
 			elif com == 'get_pos':
 				pos = MP.get_position()
