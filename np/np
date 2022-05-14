@@ -446,6 +446,8 @@ def start():
 			elif com == 'get_pos':
 				pos = MP.get_position()
 				np.log(f"PLAYBACK_POSITION={pos}", 'info')
+			elif com == 'get_window_location':
+				UI.get_window_location()
 			elif com == 'debug':
 				try:
 					debug = bool(arg)
