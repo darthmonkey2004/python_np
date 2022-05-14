@@ -42,7 +42,10 @@ CAPTURE_DIR = (home + os.path.sep + "Pictures" + os.path.sep + "nplayer_caps")
 pathlib.Path(DATA_DIR).mkdir(parents=True, exist_ok=True)
 SFTP_DIR = (DATA_DIR + os.path.sep + 'sftp')
 pathlib.Path(DATA_DIR).mkdir(parents=True, exist_ok=True)
-pathlib.Path(SFTP_DIR).mkdir(parents=True, exist_ok=True)
+try:
+	pathlib.Path(SFTP_DIR).mkdir(parents=True, exist_ok=True)
+except:
+	pass
 DEFAULT_POSTER = (home + os.path.sep + '.local' + os.path.sep + 'poster.png')
 afilters = []
 vfilters = []

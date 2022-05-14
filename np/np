@@ -15,7 +15,6 @@ import vlc
 import random
 import time
 
-
 def ui_center():
 	global UI
 	UI.WINDOW.move(0, 0)
@@ -444,6 +443,9 @@ def start():
 				x, y = int(arg.split(',')[0]), int(arg.split(',')[1])
 				UI.move_window(UI.WINDOW2, x, y)
 				np.log(f"Player Window moved by remote: ({x},{y})", 'info')
+			elif com == 'get_pos':
+				pos = MP.get_position()
+				np.log(f"PLAYBACK_POSITION={pos}", 'info')
 			elif com == 'debug':
 				try:
 					debug = bool(arg)

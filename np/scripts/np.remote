@@ -106,6 +106,17 @@ get_window_location() {
 	coords="${coords// /}"
 	echo "$coords"
 }
+
+get_playback_position() {
+	echo "Retreiving playback percentage:"
+	com "get_pos"
+	sleep 2
+	IFS='$\n' data=($(readLog | grep "PLAYBACK_POSITION=" | cut -d '=' -f 2))
+	ct="${#data[@]}"
+	ct=$(( ct - 1 ))
+	pos="${data[$ct]}"
+	echo "$pos"
+}
 remote_conf="$HOME/.np/np.remote.conf"
 if [ ! -f "$remote_conf" ]; then
 	setup
@@ -148,6 +159,8 @@ elif [ "$func" = "commands" ] || [ "$func" = "-h" ] || [ "$func" = "--help" ] ||
 	commands
 elif [ "$func" = "setup" ] || [ "$func" = "-s" ] || [ "$func" = "--setup" ]; then
 	setup
+elif [ "$func" = "get_pos" ]; then
+	get_playback_position
 elif [ "$func" = "get_window_location" ]; then
 	if [ -z "$arg" ]; then
 		echo "Error: No window name provided. Usage: 'np.remote get_window_location=player/viewer/gui'"

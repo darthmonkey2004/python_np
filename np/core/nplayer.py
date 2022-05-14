@@ -73,6 +73,11 @@ class nplayer():
 			self.main_keyboard = None
 
 
+	def get_position(self):
+		return self.player.get_position()
+
+
+
 	def toggle_network_mode(self):
 		if self.conf['network_mode']['mode'] == 'local':
 			self.conf['network_mode']['mode'] = 'remote'
