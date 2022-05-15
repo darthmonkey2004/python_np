@@ -162,7 +162,7 @@ class nplayer():
 		self.nowplaying['state'] = self.player.get_state()
 		self.nowplaying['xwindow'] = self.player.get_xwindow()
 		self.conf['nowplaying']['play_pos'] = self.player.get_position()
-		np.log(f"nplayer.py, set_now_playing: play_pos set={self.conf['nowplaying']['filepath']}", 'info')
+		#np.log(f"nplayer.py, set_now_playing: play_pos set={self.conf['nowplaying']['filepath']}", 'info')
 		return self.nowplaying
 		
 	def vlc_event(self, event):
@@ -184,11 +184,9 @@ class nplayer():
 					self.nowplaying['duration'] = self.player.get_length()
 				elif event == 'EventType.MediaMPPositionChanged':
 					self.conf['nowplaying']['play_pos'] = self.player.get_position()
-					#np.log(f"nplayer.py, vlc_event: play_pos set={self.conf['nowplaying']['play_pos']}", 'info')
 					self.nowplaying['vw'] = self.player.video_get_width()
 					self.nowplaying['vh'] = self.player.video_get_height()
 					if self.conf['nowplaying']['play_pos'] == 1.0 or self.conf['nowplaying']['play_pos'] >= 0.999:
-						np.log("Plaback nearly ending...")
 						self.nowplaying['vw'] = None
 						self.nowplaying['vh'] = None
 					if self.conf['nowplaying']['play_pos'] or self.conf['nowplaying']['play_pos'] <= 0.001:
@@ -216,14 +214,13 @@ class nplayer():
 					self.nowplaying['is_playing'] = self.player.is_playing()
 					self.media['is_playing'] = 0
 				elif event == 'EventType.MediaMPEncounteredError':
-					np.log("Uh, oh... spaghetti ohs.")
+					pass
 				elif event == 'EventType.MediaMPVout':
 					pass
 				elif event == 'EventType.MediaMPChapterChanged':
 					self.chapter = self.player.get_chapter()
-					np.log("Chapter changed:" + str(self.chapter))
 				else:
-					np.log("VLC Event callback running:" + str(event))
+					pass
 
 
 #------------playlist/dbmgr functions----------------#
