@@ -455,11 +455,10 @@ def start():
 				UI.get_window_location(arg)
 			elif com == 'media_pick':
 				try:
-					arg = int(arg)
-					MP.next = MP.remote_media[arg].split(':')[1]
+					MP.next = arg
 					MP.play(MP.next)
 				except Exception as e:
-					np.log(f"Item selection not numeric. Details: {e}", 'error')
+					np.log(f"Failed to play file:{arg}, Details:{e}", 'error')
 			elif com == 'media_get':
 				if arg is None:
 					files = get_media(arg)

@@ -148,7 +148,18 @@ echo "Use 'np.remote commands' or '-h/--help' flag for a list of options."
 if [ "$func" = "reset" ]; then
 	reset
 elif [ "$func" = "media_get" ]; then
-	media_get
+	data=$(media_get)
+	echo "$data" > "$HOME/.np/media_get_list.txt"
+	echo "$data"
+elif [ "$func" = "media_pick" ]; then
+	IFS=$'\n' data=($(cat "$HOME/.np/media_get_list.txt"))
+	for item in "${data[@]}"; do
+		num=$(echo "$item" | cut -d ':' -f 1)
+		if [ "$num" = "$arg" ]; then
+			file=$(echo "$item" | cut -d ':' -f 2)
+		fi
+	done
+	com "media_pick=$file"
 elif [ "$func" = "update" ]; then
 	update
 elif [ "$func" = "start" ]; then
