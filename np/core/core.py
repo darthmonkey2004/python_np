@@ -490,7 +490,6 @@ def create_media(play_type=None, rows=None):
 	media['items'] = {}
 	media['vlc'] = {}
 	media['vlc']['events'] = ['2:EventType.MediaDurationChanged', '5:EventType.MediaStateChanged', '256:EventType.MediaMPMediaChanged', '260:EventType.MediaMPPlaying', '261:EventType.MediaMPPaused', '262:EventType.MediaMPStopped', '263:EventType.MediaMPForward', '264:EventType.MediaMPBackward', '265:EventType.MediaMPEndReached', '266:EventType.MediaMPEncounteredError', '267:EventType.MediaMPTimeChanged', '268:EventType.MediaMPPositionChanged', '269:EventType.MediaMPSeekableChanged', '270:EventType.MediaMPPausableChanged', '271:EventType.MediaMPTitleChanged', '272:EventType.MediaMPSnapshotTaken', '273:EventType.MediaMPLengthChanged', '274:EventType.MediaMPVout', '275:EventType.MediaMPScrambledChanged', '281:EventType.MediaMPMuted', '282:EventType.MediaMPUnmuted', '283:EventType.MediaMPAudioVolume', '284:EventType.MediaMPAudioDevice', '285:EventType.MediaMPChapterChanged', '1536:EventType.VlmMediaAdded', '1537:EventType.VlmMediaRemoved', '1538:EventType.VlmMediaChanged']
-	media['vlc']['opts'] = "--no-xlib"
 	media['items'] = {}
 	media_dict = media['items']
 	if play_type == 'series' or play_type == 'videos':

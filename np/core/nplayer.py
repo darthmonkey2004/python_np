@@ -26,14 +26,11 @@ class nplayer():
 		self.create_media = np.core.core.create_media
 		self.conf = {}
 		self.conf['vlc'] = {}
-		self.conf['vlc']['opts'] = "--no-xlib"
 		self.conf = np.readConf()
 		if self.conf == None:
 			self.conf = np.initConf()
 			self.conf['windows'] = np.init_window_position()
 		self.conf['grab_devices'] = ['/dev/input/event11']
-		if self.conf['vlc']['opts'] is None:
-			self.conf['vlc']['opts'] = "--no-xlib"
 		self.media = {}
 		self.media = np.create_media(self.conf['play_type'])
 		self.history_pos = 0
@@ -130,6 +127,7 @@ class nplayer():
 		except:
 			opts = "--no-xlib"
 		self.vlcInstance = vlc.Instance(opts)
+		np.log("Instance created! Options: {opts}", 'info')
 		if uri == None:
 			self.player = self.vlcInstance.media_player_new()
 		else:
@@ -582,6 +580,7 @@ class nplayer():
 			except:
 				opts = "--no-xlib"
 			self.vlcInstance = vlc.Instance(opts)
+			np.log("Instance created! Options: {opts}", 'info')
 			self.player = self.vlcInstance.media_player_new()
 		if self.conf['network_mode']['mode'] == 'remote':
 			self.mount_sftp()
