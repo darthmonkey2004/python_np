@@ -405,8 +405,8 @@ class nplayer():
 			self.player.audio_set_volume(vol)
 			self.conf['volume'] = vol
 			return True
-		except:
-			np.log(f"Error: Not a valid integer! In otherwords, you'll need a helmet to set volume to {vol}...;-)", 'error')
+		except Exception as e:
+			np.log(f"Error: Bad volume! Bad! Details: {e}", 'info')
 			return False
 
 
