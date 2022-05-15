@@ -471,6 +471,8 @@ def start():
 					pos += 1
 					string = f"{pos}:{filepath}"
 					l.append(string)
+				j = "\n"
+				l = j.join(l)
 				np.log(f"MEDIA_FILES={l}")
 				MP.remote_media = l
 			elif com == 'debug':

@@ -103,6 +103,17 @@ get_window_location() {
 	echo "$coords"
 }
 
+media_get(){
+	com "media_get"
+	data=$(readLog | grep 'MEDIA_FILES=[')
+	IFS=$'\n' data=($data)
+	ct="${#data[@]}"
+	ct=$(( ct - 1 ))
+	line="${data[$ct]}"
+	files=$(echo "$line" | cut -d '=' -f 2)
+	echo "$files"	
+}
+
 get_playback_position() {
 	echo "Retreiving playback percentage:"
 	com "get_pos"
