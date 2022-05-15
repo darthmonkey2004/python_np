@@ -395,18 +395,19 @@ class nplayer():
 
 
 	def volume_set(self, vol):
-		if type(vol) != int:
-			print (f"Error: Not a valid integer! In otherwords, you'll need a helmet to set volume to {vol}...;-)")
+		try:
+			vol = int(vol)
+			if vol <= 90:
+				vol = vol + 10
+			elif vol == 100 or vol >= 90:
+				vol = 100
+				np.log("Volume at max!")
+			self.player.audio_set_volume(vol)
+			self.conf['volume'] = vol
+			return True
+		except:
+			np.log(f"Error: Not a valid integer! In otherwords, you'll need a helmet to set volume to {vol}...;-)", 'error')
 			return False
-		vol = int(vol)
-		if vol <= 90:
-			vol = vol + 10
-		elif vol == 100 or vol >= 90:
-			vol = 100
-			np.log("Volume at max!")
-		self.player.audio_set_volume(vol)
-		self.conf['volume'] = vol
-		return True
 
 
 	def volume_up(self):
