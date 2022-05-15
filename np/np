@@ -693,7 +693,7 @@ def start():
 						table = val.split(':')[0]
 						playlist_click(_id, table)
 					except Exception as e:
-						np.log(f"Error: Series list is empty! Details:{e, val, _id, table}", 'error')
+						np.log(f"Error: Series list is empty! Details:{e}, {val}, {_id}, {table}", 'error')
 				elif MP.conf['play_type'] == 'movies':
 					try:
 						val = UI.uivalues[UI.uievent][0]
@@ -703,7 +703,7 @@ def start():
 						_id = val.split(':')[3]
 						playlist_click(_id, table)
 					except Exception as e:
-						np.log(f"Error: Movies list is empty! Details:e, val, _id, table}", 'error')
+						np.log(f"Error: Movies list is empty! Details:{e}, {val}, {_id}, {table}", 'error')
 				elif MP.conf['play_type'] == 'music':
 					try:
 						val = UI.uivalues[UI.uievent][0]
@@ -711,7 +711,7 @@ def start():
 						table = val.split(':')[0]
 						playlist_click(_id, table)
 					except Exception as e:
-						np.log(f"Error: List is empty! Details:e, val, _id, table}", 'error')
+						np.log(f"Error: List is empty! Details:{e}, {val}, {_id}, {table}", 'error')
 		elif UI.uievent == '-DBMGR_PICKED_COLUMNS-':
 			string = None
 			if len(UI.uivalues[UI.uievent]) == 1:
