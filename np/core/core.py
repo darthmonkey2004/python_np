@@ -50,7 +50,6 @@ def initConf():
 	conf['h'] = None
 	conf['scale'] = 2.799999952316284
 	conf['volume'] = 100
-	conf['opts'] = '--no-xlib'
 	conf['rotate'] = 0
 	conf['shuffle'] = 1
 	conf['mute'] = False
