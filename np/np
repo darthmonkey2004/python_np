@@ -460,7 +460,7 @@ def start():
 					MP.play(MP.next)
 				except Exception as e:
 					np.log(f"Item selection not numeric. Details: {e}", 'error')
-			elif com == 'media_list':
+			elif com == 'media_get':
 				if arg is None:
 					files = get_media(arg)
 				else:
