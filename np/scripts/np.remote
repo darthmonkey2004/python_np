@@ -105,7 +105,7 @@ get_window_location() {
 
 media_get(){
 	com "media_get"
-	data=$(readLog | grep 'MEDIA_FILES=')
+	data=$(readLog | grep ':/var/storage/')
 	echo "$data"
 }
 
