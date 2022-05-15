@@ -105,13 +105,8 @@ get_window_location() {
 
 media_get(){
 	com "media_get"
-	data=$(readLog | grep 'MEDIA_FILES=[')
-	IFS=$'\n' data=($data)
-	ct="${#data[@]}"
-	ct=$(( ct - 1 ))
-	line="${data[$ct]}"
-	files=$(echo "$line" | cut -d '=' -f 2)
-	echo "$files"	
+	data=$(readLog | grep 'MEDIA_FILES=')
+	echo "$data"
 }
 
 get_playback_position() {
@@ -152,6 +147,8 @@ echo "Function: '$func', Argument: '$arg', Method: '$method'"
 echo "Use 'np.remote commands' or '-h/--help' flag for a list of options."
 if [ "$func" = "reset" ]; then
 	reset
+elif [ "$func" = "media_get" ]; then
+	media_get
 elif [ "$func" = "update" ]; then
 	update
 elif [ "$func" = "start" ]; then
