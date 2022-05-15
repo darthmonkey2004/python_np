@@ -63,6 +63,7 @@ class nplayer():
 		self.playlist_last = None
 		self.playlist_loop_one = False
 		self.playlist_loop_all = True
+		self.remote_media = []
 
 		try:
 			self.main_keyboard = self.conf['main_keyboard']['path']
