@@ -92,11 +92,14 @@ def hide_ui(conf=None):
 
 
 def store_window_location():
-	screen = MP.conf['screen']
-	state = MP.conf['windows']['gui']['visible_status']
-	MP.conf['windows']['gui'][state][screen]['x'], MP.conf['windows']['gui'][state][screen]['y'] = UI.WINDOW.current_location()
-	np.writeConf(MP.conf)
-	print ("Window location stored:", MP.conf['windows']['gui'][state][screen]['x'], MP.conf['windows']['gui'][state][screen]['y'])
+	try:
+		screen = MP.conf['screen']
+		state = MP.conf['windows']['gui']['visible_status']
+		MP.conf['windows']['gui'][state][screen]['x'], MP.conf['windows']['gui'][state][screen]['y'] = UI.get_window_location('gui')
+		np.writeConf(MP.conf)
+		np.log(f"Window location stored:{MP.conf['windows']['gui'][state][screen]['x']}, {MP.conf['windows']['gui'][state][screen]['y']}", 'info')
+	except Exception as e:
+		np.log(f"Unable to get window location (probably closed). Details: {e}", 'error')
 
 def gui_reset(table, tab):
 	global P, MP, UI
@@ -535,28 +538,24 @@ def start():
 
 			play_needed = 0	
 		if UI.uievent == sg.WIN_CLOSED and media['continuous'] == 0 and UI.RESET == False:
-			#print ("Breaking: continuous = 0")
-			#now playing file ('next') and position
+			np.log(f"Window closed (gui): continuout=0, reset=False", 'info')
 			np.writeConf(MP.conf)
 			break
 		if UI.uievent == 'Toggle Network':
 			mode = MP.toggle_network_mode()
-			print ("Network mode changed:", mode)
+			np(f"Network mode changed:{mode}", 'info')
 		if UI.uievent == 'Hide UI':
 			hide_ui()
-		if UI.uievent == 'store window location':
-			store_window_location()
 		if UI.uievent == 'Exit' or UI.uievent == 'Close':
 			update_resume()
 			break
-		#if UI.uievent == 'store_window location':
-		#	gui_location = UI.WINDOW.current_location()
-		#	print ("GUI Window Location:", gui_location)
+		if UI.uievent == 'store_window_location':
+			store_window_location()
 		if UI.uievent == '-episode_number-' or UI.uievent == '-filepath-' or UI.uievent == '-series_name-' or UI.uievent == '-season-':
 			k = UI.uievent
 			v = UI.uivalues[UI.uievent]
 			MP.target[k] = v
-			#print ("set target(", k, ") to ", v)
+			np.log(f"set target {k} to {v}, 'info')
 		if UI.uievent == '-Query TMDB-':
 			if MP.target['-series_name-'] is not None and MP.target['-season-'] is not None and MP.target['-episode_number-'] is not None:
 				data = np.lookup_series(MP.target['-series_name-'], MP.target['-season-'], MP.target['-episode_number-'])
@@ -575,9 +574,8 @@ def start():
 		if UI.uievent == '-table_series-' or UI.uievent == '-table_movies-' or UI.uievent == '-table_music-' or UI.uievent == '-PLAY_TYPE-':
 			if UI.uievent == '-PLAY_TYPE-':
 				play_type = UI.uivalues[UI.uievent]
-				#print ("Play type changed:", play_type)
+				np.log(f"Play type changed:{play_type}")
 				gui_reset(play_type, '-player_control_layout-')
-				#np.writeConf(MP.conf)
 			if UI.uievent == '-table_series-':
 				gui_reset('series', '-db_mgr_layout-')
 			elif UI.uievent == '-table_movies-':
@@ -585,7 +583,7 @@ def start():
 			elif UI.uievent == '-table_music-':
 				gui_reset('music', '-db_mgr_layout-')
 		elif UI.uievent == '-pbdl_table_series-' or UI.uievent == '-pbdl_table_movies-' or UI.uievent == '-pbdl_table_music-':
-			#print ("Table changed...", UI.uivalues[UI.uievent])
+			np.log(f"Table changed:{UI.uivalues[UI.uievent]}", 'info')
 			if UI.uievent == '-pbdl_table_series-':
 				gui_reset('series', '-db_mgr_layout-')
 			elif UI.uievent == '-pbdl_table_movies-':
@@ -634,7 +632,7 @@ def start():
 		elif UI.uievent == '-SET_SCREEN-':
 			MP.conf['screen'] = int(UI.uivalues[UI.uievent])
 			np.writeConf(MP.conf)
-			#print ("Active screen updated! Needs restart", MP.conf['screen'])
+			np.log(f"Active screen updated! Needs restart{MP.conf['screen']}", 'info')
 			gui_reset(MP.conf['play_type'], '-player_control_layout-')	
 		elif UI.uievent == 'load':
 			MP.stop()
@@ -696,7 +694,7 @@ def start():
 						table = val.split(':')[0]
 						playlist_click(_id, table)
 					except Exception as e:
-						print ("Error: Series list is empty! Details:", e, val, _id, table)
+						np.log(f"Error: Series list is empty! Details:{e, val, _id, table}", 'error')
 				elif MP.conf['play_type'] == 'movies':
 					try:
 						val = UI.uivalues[UI.uievent][0]
@@ -706,7 +704,7 @@ def start():
 						_id = val.split(':')[3]
 						playlist_click(_id, table)
 					except Exception as e:
-						print ("Error: Movies list is empty! Details:", e, val, _id, table)
+						np.log(f"Error: Movies list is empty! Details:e, val, _id, table}", 'error')
 				elif MP.conf['play_type'] == 'music':
 					try:
 						val = UI.uivalues[UI.uievent][0]
@@ -714,7 +712,7 @@ def start():
 						table = val.split(':')[0]
 						playlist_click(_id, table)
 					except Exception as e:
-						print ("Error: List is empty! Details:", e, val, _id, table)
+						np.log(f"Error: List is empty! Details:e, val, _id, table}", 'error')
 		elif UI.uievent == '-DBMGR_PICKED_COLUMNS-':
 			string = None
 			if len(UI.uivalues[UI.uievent]) == 1:
@@ -775,7 +773,7 @@ def start():
 							except:
 								query_string = ("series_name like '%" + series_name + "%' and season = " + season + " and isactive = '" + str(is_active) + "'")
 
-					print ("Query string:", query_string)
+					np.log(f"Query string:{query_string}")
 					rows = np.querydb(table='series', column='id,series_name,tmdbid,season,episode_number,episode_name,description,air_date,still_path,filepath', query=query_string)
 					MP.media = np.create_media(rows=rows)
 					if rows is not None:
@@ -793,7 +791,7 @@ def start():
 						MP.play_mode = 'playlist'
 						UI.WINDOW['-PLAY_MODE-'].update(MP.play_mode)
 				elif table == 'music':
-					print ("TODO: querydb music")
+					np.log(f"TODO: querydb music")
 					#rows = querydb(table = 'music', column='id,title,accoustic_id,album,album_id,artist_id,year,artist,track,track_ct,filepath', query='isactive = 1')
 
 
@@ -801,18 +799,12 @@ def start():
 			MP.dbmgr_picked_items = UI.uivalues['-DBMGR_RESULTS-']
 			UI.window['-DBMGR_SELECTED_ROWS-'].update(MP.dbmgr_picked_items)
 			UI.window.refresh()
-			#print (UI.uievent, UI.uivalues[UI.uievent])
-			#except Exception as e:
-			#	row = None
-			#	print ("Exception:", e)
-			# insert if radio button table == series, conditionals for others.
-			#UI.update_series_info_from_row(row)
 		elif UI.uievent == 'Volume Up':
 			MP.volume_up()
-			print ("Volume up:", MP.conf['volume'])
+			np.log(f"Volume up:{MP.conf['volume']}")
 		elif UI.uievent == 'Volume Down':
 			MP.volume_down()
-			print ("Volume down:", MP.conf['volume'])
+			np.log(f"Volume down:{MP.conf['volume']})
 		elif UI.uievent == '-Remove Selected-':
 			for line in MP.dbmgr_picked_items:
 				table = line.split(':')[0]
@@ -826,7 +818,7 @@ def start():
 				MP.media['DBMGR_RESULTS'].remove(line)
 			MP.dbmgr_picked_items = []
 			UI.window['-DBMGR_SELECTED_ROWS-'].update(MP.dbmgr_picked_items)
-			#print ("Remove selected:", MP.dbmgr_picked_items)
+			np.log(f"Remove selected:{MP.dbmgr_picked_items}")
 			UI.window['-DBMGR_RESULTS-'].update(MP.media['DBMGR_RESULTS'])
 		elif UI.uievent == 'Torrent Manager':
 			pbdl.create_window()
@@ -835,9 +827,9 @@ def start():
 		elif UI.uievent == 'Pirate Bay Downloader':
 			if pbdl.downloader == False:
 				UI.pbdl_dl_win = pbdl.create_downloader()
-				print ("Loaded pirate bay downloader!")
+				np.log(f"Loaded pirate bay downloader!")
 			else:
-				print ("Pirate bay downloader alread running!")
+				np.log(f"Pirate bay downloader alread running!")
 			pbdl.run()
 		elif UI.uievent == '-PBDL_SEARCH-':
 			pbdl.results = pbdl.get_magnet(pbdl.pbdl_query, pbdl.category)
@@ -864,9 +856,9 @@ def start():
 			filepath = np.file_browse_window()
 			ret = MP.save_playlist(filepath, MP.media['DBMGR_RESULTS'])
 			if ret is True:
-				print ("Success!")
+				np.log(f"Save playlist: Success: {filepath}")
 			else:
-				print ("Failed!")
+				np.log(f"Save playlist: Failed! {filepath}")
 		elif UI.uievent== "-Load Directory-":
 			path = np.folder_browse_window()
 			MP.stop()
@@ -876,53 +868,45 @@ def start():
 			UI.WINDOW['-PLAY_MODE-'].update(MP.play_mode)
 			filepath = MP.media['DBMGR_RESULTS'][0]
 			MP.play(filepath)
-			#print (string)
 		elif UI.uievent == '-PLAY_MODE-':
 			MP.play_mode = UI.uivalues[UI.uievent]
-			print ("Play mode changed:", MP.play_mode)
-#		elif UI.uievent == '-Read Info-':
-#			for item in MP.dbmgr_picked_items:
-#				UI.update_series_info_from_row(item)
-				#print ("Read current database info:", item)
-#		elif UI.uievent == '-Update Info-':
-#			for item in MP.dbmgr_picked_items:
-#				print ("TODO: update database", item)
+			np.log(f"Play mode changed:{MP.play_mode}")
 		elif UI.uievent == '-Set Active-':
-			print ("TODO: Set active", MP.dbmgr_picked_items)
+			np.log(f"TODO: Set active:{MP.dbmgr_picked_items}")
 		elif UI.uievent == '-Set Inactive-':
-			print ("TODO: Set inactive", MP.dbmgr_picked_items)
+			np.log(f"TODO: Set inactive:{MP.dbmgr_picked_items}")
 		elif UI.uievent == '-Select All-':
 			dbmgr_select_all()
 		elif UI.uievent == '-Clear All-':
 			dbmgr_clear_all()
 		elif UI.uievent == 'Hide UI':
-			print ("GUI Menu hidden!")
+			np.log(f"GUI Menu hidden!")
 		elif UI.uievent == '-VID_OUT-':
-			print ("Don't touch me, booger blaster!")
+			np.log(f"Don't touch me, booger blaster!")
 		elif UI.uievent == 'Fix Focus':
 			UI.WINDOW.TKroot.focus_force()
 			UI.WINDOW.Element('-SEARCH_QUERY-').SetFocus()
-			print ("Set focus on search query input!")
+			np.log(f"Set focus on search query input!")
 		elif UI.uievent == 'Screenshot':
 			ret = MP.screenshot()
 			print (ret)
 		elif UI.uievent in np.VLC_VIDEO_FILTERS or UI.uievent in np.VLC_AUDIO_FILTERS:
 			f = UI.uievent
-			print ("Changing filter:", f)
+			np.log(f"Changing filter:{f}")
 			ret = change_filter(f)
 			print (ret)
 		else:
 			if UI.uievent != '__TIMEOUT__' and UI.uievent is not None:
 				try:
-					print (UI.uievent, UI.uivalues[UI.uievent])
+					np.log(f"np.py, function=start(), Unhandled event and value received:{UI.uievent}, {UI.uivalues[UI.uievent]}")
 				except Exception as e:
-					print ("np.py, function=start(), line 598, no value for event:", UI.uievent, UI.uivalues)
+					np.log(f"np.py, function=start(), Unhandled event received:{UI.uievent}")
 #-----------------UI Event section end------------------#
 
 #-----------------
 		if MP.ART_UPDATE_NEEDED == True and P.is_playing():
 			UI.WINDOW2['-VID_OUT-'].update(MP.album_art)
-			print ("art updated!", MP.album_art)
+			np.log(f"art updated:{MP.album_art}")
 			UI.WINDOW2.refresh()
 			MP.ART_UPDATE_NEEDED = False
 	# update elapsed time if there is a video loaded and the media is playing

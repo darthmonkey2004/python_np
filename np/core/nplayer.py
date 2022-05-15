@@ -403,7 +403,7 @@ class nplayer():
 			self.conf['volume'] = vol
 			return True
 		except Exception as e:
-			np.log(f"Error: Bad volume! Bad! Details: {e}", 'info')
+			np.log(f"Error: Bad volume! Bad! Details: {e}", 'error')
 			return False
 
 
