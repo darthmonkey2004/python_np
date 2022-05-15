@@ -363,7 +363,7 @@ def start():
 				np.log("REMOTE: Skipped Previous")
 			elif com == 'vol_set':
 				MP.volume_set(arg)
-				np.log("REMOTE: vol_set", 'info')
+				np.log(f"REMOTE: vol_set={arg}", 'info')
 			elif com == 'vol_up':
 				np.log("REMOTE: volume_up", 'info')
 				MP.volume_up()
@@ -382,13 +382,11 @@ def start():
 				update_resume()
 				break
 			elif com == 'load':
-				txt = ("REMOTE: Loading file:" + str(arg))
-				np.log(txt, 'info')
+				np.log(f"REMOTE: Loading file:{arg}", 'info')
 				load_playlist(arg)
 			elif com == 'yt':
-				txt = ("REMOTE: Loading youtube video:", str(arg))
 				MP.next = str(arg)
-				np.log(txt, 'info')
+				np.log(f"REMOTE: Loading youtube video:{arg}", 'info')
 				MP.stop()
 				if 'http://' in MP.next or 'https://' in MP.next:
 					MP.is_url = True
@@ -401,13 +399,10 @@ def start():
 					r = requests.get(url)
 					status = r.status_code
 					if str(code).startswith('2') or str(code).startswith('3'):
-						txt = ("PLAYER: Youtube uri checked ok!, url=" + url)
-						np.log(txt, 'info')
+						np.log(f"PLAYER: Youtube uri checked ok!, url='{url}", 'info')
 					else:
-						txt = ("PLAYER: Youtube url check Failed!, url=" + url + ", status=" + status + ", message=" + r.text)
-						np.log(txt, 'error')
+						np.log(f"PLAYER: Youtube url check Failed!, url='{url}', status='{status}', message='{r.text}'", 'error')
 						MP.stop()
-					#stream = v.getbest()
 					P = MP.init_vlc()
 					M = self.vlcInstance.media_new(self.next)
 					mrl = Media.get_mrl()
@@ -416,19 +411,16 @@ def start():
 					P.play()
 			elif com == 'play_mode':
 				MP.play_mode = arg
-				txt = ("REMOTE: Play mode set:" + str(arg))
-				np.log(txt, 'info')
+				np.log(f"REMOTE: Play mode set:{arg}", 'info')
 			elif com == 'play_type':
 				MP.conf['play_type'] = arg
 				np.writeConf(MP.conf)
 				MP.play_type = arg
-				txt = ("REMOTE: Play type set:" + str(arg))
-				np.log(txt, 'info')
+				np.log(f"REMOTE: Play type set:{arg}", 'info')
 			elif com == 'seek':
 				pos = float(float(arg) / 100)
 				P.set_position(pos)
-				txt = ("seek to position:" + str(pos))
-				np.log(txt, 'info')
+				np.log(f"seek to position:{pos}", 'info')
 			elif com == 'hide_gui':
 				UI.WINDOW.close()
 				np.log(f"GUI Window closed by remote!", 'info')
