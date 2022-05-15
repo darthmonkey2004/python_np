@@ -127,7 +127,7 @@ class nplayer():
 		except:
 			opts = "--no-xlib"
 		self.vlcInstance = vlc.Instance(opts)
-		np.log("Instance created! Options: {opts}", 'info')
+		np.log(f"nplayer.py, init_vlc(): Instance created! Options: {opts}", 'info')
 		if uri == None:
 			self.player = self.vlcInstance.media_player_new()
 		else:
@@ -580,7 +580,7 @@ class nplayer():
 			except:
 				opts = "--no-xlib"
 			self.vlcInstance = vlc.Instance(opts)
-			np.log("Instance created! Options: {opts}", 'info')
+			np.log(f"nplayer.py, play(): Instance created! Options: {opts}", 'info')
 			self.player = self.vlcInstance.media_player_new()
 		if self.conf['network_mode']['mode'] == 'remote':
 			self.mount_sftp()
