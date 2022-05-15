@@ -555,7 +555,7 @@ def start():
 			k = UI.uievent
 			v = UI.uivalues[UI.uievent]
 			MP.target[k] = v
-			np.log(f"set target {k} to {v}, 'info')
+			np.log(f"set target {k} to {v}", 'info')
 		if UI.uievent == '-Query TMDB-':
 			if MP.target['-series_name-'] is not None and MP.target['-season-'] is not None and MP.target['-episode_number-'] is not None:
 				data = np.lookup_series(MP.target['-series_name-'], MP.target['-season-'], MP.target['-episode_number-'])
