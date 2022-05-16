@@ -8,13 +8,16 @@ np.egg-info/SOURCES.txt
 np.egg-info/dependency_links.txt
 np.egg-info/top_level.txt
 np/core/__init__.py
+np/core/conf.py
 np/core/core.py
 np/core/gui.py
+np/core/log.py
 np/core/nplayer.py
 np/core/nplayer_db.py
 np/core/wsreceiver.py
 np/core/wssender.py
 np/core/wsserver.py
+np/core/xrandr.py
 np/scripts/mkmedialist
 np/scripts/np.remote
 np/utils/__init__.py

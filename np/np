@@ -352,7 +352,7 @@ def uievents_handler(event, values):
 		#np.writeConf(MP.conf)
 		UI.RESET = False
 		np.log(f"Reset flag unset:{UI.RESET}", 'info')
-	if MP.play_needed == 1:
+	elif MP.play_needed == 1:
 		np.log("Playing from 'play needed'", 'info')
 		filepath = MP.conf['nowplaying']['filepath']
 		play_pos = MP.conf['nowplaying']['play_pos']
@@ -370,11 +370,11 @@ def uievents_handler(event, values):
 			else:
 				MP.play()
 		play_needed = 0	
-	if event == sg.WIN_CLOSED and media['continuous'] == 0 and UI.RESET == False:
+	elif event == sg.WIN_CLOSED and media['continuous'] == 0 and UI.RESET == False:
 		np.log(f"Window closed (gui): continuout=0, reset=False", 'info')
 		np.writeConf(MP.conf)
 		MP.exit = True
-	if event == '-MEDIA_MODE-':
+	elif event == '-MEDIA_MODE-':
 		media_mode = values[event]
 		if media_mode == 'remote':
 			if media_host is None:
@@ -386,7 +386,7 @@ def uievents_handler(event, values):
 		MP.conf['network_mode']['media_user'] = media_user
 		np.writeConf(MP.conf)
 		np.log(f"Network media mode changed:{media_mode}", 'info')
-	if event == '-CONTROL_MODE-':
+	elif event == '-CONTROL_MODE-':
 		control_mode = values[event]
 		if media_mode == 'remote':
 			conf['network_mode']['control_mode'] = 'remote'
@@ -400,19 +400,19 @@ def uievents_handler(event, values):
 				control_user = UI.get_user_input('Please enter remote username: ')
 		np.set_control_mode(control_mode=control_mode, control_host=control_host, control_user=control_user)
 		np.log(f"Network controller mode changed:{control_mode}", 'info')
-	if event == 'Hide UI':
+	elif event == 'Hide UI':
 		hide_ui()
-	if event == 'Exit' or event == 'Close':
+	elif event == 'Exit' or event == 'Close':
 		update_resume()
 		MP.exit = True
-	if event == 'store_window_location':
+	elif event == 'store_window_location':
 		store_window_location()
-	if event == '-episode_number-' or event == '-filepath-' or event == '-series_name-' or event == '-season-':
+	elif event == '-episode_number-' or event == '-filepath-' or event == '-series_name-' or event == '-season-':
 		k = event
 		v = values[event]
 		MP.target[k] = v
 		np.log(f"set target {k} to {v}", 'info')
-	if event == '-Query TMDB-':
+	elif event == '-Query TMDB-':
 		if MP.target['-series_name-'] is not None and MP.target['-season-'] is not None and MP.target['-episode_number-'] is not None:
 			data = np.lookup_series(MP.target['-series_name-'], MP.target['-season-'], MP.target['-episode_number-'])
 			if data:
@@ -426,7 +426,7 @@ def uievents_handler(event, values):
 				UI.WINDOW['-air_date-'].update(MP.target['-air_date-'])
 				UI.WINDOW['-still_path-'].update(MP.target['-still_path-'])
 				UI.WINDOW['-tmdbid-'].update(MP.target['-tmdbid-'])
-	if event == '-table_series-' or event == '-table_movies-' or event == '-table_music-' or event == '-PLAY_TYPE-':
+	elif event == '-table_series-' or event == '-table_movies-' or event == '-table_music-' or event == '-PLAY_TYPE-':
 		if event == '-PLAY_TYPE-':
 			play_type = values[event]
 			np.log(f"Play type changed:{play_type}", 'info')
@@ -746,9 +746,9 @@ def uievents_handler(event, values):
 	else:
 		if event != '__TIMEOUT__' and event is not None:
 			try:
-				np.log(f"np.py, function=start(), Unhandled event and value received:{event}, {values[event]}", 'info')
+				np.log(f"np.py, function=uievents_handler(), Unhandled event and value received:{event}, {values[event]}", 'info')
 			except Exception as e:
-				np.log(f"np.py, function=start(), Unhandled event received:{event}", 'info')
+				np.log(f"np.py, function=uievents_handler(), Unhandled event received:{event}", 'info')
 
 
 def btn_handler(btn):
@@ -777,13 +777,8 @@ def btn_handler(btn):
 	btn = None
 
 
-def remote_handler(data, arg):
+def remote_handler(com, arg):
 	global P, MP, UI
-	com = data.split('=')[0]
-	try:
-		arg = data.split('=')[1]
-	except:
-		arg = None
 	if com == 'play':					
 		MP.play()
 		np.log("REMOTE: Playing!", 'info')
@@ -973,7 +968,7 @@ def start():
 			com = data.split('=')[0]
 			try:
 				arg = data.split('=')[1]
-			except:
+			except Exception as e:
 				arg = None
 			# if command received via COMFILE (from np.remote), pass to handler.
 			remote_handler(com, arg)
