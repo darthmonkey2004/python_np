@@ -36,7 +36,13 @@ sep = os.path.sep
 conf_file=(npdir + sep + "nplayer.conf")
 
 
+def get_local_ip():
+	com = "ip -o -4 a s | awk -F'[ /]+' '$2!~/lo/{print $4}'"
+	return subprocess.check_output(com, shell=True).decode().strip()
+
+
 def initConf():
+	global user
 	#print ("Init conf running!")
 	conf = {}
 	conf['play_type'] = 'series'
@@ -65,10 +71,17 @@ def initConf():
 	conf['vlc'] = {}
 	conf['vlc']['opts'] = "--no-xlib"
 	conf['debug'] = True
+	conf['network_modes'] = {}
+	conf['network_modes']['control_modes'] = ['local', 'remote', 'server']
+	conf['network_modes']['media_modes'] = ['local', 'remote']
 	conf['network_mode'] = {}
-	conf['network_mode']['mode'] = 'local'
-	conf['network_mode']['host'] = '192.168.2.2'
-	conf['network_mode']['user'] = 'monkey'
+	conf['network_mode']['media_mode'] = 'local'
+	conf['network_mode']['media_host'] = None
+	conf['network_mode']['media_user'] = user
+	conf['network_mode']['control_mode'] = 'local'
+	conf['network_mode']['control_host'] = None
+	conf['network_mode']['control_user'] = user
+	conf['network_mode']['control_port'] = 4444
 	conf['remote'] = {}
 	conf['debug'] = False
 	#conf['watched_devices'] = ['/dev/input/event11', '/dev/input/event2']
@@ -149,6 +162,7 @@ def writeConf(data):
 	except Exception as e:
 		print(f"Exception in core.py, writeConf, line 149:{e}")
 		return False
+
 
 class err():
 	def __init__(self):

@@ -35,6 +35,9 @@ from np.utils.scan_music import scan_music
 from np.utils.ytdl import ytdl
 from np.utils.init_conf import run_setup
 from np.utils.pbdl_add_to_series import add_series
+import np.core.wsreceiver as receiver
+import np.core.wsserver as server
+import np.core.wssender as sender
 #from np.main import start
 home = os.path.expanduser("~")
 DATA_DIR = (home + os.path.sep + ".np")
@@ -62,6 +65,7 @@ for f in vlc.Instance().audio_filter_list_get():
 VLC_VIDEO_FILTERS = sorted(vfilters)
 VLC_AUDIO_FILTERS = sorted(afilters)
 LOGFILE = (DATA_DIR + os.path.sep + 'nplayer.log')
+WSLOGFILE = (DATA_DIR + os.path.sep + 'nplayer.wslog')
 log = log().log
 err = err().err
 COMFILE = (DATA_DIR + os.path.sep + 'nplayer.com')

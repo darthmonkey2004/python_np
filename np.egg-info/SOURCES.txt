@@ -12,6 +12,9 @@ np/core/core.py
 np/core/gui.py
 np/core/nplayer.py
 np/core/nplayer_db.py
+np/core/wsreceiver.py
+np/core/wssender.py
+np/core/wsserver.py
 np/scripts/mkmedialist
 np/scripts/np.remote
 np/utils/__init__.py

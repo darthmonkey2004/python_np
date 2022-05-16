@@ -64,6 +64,7 @@ class nplayer():
 		self.playlist_loop_one = False
 		self.playlist_loop_all = True
 		self.remote_media = []
+		self.exit = False
 
 		try:
 			self.main_keyboard = self.conf['main_keyboard']['path']
@@ -73,16 +74,6 @@ class nplayer():
 
 	def get_position(self):
 		return self.player.get_position()
-
-
-
-	def toggle_network_mode(self):
-		if self.conf['network_mode']['mode'] == 'local':
-			self.conf['network_mode']['mode'] = 'remote'
-		elif self.conf['network_mode']['mode'] == 'remote':
-			self.conf['network_mode']['mode'] = 'local'
-		np.writeConf(self.conf)
-		return self.conf['network_mode']['mode']
 
 
 	def init_events(self):
@@ -483,8 +474,8 @@ class nplayer():
 
 
 	def mount_sftp(self):
-		user = self.conf['network_mode']['user']
-		host = self.conf['network_mode']['host']
+		user = self.conf['network_mode']['media_user']
+		host = self.conf['network_mode']['media_host']
 		sftp_data_file = (np.SFTP_DIR + os.path.sep + 'info.txt')
 		if not os.path.exists(sftp_data_file):
 			try:
@@ -583,9 +574,9 @@ class nplayer():
 			self.vlcInstance = vlc.Instance(opts)
 			np.log(f"nplayer.py, play(): Instance created! Options: {opts}", 'info')
 			self.player = self.vlcInstance.media_player_new()
-		if self.conf['network_mode']['mode'] == 'remote':
+		if self.conf['network_mode']['media_mode'] == 'remote':
 			self.mount_sftp()
-		if self.conf['network_mode']['mode'] == 'remote' and '/.np/sftp' not in self.next:
+		if self.conf['network_mode']['media_mode'] == 'remote' and '/.np/sftp' not in self.next:
 			is_mounted = self.test_sftp()
 			if not is_mounted:
 				self.mount_sftp()
@@ -601,7 +592,7 @@ class nplayer():
 		except Exception as e:
 			txt = ("Unable to open media item:" + e + ", filepath=" + self.next)
 			np.log(txt, 'error')
-			if self.conf['network_mode']['mode'] == 'remote':
+			if self.conf['network_mode']['media_mode'] == 'remote':
 				self.mount_sftp()
 				self.media['current_vlc_media_object'] = self.vlcInstance.media_new_path(self.next)
 				self.player.set_media(self.media['current_vlc_media_object'])
@@ -677,7 +668,7 @@ class nplayer():
 
 
 	def load_playlist(self, filepath):
-		if self.conf['network_mode']['mode'] == 'remote':
+		if self.conf['network_mode']['media_mode'] == 'remote':
 			fpath = filepath.split('/var/storage/')[1]
 			filepath = (np.SFTP_DIR + os.path.sep + fpath)
 		try:
