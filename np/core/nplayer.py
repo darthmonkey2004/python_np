@@ -129,9 +129,9 @@ class nplayer():
 			self.player.audio_set_volume(self.conf['volume'])
 		scale = self.conf['scale']
 		if scale >= 10:
-			self.scale = float(scale / 100)#Convert to 1-10 float value if in percentage
+			self.conf['scale'] = float(scale / 100)#Convert to 1-10 float value if in percentage
 		else:
-			self.scale = float(scale)#force to float if already in 1-10 scale
+			self.conf['scale'] = float(scale)#force to float if already in 1-10 scale
 		time.sleep(0.5)
 		self.player.video_set_scale(scale)
 		for evt in self.media['vlc']['events']:

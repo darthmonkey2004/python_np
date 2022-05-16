@@ -112,20 +112,11 @@ def store_window_location():
 	except Exception as e:
 		np.log(f"Unable to get window location (probably closed). Details: {e}", 'error')
 
-def gui_reset(table, tab):
+def gui_reset():
 	global P, MP, UI
-	MP.conf['play_type'] = table
-	#np.writeConf(MP.conf)
-	UI.RESET = True
-	#print ("UI.RESET:", UI.RESET, " Table=", table)
+	MP.conf['GUI_RESET'] = True
+	np.writeConf(MP.conf)
 	update_resume()
-	#if play_file is not None:
-	#	data = (UI.RESET, table, tab, play_pos, play_file)
-	#else:
-	#	data = (UI.RESET, table, tab, None, None)
-	#with open ('nplayer.reset', 'wb') as f:
-	#	pickle.dump(data, f)
-	#f.close()
 	MP.stop()
 	UI.WINDOW.close()
 	UI.WINDOW2.close()
@@ -185,7 +176,7 @@ def change_filter(f):#sets audio filters to vlc instance. returns true on succes
 		txt = ("Unknown action:" + a + ", Available: 'add', 'remove'")
 		print (txt)
 		return False
-	gui_reset(MP.conf['play_type'], '-player_control_layout-')
+	gui_reset()
 
 
 def rotate(deg):
@@ -211,7 +202,7 @@ def rotate(deg):
 		deg = str(MP.conf['rotate'])
 		opt=("--no-xlib --video-filter=transform{type=" + deg + "}")
 	MP.conf['vlc']['opts'] = opt
-	gui_reset(MP.conf['play_type'], '-player_control_layout-')
+	gui_reset()
 
 
 def update_resume():
@@ -326,55 +317,7 @@ def send_message(message=None):
 
 def uievents_handler(event, values):
 	global P, MP, UI
-	if event == sg.WIN_CLOSED and UI.RESET == True:
-		np.log(f"reset executing: {MP.conf['play_type']}", 'info')
-		MP = np.nplayer()
-		P = MP.init_vlc()
-		media = np.create_media()
-		media['series_history'] = np.read_history()
-		UI = np.gui()
-		set_video_out()
-		media['continuous'] = 1
-		UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.DBMGR_RESULTS)
-		if tab == '-db_mgr_layout-':
-			UI.WINDOW['-db_mgr_layout-'].select()
-		if tab == '-player_control_layout-':
-			UI.WINDOW['-player_control_layout-'].select()
-		if tab == '-pbdl_layout-':
-			UI.WINDOW['-pbdl_layout-'].select()
-		UI.WINDOW['-PLAY_TYPE-'].update(MP.conf['play_type'])
-		np.log("np.py: Resuming from reset = True...", 'info')
-		MP.play()
-		time.sleep(0.5)
-		P.set_position(MP.conf['nowplaying']['play_pos'])
-		np.log(f"Skipped to {MP.conf['nowplaying']['play_pos']}", 'info')
-		media['continuous'] = 1
-		#np.writeConf(MP.conf)
-		UI.RESET = False
-		np.log(f"Reset flag unset:{UI.RESET}", 'info')
-	elif MP.play_needed == 1:
-		np.log("Playing from 'play needed'", 'info')
-		filepath = MP.conf['nowplaying']['filepath']
-		play_pos = MP.conf['nowplaying']['play_pos']
-		if filepath is not None:
-			filepath = urllib.parse.unquote(filepath)
-			np.log(f"using resume from file:{filepath}", 'info')
-			MP.play(filepath)
-			P.set_position(play_pos)
-			np.log(f"np.py, Skipped to {play_pos} by play_needed = 1", 'info')
-		else:
-			print ('not resuming...', filepath)
-			if MP.play_mode == 'playlist':
-				MP.next = MP.get_playlist_next()
-				MP.play(MP.next)
-			else:
-				MP.play()
-		play_needed = 0	
-	elif event == sg.WIN_CLOSED and media['continuous'] == 0 and UI.RESET == False:
-		np.log(f"Window closed (gui): continuout=0, reset=False", 'info')
-		np.writeConf(MP.conf)
-		MP.exit = True
-	elif event == '-MEDIA_MODE-':
+	if event == '-MEDIA_MODE-':
 		media_mode = values[event]
 		if media_mode == 'remote':
 			if media_host is None:
@@ -485,9 +428,10 @@ def uievents_handler(event, values):
 		np.updateConf(conf, 'fullscreen', fs)
 	elif event == '-SET_SCREEN-':
 		MP.conf['screen'] = int(values[event])
+		MP.conf = UI.set_window_screen(MP.conf['screen'])
 		np.writeConf(MP.conf)
 		np.log(f"Active screen updated! Needs restart{MP.conf['screen']}", 'info')
-		gui_reset(MP.conf['play_type'], '-player_control_layout-')	
+		gui_reset()	
 	elif event == 'load':
 		MP.stop()
 		MP.next = values['-VIDEO_LOCATION-']
@@ -978,6 +922,52 @@ def start():
 		else:
 			# Pass UI events to handler	
 			uievents_handler(UI.event, UI.values)
+		if MP.conf['GUI_RESET'] == True:
+			np.log(f"reset executing: {MP.conf['play_type']}", 'info')
+			MP.conf = np.readConf()
+			MP = np.nplayer()
+			P = MP.init_vlc()
+			media = np.create_media()
+			media['series_history'] = np.read_history()
+			UI = np.gui()
+			set_video_out()
+			media['continuous'] = 1
+			UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.DBMGR_RESULTS)
+			UI.WINDOW['-PLAY_TYPE-'].update(MP.conf['play_type'])
+			np.log("np.py: Resuming from reset = True...", 'info')
+			MP.play()
+			time.sleep(0.5)
+			P.set_position(MP.conf['nowplaying']['play_pos'])
+			np.log(f"Skipped to {MP.conf['nowplaying']['play_pos']}", 'info')
+			media['continuous'] = 1
+			#np.writeConf(MP.conf)
+			MP.conf['GUI_RESET'] = False
+			np.log(f"Reset flag unset:{MP.conf['GUI_RESET']}", 'info')
+		elif MP.play_needed == 1:
+			np.log("Playing from 'play needed'", 'info')
+			filepath = MP.conf['nowplaying']['filepath']
+			play_pos = MP.conf['nowplaying']['play_pos']
+			if filepath is not None:
+				filepath = urllib.parse.unquote(filepath)
+				np.log(f"using resume from file:{filepath}", 'info')
+				MP.play(filepath)
+				P.set_position(play_pos)
+				np.log(f"np.py, Skipped to {play_pos} by play_needed = 1", 'info')
+			else:
+				print ('not resuming...', filepath)
+				if MP.play_mode == 'playlist':
+					MP.next = MP.get_playlist_next()
+					MP.play(MP.next)
+				else:
+					MP.play()
+			play_needed = 0	
+		elif UI.uievent == sg.WIN_CLOSED and media['continuous'] == 0 and MP.conf['GUI_RESET'] == False:
+			np.log(f"Window closed (gui): continuout=0, reset=False", 'info')
+			np.writeConf(MP.conf)
+			MP.exit = True
+			if MP.scale_needed == 1:
+				MP.conf['scale'] = np.calculate_scale(MP.next)
+				P.video_set_scale(MP.conf['scale'])
 		# if button event, pass to btn handler
 		if btn is not None:
 			btn_handler(btn)			

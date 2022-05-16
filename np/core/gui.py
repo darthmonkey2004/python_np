@@ -20,7 +20,7 @@ class gui():
 		elif self.conf['screen'] == 1:
 			scrnbtn0_val = False
 			scrnbtn1_val = True
-		self.conf['windows'] = np.init_window_position()
+		#self.conf['windows'] = np.init_window_position()
 		state = self.conf['windows']['visible_state']
 		screen = self.conf['screen']
 		self.gui_win_x = self.conf['windows']['gui'][state][screen]['x']
@@ -31,6 +31,7 @@ class gui():
 		self.viewer_win_y = self.conf['windows']['viewer'][screen]['y']
 		self.viewer_win_w = self.conf['windows']['viewer'][screen]['w']
 		self.viewer_win_h = self.conf['windows']['viewer'][screen]['h']
+		np.log(f"Viewer window set: {self.viewer_win_x}, {self.viewer_win_y}, {self.viewer_win_w}, {self.viewer_win_h}", 'info')
 		self.window = None
 		self.event = None
 		self.values = None
@@ -328,22 +329,27 @@ class gui():
 			return (None, None, None)
 
 
-	def set_window_screen(self, screen):
-		if screen not in list(self.conf['screens'].keys()):
-			print ("Screen id not found:", screen)
-			return False
-		self.conf['screen'] = int(screen)
-		self.RESET = True
-		self.WINDOW.close()
-		#self.WINDOW2.close()
-
-	def set_window_reset(self):
-		self.RESET = True
-
-
-	def clear_window_reset(self):
-		self.RESET = False
-
+	def set_window_screen(self, screen: int):
+		self.conf['screens'] = np.xrandr()
+		self.conf['screen'] = screen
+		state = self.conf['windows']['gui']['visible_status']
+		if screen == 1:
+			gui_screen = 0
+		elif screen == 0:
+			gui_screen = 1
+		dims = self.conf['screens'][screen]
+		gui_dims = self.conf['screens'][gui_screen]
+		w, h, x, y = dims['w'], dims['h'], dims['pos_x'], dims['pos_y']
+		self.conf['windows']['viewer']['w'] = w
+		self.conf['windows']['viewer']['h'] = h
+		self.conf['windows']['viewer']['x'] = x
+		self.conf['windows']['viewer']['y'] = y
+		self.conf['windows']['gui'][state][screen]['w'] = 1024
+		self.conf['windows']['gui'][state][screen]['h'] = 600
+		x, y = gui_dims['pos_x'], gui_dims['pos_y']
+		self.conf['windows']['gui'][state][screen]['x'] = x
+		self.conf['windows']['gui'][state][screen]['y'] = y
+		return self.conf
 
 	def dump_layout(self, layout, filename):
 		with open (filename, 'w') as f:
