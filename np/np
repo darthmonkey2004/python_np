@@ -373,7 +373,7 @@ def uievents_handler(event, values):
 		if event == '-PLAY_TYPE-':
 			play_type = values[event]
 			np.log(f"Play type changed:{play_type}", 'info')
-			gui_reset(play_type, '-player_control_layout-')
+			gui_reset()
 		if event == '-table_series-':
 			gui_reset('series', '-db_mgr_layout-')
 		elif event == '-table_movies-':
