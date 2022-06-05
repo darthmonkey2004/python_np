@@ -371,8 +371,8 @@ def uievents_handler(event, values):
 				UI.WINDOW['-tmdbid-'].update(MP.target['-tmdbid-'])
 	elif event == '-table_series-' or event == '-table_movies-' or event == '-table_music-' or event == '-PLAY_TYPE-':
 		if event == '-PLAY_TYPE-':
-			play_type = values[event]
-			np.log(f"Play type changed:{play_type}", 'info')
+			MP.conf['play_type'] = values[event]
+			np.log(f"Play type changed:{MP.conf['play_type']}", 'info')
 			gui_reset()
 		if event == '-table_series-':
 			gui_reset('series', '-db_mgr_layout-')

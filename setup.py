@@ -8,6 +8,6 @@ setup(name='np',
 	url='http://nplayer.simiantech.biz/',
 	packages=['np', 'np.core', 'np.utils'],
 	package_dir={'np': 'np', 'np.core': 'np/core', 'np.utils': 'np/utils', 'np.np': 'np.np'},
-	scripts=['np/scripts/mkmedialist', 'np/scripts/np.remote', 'np/np'],
+	scripts=['np/scripts/mkmedialist', 'np/scripts/np.remote', 'np/np', 'np/scripts/setup_np.sh'],
 	data_files=['poster.png'],
 	)

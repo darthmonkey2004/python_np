@@ -1,1 +1,42 @@
-Coming soon...
+This is a python based media player that uses vlc python bindings and (if in remote mode) ssh/sftp mounts to organize, database, and control playback of video, music, and audio files.
+
+To install, first clone the repo (insure git is installed i.e. sudo apt-get install git):
+git clone "https://github.com/darthmonkey2004/python_np.git"
+
+Then, open a command prompt (ctrl + alt + t), and cd into the downloaded directory.
+cd python_np
+
+Finally, run the setup script. If it fails, make executable (sudo chmod a+x setup_np.sh), and try again.
+./setup_np.sh
+
+The installer will ask if you want to set up ssh authentication. If this is already done, you may skip this step.
+TODO: code in a decent way of locating the previously downloaded source directory to avoid the need to provide the path at setup script launch.
+Then, it will install the necessary apt packages (if you don't use apt, you'll need to install these with your preferred package manager)
+Finally, it will install np from the downloaded tarball in python_np/dist, and install the required python packages from requirements.txt
+
+That's it! To run, just open a command prompt and type 'np'.
+
+Additional:
+There are several helper scripts included with this. The first one is np.remote, which adds a cli based remote control (use -l flag for local use), for those
+who just can't seem to help themselves from a terminal window (like this guy, for instance). Also good for setting debug=True/False when chasing down issues.
+There is also mkmedialist (both are installed to '/home/$USER/.local/bin') which will search for a structured filing system (movies in 'Movies', series in 'Series', etc.) and create
+a playable playlist file (medialist.txt) usable in mplayer, mpv, and vlc. 
+
+This software is provided AS IS, as I've already ran down the 'consumer support help desk' road, and am not super itching to jump down it again. However, I will
+try and respond to issues and questions if you should have them.
+
+Note*
+launcher script and other helpers are installed to the local user's bin ('/home/user/.local/bin'). 
+setup_np.sh should ammend your .bashrc file with the correct path, and will back old path up to "$HOME/oldpath.temp". can be restored using 'restore_path' function in setup_np.sh
+If the above fails to modify PATH variable, you'll need to add it by editing ~/.bashrc and hardcoding it...
+
+
+Enjoy!
+
+Matt McClellan
+darthmonkey2004@gmail.com
+
+
+TODO: 
+scan_music.py works to scan media directory for music files to add to the sql database, still working on scan_movies and scan_series. Will create a helper script to launch these
+(also installed to 'home/$USER/.local/bin')
