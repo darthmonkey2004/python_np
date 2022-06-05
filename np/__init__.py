@@ -35,6 +35,7 @@ from np.utils.scan_music import scan_music
 from np.utils.ytdl import ytdl
 from np.utils.init_conf import run_setup
 from np.utils.pbdl_add_to_series import add_series
+from np.core.init_screens import init_screens, init_gui, init_viewer
 import np.core.wsreceiver as receiver
 import np.core.wsserver as server
 import np.core.wssender as sender
