@@ -108,6 +108,7 @@ def store_window_location():
 		state = MP.conf['windows']['gui']['visible_status']
 		MP.conf['windows']['gui'][state][screen]['x'], MP.conf['windows']['gui'][state][screen]['y'] = UI.get_window_location('gui')
 		np.writeConf(MP.conf)
+		np.log(f"writeConf, store_window_location(), 111", 'info')
 		np.log(f"Window location stored:{MP.conf['windows']['gui'][state][screen]['x']}, {MP.conf['windows']['gui'][state][screen]['y']}", 'info')
 	except Exception as e:
 		np.log(f"Unable to get window location (probably closed). Details: {e}", 'error')
@@ -115,11 +116,19 @@ def store_window_location():
 def gui_reset():
 	global P, MP, UI
 	MP.conf['GUI_RESET'] = True
+	s='%20'
+	j = ' '
+	s2 = 'file://'
+	filepath = P.get_media().get_mrl().split("file://")[1]
+	MP.conf['nowplaying']['filepath'] = urllib.parse.unquote(filepath)
+	MP.conf['nowplaying']['play_pos'] = P.get_position()
+	np.log(f"np.py, update_resume: modified conf with play_pos and now_playing: play_pos={MP.conf['nowplaying']['play_pos']}, now_playing={MP.conf['nowplaying']['filepath']}, play_type={MP.conf['play_type']}", 'info')
 	np.writeConf(MP.conf)
-	update_resume()
+	np.log(f"writeConf, gui_reset(), 119", 'info')
 	MP.stop()
 	UI.WINDOW.close()
 	UI.WINDOW2.close()
+
 
 def set_video_out():
 	global MP, UI, P
@@ -205,19 +214,6 @@ def rotate(deg):
 	gui_reset()
 
 
-def update_resume():
-	s='%20'
-	j = ' '
-	s2 = 'file://'
-	filepath = P.get_media().get_mrl().split("file://")[1]
-	MP.conf['nowplaying']['filepath'] = urllib.parse.unquote(filepath)
-	MP.conf['nowplaying']['play_pos'] = P.get_position()
-	np.log(f"np.py, update_resume: modified conf with play_pos and now_playing: play_pos={MP.conf['nowplaying']['play_pos']}, now_playing={MP.conf['nowplaying']['filepath']}", 'info')
-	#print ('set nowplaying filepath:', MP.conf['nowplaying']['filepath'])
-	np.writeConf(MP.conf)
-
-
-
 def playlist_click(_id, table):
 	query_string = ("id = " + str(_id))
 	_file = np.querydb(table, 'filepath', query_string)[0][0]
@@ -280,6 +276,7 @@ def set_debug(mode=None):
 		debug = mode
 	MP.conf['debug'] = debug
 	np.writeConf(MP.conf)
+	np.log(f"writeConf, set_Debug(), 283", 'info')
 	np.log(f"Debug option changed: {MP.conf['debug']}!", 'info')
 
 
@@ -327,8 +324,9 @@ def uievents_handler(event, values):
 		MP.conf['network_mode']['media_mode'] = media_mode
 		MP.conf['network_mode']['media_host'] = media_host
 		MP.conf['network_mode']['media_user'] = media_user
-		np.writeConf(MP.conf)
 		np.log(f"Network media mode changed:{media_mode}", 'info')
+		np.writeConf(MP.conf)
+		np.log(f"writeConf, uievents_handler(), 331", 'info')
 	elif event == '-CONTROL_MODE-':
 		control_mode = values[event]
 		if media_mode == 'remote':
@@ -430,7 +428,7 @@ def uievents_handler(event, values):
 		MP.conf['screen'] = int(values[event])
 		MP.conf = UI.set_window_screen(MP.conf['screen'])
 		np.writeConf(MP.conf)
-		np.log(f"Active screen updated! Needs restart{MP.conf['screen']}", 'info')
+		np.log(f"writeConf, uievents_handler(), 433", 'info')
 		gui_reset()	
 	elif event == 'load':
 		MP.stop()
@@ -450,7 +448,7 @@ def uievents_handler(event, values):
 			MP.is_url = False
 			MP.play(MP.next)
 	elif event == 'Refresh from Database':
-		MP.media = np.create_media()
+		MP.media = MP.create_media()
 		UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.DBMGR_RESULTS)
 	elif event == 'VPN On/Off':
 		if VPN == True:
@@ -536,7 +534,7 @@ def uievents_handler(event, values):
 			if table == 'series':
 				query_string = (query_string + " and isactive = '" + str(is_active) + "'")
 				rows = np.querydb(table='series', column='id,series_name,tmdbid,season,episode_number,episode_name,description,air_date,still_path,filepath', query=query_string)
-				MP.media = np.create_media(rows=rows)
+				MP.media = MP.create_media(rows=rows)
 				if rows is not None:
 					UI.WINDOW['-DBMGR_RESULTS-'].update(MP.media['DBMGR_RESULTS'])
 				else:
@@ -569,7 +567,7 @@ def uievents_handler(event, values):
 							query_string = ("series_name like '%" + series_name + "%' and season = " + season + " and isactive = '" + str(is_active) + "'")
 					np.log(f"Query string:{query_string}", 'info')
 				rows = np.querydb(table='series', column='id,series_name,tmdbid,season,episode_number,episode_name,description,air_date,still_path,filepath', query=query_string)
-				MP.media = np.create_media(rows=rows)
+				MP.media = MP.create_media(rows=rows)
 				if rows is not None:
 					UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.media['DBMGR_RESULTS'])
 					MP.play_mode = 'playlist'
@@ -579,7 +577,7 @@ def uievents_handler(event, values):
 			elif table == 'movies':
 				query_string = ("title like '%" + query + "%' and isactive = '" + str(is_active) + "'")
 				rows = querydb(table='movies', column='id,tmdbid,title,year,release_date,description,poster,filepath', query=query_string)
-				MP.media = np.create_media(rows=rows)
+				MP.media = MP.create_media(rows=rows)
 				if rows is not None:
 					UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.media['DBMGR_RESULTS'])
 					MP.play_mode = 'playlist'
@@ -695,6 +693,17 @@ def uievents_handler(event, values):
 				np.log(f"np.py, function=uievents_handler(), Unhandled event received:{event}", 'info')
 
 
+def update_resume():
+	s='%20'
+	j = ' '
+	s2 = 'file://'
+	filepath = P.get_media().get_mrl().split("file://")[1]
+	MP.conf['nowplaying']['filepath'] = urllib.parse.unquote(filepath)
+	MP.conf['nowplaying']['play_pos'] = P.get_position()
+	np.log(f"Modifying conf: {MP.conf['nowplaying']['filepath']}", 'info')
+	np.writeConf(MP.conf)
+
+
 def btn_handler(btn):
 	global P, MP, UI
 	if btn == MP.KEY_EVENTS['SEEK_FWD']:
@@ -791,7 +800,9 @@ def remote_handler(com, arg):
 		np.log(f"REMOTE: Play mode set:{arg}", 'info')
 	elif com == 'play_type':
 		MP.conf['play_type'] = arg
+		np.log(f"remote_handler(), 799, play_type updated!")
 		np.writeConf(MP.conf)
+		np.log(f"writeConf, remote_handler(), 801", 'info')
 		MP.play_type = arg
 		np.log(f"REMOTE: Play type set:{arg}", 'info')
 	elif com == 'seek':
@@ -853,7 +864,7 @@ def start():
 	subprocess.check_output('sudo chmod -R a+rwx /dev/input/', shell=True)
 	MP = np.nplayer()
 	P = MP.init_vlc()
-	media = np.create_media()
+	media = MP.create_media()
 	tab = '-player_control_layout-'
 	MP.conf = np.readConf()
 	if MP.conf is None:
@@ -867,7 +878,7 @@ def start():
 	MP.conf['pos_x'] = MP.conf['screens'][screen]['pos_x']
 	MP.conf['pos_y'] = MP.conf['screens'][screen]['pos_y']
 	try:
-		media['series_history'] = np.read_history()
+		media['series_history'] = MP.read_history()
 	except Exception as e:
 		print ("Series history is empty or couldn't read pickle data: line 557,", e)
 		media['series_history'] = {}
@@ -886,6 +897,7 @@ def start():
 		MP.conf['windows'] = np.init_window_position()
 		MP.conf['windows']['gui']['visible_status'] = 'visible'
 		np.writeConf(MP.conf)
+		np.log("Write conf, start(), line 889", 'info')
 		ui_center()
 	pbdl = np.pbdl()
 	set_video_out()
@@ -925,10 +937,11 @@ def start():
 		if MP.conf['GUI_RESET'] == True:
 			np.log(f"reset executing: {MP.conf['play_type']}", 'info')
 			MP.conf = np.readConf()
+			np.log(f"Read conf, play_type = {MP.conf['play_type']}", 'info')
 			MP = np.nplayer()
 			P = MP.init_vlc()
-			media = np.create_media()
-			media['series_history'] = np.read_history()
+			media = MP.create_media()
+			media['series_history'] = MP.read_history()
 			UI = np.gui()
 			set_video_out()
 			media['continuous'] = 1
@@ -964,6 +977,7 @@ def start():
 		elif UI.uievent == sg.WIN_CLOSED and media['continuous'] == 0 and MP.conf['GUI_RESET'] == False:
 			np.log(f"Window closed (gui): continuout=0, reset=False", 'info')
 			np.writeConf(MP.conf)
+			np.log(f"writeConf, start(), 975", 'info')
 			MP.exit = True
 			if MP.scale_needed == 1:
 				MP.conf['scale'] = np.calculate_scale(MP.next)

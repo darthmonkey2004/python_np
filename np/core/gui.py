@@ -165,7 +165,7 @@ class gui():
 			except Exception as e:
 				np.log(f"Error Getting Window location: Name=appears to be closed!", 'error')
 				return None
-		np.log(f"Window location: Name={window}, Visible state={self.conf['windows']['visible_state']}, Coords={coords}", 'info')
+		np.log(f"Window location: Name={window}, Coords={coords}", 'info')
 		return coords
 	
 
