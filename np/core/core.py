@@ -18,7 +18,7 @@ from np.core.nplayer_db import querydb
 #import np
 import os
 home = os.path.expanduser("~")
-DATA_DIR = (user + os.path.sep + ".np")
+DATA_DIR = (home + os.path.sep + ".np")
 global LOGFILE, CONFFILE
 LOGFILE = f"{DATA_DIR}/nplayer.log"
 CONFFILE = f"{DATA_DIR}/nplayer.conf"
@@ -64,10 +64,10 @@ def initConf():
 	conf['screen'] = 1
 	conf['fullscreen'] = 1
 	conf['screens'] = {}
-	conf['pos_x'] = None
-	conf['pos_y'] = None
-	conf['w'] = None
-	conf['h'] = None
+#	conf['pos_x'] = None
+#	conf['pos_y'] = None
+#	conf['w'] = None
+#	conf['h'] = None
 	conf['scale'] = 2.799999952316284
 	conf['volume'] = 100
 	conf['rotate'] = 0
@@ -237,6 +237,7 @@ def set_play_type(play_type):
 
 
 def calculate_scale(_file, conf=None, _type='file'):
+	log(f"ACTION:calculate_scale, file='{_file}'", 'info')
 	if _type != 'file':
 		print ("type is not file, cannot calculate scale:", _type)
 		return False
@@ -281,8 +282,7 @@ def init_window_position():
 	conf = readConf()
 	data = xrandr()
 	state = 'visible'
-	screen = 0
-	x, y, w, h = data[screen]['pos_x'], data[screen]['pos_y'], data[screen]['w'], data[screen]['h']
+	viewer_screen = conf['screen']
 	log('core.py.init_window_position running from somewhere...', 'info')
 	conf['windows'] ={}
 	conf['windows']['viewer'] = {}
@@ -307,214 +307,54 @@ def init_window_position():
 	conf['windows']['gui']['visible'][0] = {}
 	conf['windows']['gui']['hidden'][1] = {}
 	conf['windows']['gui']['visible'][1] = {}
-
-	conf['windows']['gui'][state][screen]['x'] = x
-	conf['windows']['gui'][state][screen]['y'] = y
-	conf['windows']['gui'][state][screen]['w'] = 600
-	conf['windows']['gui'][state][screen]['h'] = 800
-	screen = 1
-	x, y, w, h = data[screen]['pos_x'], data[screen]['pos_y'], data[screen]['w'], data[screen]['h']
-	conf['windows']['gui'][state][screen]['x'] = x
-	conf['windows']['gui'][state][screen]['y'] = y
-	conf['windows']['gui'][state][screen]['w'] = 600
-	conf['windows']['gui'][state][screen]['h'] = 800
-	screen = 0
-	state = 'hidden'
-	x, y, w, h = data[screen]['pos_x'], data[screen]['pos_y'], data[screen]['w'], data[screen]['h']
-	conf['windows']['gui'][state][screen]['x'] = x
-	conf['windows']['gui'][state][screen]['y'] = y
-	conf['windows']['gui'][state][screen]['w'] = 600
-	conf['windows']['gui'][state][screen]['h'] = 800
-	screen = 1
-	x, y, w, h = data[screen]['pos_x'], data[screen]['pos_y'], data[screen]['w'], data[screen]['h']
-	conf['windows']['gui'][state][screen]['x'] = x
-	conf['windows']['gui'][state][screen]['y'] = y
-	conf['windows']['gui'][state][screen]['w'] = 600
-	conf['windows']['gui'][state][screen]['h'] = 800
-	conf['pos_x'] = conf['windows']['gui'][state][screen]['x']
-	conf['pos_y'] = conf['windows']['gui'][state][screen]['x']
-	conf['w'] = conf['windows']['gui'][state][screen]['x']
-	conf['h'] = conf['windows']['gui'][state][screen]['x']
-	conf['pos_x'] = conf['windows']['viewer'][screen]['x']
-	conf['pos_y'] = conf['windows']['viewer'][screen]['y']
-	conf['w'] = conf['windows']['viewer'][screen]['w']
-	conf['h'] = conf['windows']['viewer'][screen]['h']
-	writeConf(conf)
+	x0, y0 = data[0]['pos_x'], data[0]['pos_y']
+	x1, y1 = data[1]['pos_x'], data[1]['pos_y']
+	conf['windows']['gui']['visible'][0]['x'] = x0
+	conf['windows']['gui']['visible'][0]['y'] = y0
+	conf['windows']['gui']['visible'][1]['x'] = x1
+	conf['windows']['gui']['visible'][1]['y'] = y1
+	conf['windows']['gui']['visible'][0]['w'] = 1024
+	conf['windows']['gui']['visible'][0]['h'] = 600
+	conf['windows']['gui']['visible'][1]['w'] = 1024
+	conf['windows']['gui']['visible'][1]['h'] = 600
+	conf['windows']['gui']['hidden'][0]['x'] = x1
+	conf['windows']['gui']['hidden'][0]['y'] = y1
+	conf['windows']['gui']['hidden'][1]['x'] = x0
+	conf['windows']['gui']['hidden'][1]['y'] = y0
+	conf['windows']['gui']['hidden'][0]['w'] = 1024
+	conf['windows']['gui']['hidden'][0]['h'] = 600
+	conf['windows']['gui']['hidden'][1]['w'] = 1024
+	conf['windows']['gui']['hidden'][1]['h'] = 600
+	conf['windows']['browser'] = {}
+	conf['windows']['browser']['w'] = 600
+	conf['windows']['browser']['h'] = 150
+	screen = conf['screen']
+	if screen == 0:
+		screen = 1
+	elif screen == 1:
+		screen = 0
+	x, y = conf['screens'][screen]['pos_x'], conf['screens'][screen]['pos_y']
+	conf['windows']['browser']['x'] = x
+	conf['windows']['browser']['y'] = y
+	conf['windows']['pbdl'] = {}
+	conf['windows']['pbdl']['w'] = 900
+	conf['windows']['pbdl']['h'] = 900
+	conf['windows']['pbdl']['x'] = x
+	conf['windows']['pbdl']['y'] = y
+	conf['windows']['pbdl_dl'] = {}
+	conf['windows']['pbdl_dl']['w'] = 600
+	conf['windows']['pbdl_dl']['h'] = 300
+	conf['windows']['pbdl_dl']['x'] = x
+	conf['windows']['pbdl_dl']['y'] = y
+	conf['windows']['ytdl'] = {}
+	conf['windows']['ytdl']['w'] = 750
+	conf['windows']['ytdl']['h'] = 300
+	conf['windows']['ytdl']['x'] = x
+	conf['windows']['ytdl']['y'] = y
 	conf['windows']['is_default'] = True
-	conf['windows']['visible_state'] = 'visible'
+	conf['windows']['gui']['visible_status'] = 'visible'
 	writeConf(conf)
 	return conf['windows']
-
-
-def init_window_position_old():
-	log('core.py.init_window_position running from somewhere...', 'info')
-	screen = conf['screen']
-	windows = {}
-	windows['viewer'] = {}
-	windows['gui'] = {}
-	windows['pbdl'] = {}
-	windows['pbdl_dl'] = {}
-	windows['ytdl'] = {}
-	windows['browser'] = {}
-	w0 = int(conf['screens'][0]['w'])
-	h0 = int(conf['screens'][0]['h'])
-	pos_x0 =  int(conf['screens'][0]['pos_x'])
-	pos_y0 =  int(conf['screens'][0]['pos_y'])
-	w1 = int(conf['screens'][1]['w'])
-	h1 = int(conf['screens'][1]['h'])
-	pos_x1 =  int(conf['screens'][1]['pos_x'])
-	pos_y1 =  int(conf['screens'][1]['pos_y'])	
-	viewer_win_w0 = w0
-	viewer_win_h0 = h0
-	viewer_win_x0 = pos_x0
-	viewer_win_y0 = pos_y0
-	viewer_win_w1 = w1
-	viewer_win_h1 = h1
-	viewer_win_x1 = pos_x1
-	viewer_win_y1 = pos_y1	
-	gui_win_w = 1024
-	gui_win_h = 600
-	browser_win_w = 600
-	browser_win_h = 150
-	pbdl_win_w = 900
-	pbdl_win_h = 900
-	pbdl_dl_win_w = 600
-	pbdl_dl_win_h = 300
-	ytdl_win_w = 750
-	ytdl_win_h = 300
-	half = viewer_win_h0 / 2
-	if viewer_win_y0 >= 0 and viewer_win_y0 <= half:
-		#gui_win_x0 = viewer_win_x0 + viewer_win_w0 - gui_win_w - 147
-		#gui_win_y0 = viewer_win_y0 + viewer_win_h0 + 33
-		gui_win_x0 = 0
-		gui_win_y0 = 0
-		pbdl_win_x = viewer_win_x0 + viewer_win_w0 - pbdl_win_w - 147
-		pbdl_win_y = viewer_win_y0 + viewer_win_h0 + 33
-		pbdl_dl_win_x = viewer_win_x0 + viewer_win_w0 - pbdl_dl_win_w - 147
-		pbdl_dl_win_y = viewer_win_y0 + viewer_win_h0 + 33
-		ytdl_win_x = viewer_win_x0 + viewer_win_w0 - ytdl_win_w - 147
-		ytdl_win_y = viewer_win_y0 + viewer_win_h0 + 33
-		browser_win_x = gui_win_x0
-		browser_win_y = gui_win_y0 + gui_win_h
-	elif viewer_win_y0 >= half:
-		#gui_win_x0 = viewer_win_x0
-		#gui_win_y0 = 0 + gui_win_h
-		gui_win_x0 = 0
-		gui_win_y0 = 0
-		pbdl_win_x = viewer_win_x0
-		pbdl_win_y = 0 + pbdl_win_h
-		pbdl_dl_win_x = viewer_win_x0
-		pbdl_dl_win_y = 0 + pbdl_dl_win_h
-		ytdl_win_x = viewer_win_x0
-		ytdl_win_y = 0 + ytdl_win_h
-		browser_win_x = gui_win_x0
-		browser_win_y = gui_win_y0 + gui_win_h
-	else:
-		print ("window in weird spot...")
-		#gui_win_x0 = viewer_win_x0
-		#gui_win_y0 = 0 + gui_win_h
-		gui_win_x0 = 0
-		gui_win_y0 = 0
-		pbdl_win_x = viewer_win_x0
-		pbdl_win_y = 0 + pbdl_win_h
-		pbdl_dl_win_x = viewer_win_x0
-		pbdl_dl_win_y = 0 + pbdl_dl_win_h
-		ytdl_win_x = viewer_win_x0
-		ytdl_win_y = 0 + ytdl_win_h
-		browser_win_x = gui_win_x0
-		browser_win_y = gui_win_y0 + gui_win_h
-	half = viewer_win_h1 / 2
-	if viewer_win_y1 >= 0 and viewer_win_y1 <= half:
-		#gui_win_x1 = viewer_win_x1 + viewer_win_w1 - gui_win_w - 147
-		#gui_win_y1 = viewer_win_y1 + viewer_win_h1 + 33
-		gui_win_x1 = 0
-		gui_win_y1 = 0
-		pbdl_win_x = viewer_win_x1 + viewer_win_w1 - pbdl_win_w - 147
-		pbdl_win_y = viewer_win_y1 + viewer_win_h1 + 33
-		pbdl_dl_win_x = viewer_win_x1 + viewer_win_w1 - pbdl_dl_win_w - 147
-		pbdl_dl_win_y = viewer_win_y1 + viewer_win_h1 + 33
-		ytdl_win_x = viewer_win_x1 + viewer_win_w1 - ytdl_win_w - 147
-		ytdl_win_y = viewer_win_y1 + viewer_win_h1 + 33
-		browser_win_x = gui_win_x1
-		browser_win_y = gui_win_y1 + gui_win_h
-	elif viewer_win_y1 >= half:
-		#gui_win_x1 = viewer_win_x1
-		#gui_win_y1 = 0 + gui_win_h
-		gui_win_x1 = 0
-		gui_win_y1 = 0
-		pbdl_win_x = viewer_win_x1
-		pbdlwin_y = 0 + pbdl_win_h
-		pbdl_dl_win_x = viewer_win_x1
-		pbdl_dl_win_y = 0 + pbdl_dl_win_h
-		ytdl_win_x = viewer_win_x1
-		ytdlwin_y = 0 + ytdl_win_h
-		browser_win_x = gui_win_x1
-		browser_win_y = gui_win_y1 + gui_win_h
-	else:
-		print ("window in weird spot...")
-		#gui_win_x1 = viewer_win_x1
-		#gui_win_y1 = 0 + gui_win_h
-		gui_win_x1 = 0
-		gui_win_y1 = 0
-		pbdl_win_x = viewer_win_x1
-		pbdl_win_y = 0 + pbdl_win_h
-		pbdl_dl_win_x = viewer_win_x1
-		pbdl_dl_win_y = 0 + pbdl_dl_win_h
-		ytdl_win_x = viewer_win_x1
-		ytdl_win_y = 0 + ytdl_win_h
-		browser_win_x = gui_win_x1
-		browser_win_y = gui_win_y1 + gui_win_h
-	windows['viewer'][0] = {}
-	windows['viewer'][0]['x'] = viewer_win_x0
-	windows['viewer'][0]['y'] = viewer_win_y0
-	windows['viewer'][0]['w'] = viewer_win_w0
-	windows['viewer'][0]['h'] = viewer_win_h0
-	windows['viewer'][1] = {}
-	windows['viewer'][1]['x'] = viewer_win_x1
-	windows['viewer'][1]['y'] = viewer_win_y1
-	windows['viewer'][1]['w'] = viewer_win_w1
-	windows['viewer'][1]['h'] = viewer_win_h1
-	windows['pbdl']['x'] = pbdl_win_x
-	windows['pbdl']['y'] = pbdl_win_y
-	windows['pbdl']['w'] = pbdl_win_w
-	windows['pbdl']['h'] = pbdl_win_h
-	windows['pbdl_dl']['x'] = pbdl_dl_win_x
-	windows['pbdl_dl']['y'] = pbdl_dl_win_y
-	windows['pbdl_dl']['w'] = pbdl_dl_win_w
-	windows['pbdl_dl']['h'] = pbdl_dl_win_h
-	windows['ytdl']['x'] = ytdl_win_x
-	windows['ytdl']['y'] = ytdl_win_y
-	windows['ytdl']['w'] = ytdl_win_w
-	windows['ytdl']['h'] = ytdl_win_h
-	windows['browser']['x'] = browser_win_x
-	windows['browser']['y'] = browser_win_y
-	windows['browser']['w'] = browser_win_w
-	windows['browser']['h'] = browser_win_h
-	windows['gui']['visible'] = {}
-	windows['gui']['visible'][0] = {}
-	windows['gui']['visible'][0]['x'] = gui_win_x0
-	windows['gui']['visible'][0]['y'] = gui_win_y0
-	windows['gui']['visible'][0]['w'] = gui_win_w
-	windows['gui']['visible'][0]['h'] = gui_win_h
-	windows['gui']['visible'][1] = {}
-	windows['gui']['visible'][1]['x'] = gui_win_x1
-	windows['gui']['visible'][1]['y'] = gui_win_y1
-	windows['gui']['visible'][1]['w'] = gui_win_w
-	windows['gui']['visible'][1]['h'] = gui_win_h
-	windows['gui']['hidden'] = {}
-	windows['gui']['hidden'][0] = {}
-	windows['gui']['hidden'][0]['x'] = 483
-	windows['gui']['hidden'][0]['y'] = 666
-	windows['gui']['hidden'][0]['w'] = gui_win_w
-	windows['gui']['hidden'][0]['h'] = gui_win_h
-	windows['gui']['hidden'][1] = {}
-	windows['gui']['hidden'][1]['x'] = 483
-	windows['gui']['hidden'][1]['y'] = 666
-	windows['gui']['hidden'][1]['w'] = gui_win_w
-	windows['gui']['hidden'][1]['h'] = gui_win_h
-	windows['is_default'] = True
-	windows['visible_state'] = 'visible'
-	return windows
 
 
 def create_media(play_type=None, rows=None):

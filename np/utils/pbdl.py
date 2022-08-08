@@ -523,12 +523,23 @@ class pbdl():
 			h = self.conf['windows']['pbdl_dl']['h']
 		except:
 			self.conf = np.readConf()
-			self.conf['windows'] = np.init_window_position()
+			screen = self.conf['screen']
+			x, y = self.conf['screens'][screen]['pos_x'], self.conf['screens'][screen]['pos_y']
+			try:
+				test = self.conf['windows']
+			except:
+				self.conf['windows'] = {}
+			self.conf['windows']['pbdl'] = {}
+			self.conf['windows']['pbdl']['w'] = 900
+			self.conf['windows']['pbdl']['h'] = 900
+			self.conf['windows']['pbdl']['x'] = x
+			self.conf['windows']['pbdl']['y'] = y
+			self.conf['windows']['pbdl_dl'] = {}
+			self.conf['windows']['pbdl_dl']['w'] = 600
+			self.conf['windows']['pbdl_dl']['h'] = 300
+			self.conf['windows']['pbdl_dl']['x'] = x
+			self.conf['windows']['pbdl_dl']['y'] = y
 			np.writeConf(self.conf)
-			x = 0
-			y = self.conf['windows']['pbdl_dl']['y']
-			w = self.conf['windows']['pbdl_dl']['w']
-			h = self.conf['windows']['pbdl_dl']['h']
 		self.pbdl_dl_win = sg.Window('GUI', self.pbdl_search_layout, no_titlebar=False, location=(x,y), size=(w,h), keep_on_top=False, grab_anywhere=True, element_justification='center', finalize=True, resizable=True).Finalize()
 		self.downloader = True
 		return self.pbdl_dl_win
@@ -596,11 +607,23 @@ class pbdl():
 			w = int(self.conf['windows']['pbdl']['w'])
 			h = (int(self.conf['windows']['pbdl']['h']) + 100)
 		except:
-			self.conf['windows'] = np.init_window_position()
-			x = int(self.conf['windows']['pbdl']['x'])
-			y = int(self.conf['windows']['pbdl']['y'])
-			w = int(self.conf['windows']['pbdl']['w'])
-			h = (int(self.conf['windows']['pbdl']['h']) +100)
+			self.conf = np.readConf()
+			screen = self.conf['screen']
+			x, y = self.conf['screens'][screen]['pos_x'], self.conf['screens'][screen]['pos_y']
+			try:
+				test = self.conf['windows']
+			except:
+				self.conf['windows'] = {}
+			self.conf['windows']['pbdl'] = {}
+			self.conf['windows']['pbdl']['w'] = 900
+			self.conf['windows']['pbdl']['h'] = 900
+			self.conf['windows']['pbdl']['x'] = x
+			self.conf['windows']['pbdl']['y'] = y
+			self.conf['windows']['pbdl_dl'] = {}
+			self.conf['windows']['pbdl_dl']['w'] = 600
+			self.conf['windows']['pbdl_dl']['h'] = 300
+			self.conf['windows']['pbdl_dl']['x'] = x
+			self.conf['windows']['pbdl_dl']['y'] = y
 		self.pbdl_win = sg.Window('GUI', self.layout, no_titlebar=True, location=(x,y), size=(w,h), keep_on_top=False, grab_anywhere=True, element_justification='center', finalize=True, resizable=True).Finalize()
 		self.torrent_mgr = True
 		return self.torrent_mgr

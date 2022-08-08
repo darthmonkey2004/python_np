@@ -19,10 +19,10 @@ def run_setup():
 	screen = 0
 	conf['screen'] = screen
 	conf['screens'] = np.xrandr()
-	conf['pos_x'] = conf['screens'][screen]['x']
-	conf['pos_y'] = conf['screens'][screen]['y']
-	conf['w'] = conf['screens'][screen]['w']
-	conf['h'] = conf['screens'][screen]['h']
+#	conf['pos_x'] = conf['screens'][screen]['x']
+#	conf['pos_y'] = conf['screens'][screen]['y']
+#	conf['w'] = conf['screens'][screen]['w']
+#	conf['h'] = conf['screens'][screen]['h']
 	conf['scale'] = 0.0
 	conf['volume'] = 100
 	conf['vlc']['opts'] = '--no-xlib'

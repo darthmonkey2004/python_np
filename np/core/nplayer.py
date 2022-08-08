@@ -26,8 +26,10 @@ class nplayer():
 		self.create_media = np.create_media
 		self.conf = {}
 		self.conf['vlc'] = {}
-		self.conf = np.readConf()
-		if self.conf == None:
+		try:
+			self.conf = np.readConf()
+		except Exception as e:
+			np.log(f"Exception reading conf file: will wipe the stored window locations... {e}", 'warning')
 			self.conf = np.initConf()
 			self.conf['windows'] = np.init_window_position()
 		self.conf['grab_devices'] = ['/dev/input/event11']
@@ -604,16 +606,32 @@ class nplayer():
 		if self.conf['play_type'] == 'series' or  self.conf['play_type'] == 'movies':
 			if self.is_url == False:
 				time.sleep(0.5)
-				self.scale = np.calculate_scale(self.next)
-				if self.scale == None:
-					self.scale_needed = 0
-					np.log (f"Scale is None, setting scale_needed = 0", 'info')
+				if self.next is not None:
+					np.log(f"EVENT:next set, next='{self.next}'", 'info')
+					self.scale = np.calculate_scale(self.next)
+					if self.scale == None:
+						self.scale_needed = 0
+						np.log (f"Scale is None, setting scale_needed = 0", 'info')
+					else:
+						self.player.video_set_scale(self.scale)
+						test_scale = self.player.video_get_scale()
+						if test_scale:
+							self.scale_needed = 1
+							np.log (f"Scale is {self.scale}, setting scale needed = 1", 'info')
 				else:
-					self.player.video_set_scale(self.scale)
-					test_scale = self.player.video_get_scale()
-					if test_scale:
-						self.scale_needed = 1
-						np.log (f"Scale is {self.scale}, setting scale needed = 1", 'info')
+					np.log(f"WARNING:next not set! {self.next}. Retrying...", 'warning')
+					self.next == self.get_next()
+					self.scale = np.calculate_scale(self.next)
+					if self.scale == None:
+						self.scale_needed = 0
+						np.log (f"Scale is None, setting scale_needed = 0", 'info')
+					else:
+						self.player.video_set_scale(self.scale)
+						test_scale = self.player.video_get_scale()
+						if test_scale:
+							self.scale_needed = 1
+							np.log (f"Scale is {self.scale}, setting scale needed = 1", 'info')
+
 		self.volume = self.player.audio_get_volume()
 		self.media['is_playing'] = self.player.is_playing()
 		if self.media['is_playing'] == 1 or self.media['is_playing'] == True:

@@ -22,7 +22,7 @@ class logger(object):
 class ytdl():
 	def __init__(self):
 		self.conf = np.readConf()
-		windows = np.init_window_position()
+		windows = self.conf['windows']
 		self.x = windows['ytdl']['x']
 		self.y = windows['ytdl']['y']
 		self.w = windows['ytdl']['w']

@@ -3,7 +3,7 @@ from collections import OrderedDict
 
 def create_connection(database=None):
 	if database == None:
-		database = "/home/monkey/gdrive/.np/nplayer.db"
+		database = "/home/monkey/.np/nplayer.db"
 	cur = None
 	#print ("Using database:", database)
 	conn = sqlite3.connect(database)

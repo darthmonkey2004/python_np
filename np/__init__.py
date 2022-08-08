@@ -41,7 +41,7 @@ from np.utils.scan_movies import scan_movies
 from np.utils.ytdl import ytdl
 from np.utils.init_conf import run_setup
 home = os.path.expanduser("~")
-DATA_DIR = (user + os.path.sep + ".np")
+DATA_DIR = (home + os.path.sep + ".np")
 CONFFILE = f"{DATA_DIR}/nplayer.conf"
 
 if not os.path.exists(CONFFILE):
@@ -50,6 +50,7 @@ if not os.path.exists(CONFFILE):
 	conf = initConf()
 	writeConf(conf)
 	conf['windows'] = init_window_position()
+	log(f"conf file doesn't exist, re-initializing...", 'info')
 	writeConf(conf)
 
 def readConf():
@@ -65,11 +66,16 @@ try:
 	else:
 		conf = initConf()
 		conf['windows'] = init_window_position()
+		log(f"__init__.py; init ran on conf and window positions", 'info')
 		writeConf(conf)
 except Exception as e:
-	np.log(f"__init__.py; Exception in init file: {e}", 'info')
+	log(f"__init__.py; Exception in init file: {e}", 'error')
 	conf = initConf()
-	conf['windows'] = init_window_position()
+	try:
+		test = conf['windows']
+	except Exception as e:
+		conf['windows'] = init_window_position()
+		log(f"Ran init_window_position() while handling exception in __init__.py; {e}", 'warning')
 	writeConf(conf)
 
 def writeConf(data):
@@ -88,7 +94,7 @@ import np.core.wssender as sender
 #writeConf(conf)
 #from np.main import start
 home = os.path.expanduser("~")
-DATA_DIR = (user + os.path.sep + ".np")
+DATA_DIR = (home + os.path.sep + ".np")
 LOGFILE = (DATA_DIR + os.path.sep + 'nplayer.log')
 WSLOGFILE = (DATA_DIR + os.path.sep + 'nplayer.wslog')
 #DATA_DIR = (home + os.path.sep + ".np")

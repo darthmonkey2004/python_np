@@ -24,16 +24,23 @@ class gui():
 			state = self.conf['windows']['visible_state']
 		except:
 			self.conf['windows'] = np.init_window_position()
-			state = self.conf['windows']['visible_state']
-		screen = self.conf['screen']
+			state = self.conf['windows']['gui']['visible_status']
+		viewer_screen = self.conf['screen']
+		if viewer_screen == 0:
+			screen = 1
+		elif viewer_screen == 1:
+			screen = 0
+		else:
+			screen = 0
 		self.gui_win_x = self.conf['windows']['gui'][state][screen]['x']
 		self.gui_win_y = self.conf['windows']['gui'][state][screen]['y']
 		self.gui_win_w = self.conf['windows']['gui'][state][screen]['w']
 		self.gui_win_h = self.conf['windows']['gui'][state][screen]['h']
-		self.viewer_win_x = self.conf['windows']['viewer'][screen]['x']
-		self.viewer_win_y = self.conf['windows']['viewer'][screen]['y']
-		self.viewer_win_w = self.conf['windows']['viewer'][screen]['w']
-		self.viewer_win_h = self.conf['windows']['viewer'][screen]['h']
+		np.log(f"GUI window set: {self.gui_win_x}, {self.gui_win_y}, {self.gui_win_w}, {self.gui_win_y}", 'info')
+		self.viewer_win_x = self.conf['windows']['viewer'][viewer_screen]['x']
+		self.viewer_win_y = self.conf['windows']['viewer'][viewer_screen]['y']
+		self.viewer_win_w = self.conf['windows']['viewer'][viewer_screen]['w']
+		self.viewer_win_h = self.conf['windows']['viewer'][viewer_screen]['h']
 		np.log(f"Viewer window set: {self.viewer_win_x}, {self.viewer_win_y}, {self.viewer_win_w}, {self.viewer_win_h}", 'info')
 		self.window = None
 		self.event = None
@@ -294,7 +301,7 @@ class gui():
 			elif len(args) == 2:
 				src = args[0]
 				key = args[1]
-			return sg.Image(src, subsample=4, expand_x=True, expand_y=True, enable_events=False, key=key)
+			return sg.Image(src, subsample=4, expand_x=True, expand_y=True, enable_events=True, key=key)
 		
 		if args == []:
 			print ("Argument dictionary not provided! Aborting...", args)
@@ -332,14 +339,17 @@ class gui():
 			return (None, None, None)
 
 
-	def set_window_screen(self, screen: int):
-		self.conf['screens'] = np.xrandr()
+	def set_window_screen(self, screen: int, conf=None):
+		if conf == None:
+			self.conf = np.readConf()
+		else:
+			self.conf = conf
 		self.conf['screen'] = screen
 		try:
-			state = self.conf['windows']['gui']['visible_']
+			state = self.conf['windows']['gui']['visible_status']
 		except:
 			self.conf['windows'] = np.init_window_position()
-			state = self.conf['windows']['visible_state']
+			state = self.conf['windows']['gui']['visible_status']
 		if screen == 1:
 			gui_screen = 0
 		elif screen == 0:
@@ -351,11 +361,11 @@ class gui():
 		self.conf['windows']['viewer']['h'] = h
 		self.conf['windows']['viewer']['x'] = x
 		self.conf['windows']['viewer']['y'] = y
-		self.conf['windows']['gui'][state][screen]['w'] = 1024
-		self.conf['windows']['gui'][state][screen]['h'] = 600
+		self.conf['windows']['gui'][state][gui_screen]['w'] = 1024
+		self.conf['windows']['gui'][state][gui_screen]['h'] = 600
 		x, y = gui_dims['pos_x'], gui_dims['pos_y']
-		self.conf['windows']['gui'][state][screen]['x'] = x
-		self.conf['windows']['gui'][state][screen]['y'] = y
+		self.conf['windows']['gui'][state][gui_screen]['x'] = x
+		self.conf['windows']['gui'][state][gui_screen]['y'] = y
 		return self.conf
 
 	def dump_layout(self, layout, filename):
