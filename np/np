@@ -515,7 +515,6 @@ def start():
 	update = 0
 	conf = None
 	btn = None
-	#subprocess.check_output('sudo chmod -R a+rwx /dev/input/', shell=True)
 	MP = np.nplayer()
 	P = MP.init_vlc()
 	media = np.create_media()

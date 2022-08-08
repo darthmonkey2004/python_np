@@ -19,8 +19,14 @@ search = tmdb.Search()
 
 def get_permissions():
 	try:
-		ret = subprocess.check_output('sudo chmod -R a+rwx /var/lib/transmission-daemon/downloads', shell=True)
-		return ret
+		dir = '/var/lib/transmission-daemon/downloads'
+		
+		com = (f"if [ -d '{dir}' ]; then sudo chmod -R a+rwx '{dir}'; fi")
+		ret = subprocess.call(com, shell=True)
+		if ret:
+			return ret
+		else
+			return "Ok."
 	except:
 		return None
 

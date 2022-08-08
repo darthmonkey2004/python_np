@@ -36,7 +36,3 @@ Enjoy!
 Matt McClellan
 darthmonkey2004@gmail.com
 
-
-TODO: 
-scan_music.py works to scan media directory for music files to add to the sql database, still working on scan_movies and scan_series. Will create a helper script to launch these
-(also installed to 'home/$USER/.local/bin')
