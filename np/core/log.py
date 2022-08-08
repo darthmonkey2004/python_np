@@ -7,7 +7,7 @@ from np.core.xrandr import xrandr
 
 global conf, LOGFILE, CONFFILE
 home = os.path.expanduser("~")
-DATA_DIR = (f"{home}{os.path.sep}gdrive{os.path.sep}.np")
+DATA_DIR = (user + os.path.sep + ".np")
 LOGFILE = f"{DATA_DIR}/nplayer.log"
 CONFFILE = f"{DATA_DIR}/nplayer.conf"
 

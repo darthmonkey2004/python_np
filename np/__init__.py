@@ -41,7 +41,7 @@ from np.utils.scan_movies import scan_movies
 from np.utils.ytdl import ytdl
 from np.utils.init_conf import run_setup
 home = os.path.expanduser("~")
-DATA_DIR = (f"{home}{os.path.sep}gdrive{os.path.sep}.np")
+DATA_DIR = (user + os.path.sep + ".np")
 CONFFILE = f"{DATA_DIR}/nplayer.conf"
 
 if not os.path.exists(CONFFILE):
@@ -88,7 +88,7 @@ import np.core.wssender as sender
 #writeConf(conf)
 #from np.main import start
 home = os.path.expanduser("~")
-DATA_DIR = (f"{home}{os.path.sep}gdrive{os.path.sep}.np")
+DATA_DIR = (user + os.path.sep + ".np")
 LOGFILE = (DATA_DIR + os.path.sep + 'nplayer.log')
 WSLOGFILE = (DATA_DIR + os.path.sep + 'nplayer.wslog')
 #DATA_DIR = (home + os.path.sep + ".np")

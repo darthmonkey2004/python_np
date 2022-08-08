@@ -18,7 +18,7 @@ from np.core.nplayer_db import querydb
 #import np
 import os
 home = os.path.expanduser("~")
-DATA_DIR = (f"{home}{os.path.sep}gdrive{os.path.sep}.np")
+DATA_DIR = (user + os.path.sep + ".np")
 global LOGFILE, CONFFILE
 LOGFILE = f"{DATA_DIR}/nplayer.log"
 CONFFILE = f"{DATA_DIR}/nplayer.conf"
