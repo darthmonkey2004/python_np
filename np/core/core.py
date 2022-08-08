@@ -278,6 +278,75 @@ else:
 
 
 def init_window_position():
+	conf = readConf()
+	data = xrandr()
+	state = 'visible'
+	screen = 0
+	x, y, w, h = data[screen]['pos_x'], data[screen]['pos_y'], data[screen]['w'], data[screen]['h']
+	log('core.py.init_window_position running from somewhere...', 'info')
+	conf['windows'] ={}
+	conf['windows']['viewer'] = {}
+	conf['windows']['viewer'][0] = {}
+	conf['windows']['viewer'][1] = {}
+	conf['windows']['viewer'][0]['x'] = data[0]['pos_x']
+	conf['windows']['viewer'][0]['y'] = data[0]['pos_y']
+	conf['windows']['viewer'][0]['w'] = data[0]['w']
+	conf['windows']['viewer'][0]['h'] = data[0]['h']
+	conf['windows']['viewer'][1]['x'] = data[1]['pos_x']
+	conf['windows']['viewer'][1]['y'] = data[1]['pos_y']
+	conf['windows']['viewer'][1]['w'] = data[1]['w']
+	conf['windows']['viewer'][1]['h'] = data[1]['h']
+	conf['windows']['gui'] = {}
+	conf['windows']['pbdl'] = {}
+	conf['windows']['pbdl_dl'] = {}
+	conf['windows']['ytdl'] = {}
+	conf['windows']['browser'] = {}
+	conf['windows']['gui']['hidden'] = {}
+	conf['windows']['gui']['visible'] = {}
+	conf['windows']['gui']['hidden'][0] = {}
+	conf['windows']['gui']['visible'][0] = {}
+	conf['windows']['gui']['hidden'][1] = {}
+	conf['windows']['gui']['visible'][1] = {}
+
+	conf['windows']['gui'][state][screen]['x'] = x
+	conf['windows']['gui'][state][screen]['y'] = y
+	conf['windows']['gui'][state][screen]['w'] = 600
+	conf['windows']['gui'][state][screen]['h'] = 800
+	screen = 1
+	x, y, w, h = data[screen]['pos_x'], data[screen]['pos_y'], data[screen]['w'], data[screen]['h']
+	conf['windows']['gui'][state][screen]['x'] = x
+	conf['windows']['gui'][state][screen]['y'] = y
+	conf['windows']['gui'][state][screen]['w'] = 600
+	conf['windows']['gui'][state][screen]['h'] = 800
+	screen = 0
+	state = 'hidden'
+	x, y, w, h = data[screen]['pos_x'], data[screen]['pos_y'], data[screen]['w'], data[screen]['h']
+	conf['windows']['gui'][state][screen]['x'] = x
+	conf['windows']['gui'][state][screen]['y'] = y
+	conf['windows']['gui'][state][screen]['w'] = 600
+	conf['windows']['gui'][state][screen]['h'] = 800
+	screen = 1
+	x, y, w, h = data[screen]['pos_x'], data[screen]['pos_y'], data[screen]['w'], data[screen]['h']
+	conf['windows']['gui'][state][screen]['x'] = x
+	conf['windows']['gui'][state][screen]['y'] = y
+	conf['windows']['gui'][state][screen]['w'] = 600
+	conf['windows']['gui'][state][screen]['h'] = 800
+	conf['pos_x'] = conf['windows']['gui'][state][screen]['x']
+	conf['pos_y'] = conf['windows']['gui'][state][screen]['x']
+	conf['w'] = conf['windows']['gui'][state][screen]['x']
+	conf['h'] = conf['windows']['gui'][state][screen]['x']
+	conf['pos_x'] = conf['windows']['viewer'][screen]['x']
+	conf['pos_y'] = conf['windows']['viewer'][screen]['y']
+	conf['w'] = conf['windows']['viewer'][screen]['w']
+	conf['h'] = conf['windows']['viewer'][screen]['h']
+	writeConf(conf)
+	conf['windows']['is_default'] = True
+	conf['windows']['visible_state'] = 'visible'
+	writeConf(conf)
+	return conf['windows']
+
+
+def init_window_position_old():
 	log('core.py.init_window_position running from somewhere...', 'info')
 	screen = conf['screen']
 	windows = {}
