@@ -2,6 +2,8 @@ import urllib
 import requests
 import json
 
+#TODO: create fail logger, or find switchover solution when 100 tmdb api calls daily is exhausted.
+
 def query_imdb(title):
 	info = {}
 	title_nw = urllib.parse.quote(title)
@@ -14,6 +16,13 @@ def query_imdb(title):
 		out = ("Error:", r.status_code)
 		return out
 	json_data = json.loads(r.text)
+	print (f"Json data: '{json_data}'")
+	if json_data['results'] is None:
+		if json_data['errorMessage'] is not None:
+			print (f"An error occured: '{json_data['errorMessage']}'")
+		else:
+			print (f"Failed to get results for title: '{title}'!")
+		return None
 	imdbid = json_data['results'][0]['id']
 
 	imdb_url2 = ("https://www.imdb.com/title/" + str(imdbid) + "/plotsummary?ref_=tttg_sa_1")
@@ -22,7 +31,11 @@ def query_imdb(title):
 		out = ("Error:", r.status_code)
 		return out
 	s = '<li class="ipl-zebra-list__item" id="summary-'
-	data = r.text.split(s)[1]
+	try:
+		data = r.text.split(s)[1]
+	except Exception as e:
+		print (f"query_imdb exception: {e}")
+		return None
 	info['description'] = data.split('</p>')[0].split('<p>')[1]
 	data = r.text.split("\n")
 	pos = -1
@@ -31,10 +44,23 @@ def query_imdb(title):
 		if 'class="poster"' in line:
 			poster_pos = pos + 4
 			info['poster'] = data[poster_pos].split('"')[1]
-			print (info['poster'])
+			#print (info['poster'])
 		elif ') - Plot Summary Poster"' in line:
 			info['title'] = line.split('"')[1].split('(')[0].strip()
 			info['year'] = line.split('"')[1].split('(')[1].split(')')[0]
+			
+			if ' ' in str(info['year']):
+				chunks = info['year'].split(' ')
+				for chunk in chunks:
+					try:
+						chunk = int(chunk)
+						if chunk >= 0:
+							info['year'] = chunk
+							break
+							
+					except:
+						pass
+						
 				
 	info['isactive'] = 1
 	info['tmdbid'] = imdbid
@@ -53,4 +79,4 @@ if __name__ == "__main__":
 		print ("no title provided!")
 		exit()
 	info = query_imdb(title)
-	print (info)
+	#print (info)

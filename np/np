@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 
+import timeit
 import pafy
 import urllib.parse
 import PySimpleGUI as sg
@@ -13,7 +14,9 @@ import pickle
 import vlc
 import random
 import time
-
+from np.core.log import np_logger
+log = np_logger().log_msg
+update_ct = 5
 def sqlite3(query):
 	com = (f"cd '{np.DATA_DIR}'; sqlite3 nplayer.db \"{query}\"")
 	return subprocess.check_output(com, shell=True).decode().strip().split("\n")
@@ -108,9 +111,9 @@ def store_window_location():
 		state = MP.conf['windows']['gui']['visible_status']
 		MP.conf['windows']['gui'][state][screen]['x'], MP.conf['windows']['gui'][state][screen]['y'] = UI.get_window_location('gui')
 		np.writeConf(MP.conf)
-		np.log(f"Window location stored:{MP.conf['windows']['gui'][state][screen]['x']}, {MP.conf['windows']['gui'][state][screen]['y']}", 'info')
+		log(f"Window location stored:{MP.conf['windows']['gui'][state][screen]['x']}, {MP.conf['windows']['gui'][state][screen]['y']}", 'info')
 	except Exception as e:
-		np.log(f"Unable to get window location (probably closed). Details: {e}", 'error')
+		log(f"Unable to get window location (probably closed). Details: {e}", 'error')
 
 def gui_reset():
 	global P, MP, UI
@@ -212,7 +215,7 @@ def update_resume():
 	filepath = P.get_media().get_mrl().split("file://")[1]
 	MP.conf['nowplaying']['filepath'] = urllib.parse.unquote(filepath)
 	MP.conf['nowplaying']['play_pos'] = P.get_position()
-	np.log(f"np.py, update_resume: modified conf with play_pos and now_playing: play_pos={MP.conf['nowplaying']['play_pos']}, now_playing={MP.conf['nowplaying']['filepath']}", 'info')
+	log(f"np.py, update_resume: modified conf with play_pos and now_playing: play_pos={MP.conf['nowplaying']['play_pos']}, now_playing={MP.conf['nowplaying']['filepath']}, Play Type:{MP.conf['play_type']}", 'info')
 	#print ('set nowplaying filepath:', MP.conf['nowplaying']['filepath'])
 	np.writeConf(MP.conf)
 
@@ -225,6 +228,8 @@ def playlist_click(_id, table):
 
 
 def update_media_info(row):
+	if MP.conf['debug'] == True:
+		np.log(f"Media Info update function entered. Data: {row}", 'debug')
 	row = MP.dbmgr_picked_items
 	row = row.split(':')
 	#print (row)
@@ -280,420 +285,40 @@ def set_debug(mode=None):
 		debug = mode
 	MP.conf['debug'] = debug
 	np.writeConf(MP.conf)
-	np.log(f"Debug option changed: {MP.conf['debug']}!", 'info')
+	log(f"Debug option changed: {MP.conf['debug']}!", 'info')
 
 
 def start_socket_server():
 	host = MP.conf['network_mode']['control_host']
 	port = MP.conf['network_mode']['control_port']
-	np.log(f"Opening socket server at {host}:{port}...", 'info')
+	log(f"Opening socket server at {host}:{port}...", 'info')
 	try:
 		subprocess.Popen(["nohup","np.wsserver"])
 	except Exception as e:
-		np.log(f"Error opening socket server: {e}", 'error')
+		log(f"Error opening socket server: {e}", 'error')
 
 
 def start_message_receiver():
 	host = MP.conf['network_mode']['control_host']
 	port = MP.conf['network_mode']['control_port']
-	np.log(f"Running message receiver. Listening to {host}:{port}...", 'info')
+	log(f"Running message receiver. Listening to {host}:{port}...", 'info')
 	try:
 		return np.receiver(host, port)
 	except:
-		np.log(f"Error running message receiver: {e}", 'error')
+		log(f"Error running message receiver: {e}", 'error')
 
 def send_message(message=None):
 	if message == None:
-		np.log(f"Error: No message data provided!", 'error')
+		log(f"Error: No message data provided!", 'error')
 	host = MP.conf['network_mode']['control_host']
 	port = MP.conf['network_mode']['control_port']
 	try:
 		np.sender.send(host, port, message)
-		np.log(f"Message sent successfuly!", 'info')
+		log(f"Message sent successfuly!", 'info')
 		return True
 	except Exception as e:
-		np.log(f"Error sending message: {e}", 'error')
+		log(f"Error sending message: {e}", 'error')
 		return False
-
-def uievents_handler(event, values):
-	global P, MP, UI
-	if event == '-MEDIA_MODE-':
-		media_mode = values[event]
-		if media_mode == 'remote':
-			if media_host is None:
-				media_host = UI.get_user_input('Please enter remote ip:' )
-			if media_user is None:
-				media_user = UI.get_user_input('Please enter remote username: ')
-		MP.conf['network_mode']['media_mode'] = media_mode
-		MP.conf['network_mode']['media_host'] = media_host
-		MP.conf['network_mode']['media_user'] = media_user
-		np.writeConf(MP.conf)
-		np.log(f"Network media mode changed:{media_mode}", 'info')
-	elif event == '-CONTROL_MODE-':
-		control_mode = values[event]
-		if media_mode == 'remote':
-			conf['network_mode']['control_mode'] = 'remote'
-			if conf['network_mode']['control_host'] == None:
-				conf['network_mode']['control_host'] = UI.get_user_input('Please enter remote host ip: ')
-
-		if control_mode == 'remote':
-			if control_host is None:
-				control_host = UI.get_user_input('Please enter remote ip:' )
-			if control_user is None:
-				control_user = UI.get_user_input('Please enter remote username: ')
-		np.set_control_mode(control_mode=control_mode, control_host=control_host, control_user=control_user)
-		np.log(f"Network controller mode changed:{control_mode}", 'info')
-	elif event == 'Hide UI':
-		hide_ui()
-	elif event == 'Exit' or event == 'Close':
-		update_resume()
-		MP.exit = True
-	elif event == 'store_window_location':
-		store_window_location()
-	elif event == '-episode_number-' or event == '-filepath-' or event == '-series_name-' or event == '-season-':
-		k = event
-		v = values[event]
-		MP.target[k] = v
-		np.log(f"set target {k} to {v}", 'info')
-	elif event == '-Query TMDB-':
-		if MP.target['-series_name-'] is not None and MP.target['-season-'] is not None and MP.target['-episode_number-'] is not None:
-			data = np.lookup_series(MP.target['-series_name-'], MP.target['-season-'], MP.target['-episode_number-'])
-			if data:
-				MP.target['-episode_name-'] = str(data['name'])
-				MP.target['-description-'] = str(data['overview'])
-				MP.target['-air_date-'] = str(data['air_date'])
-				MP.target['-still_path-'] = str(data['still_path'])
-				MP.target['-tmdbid-'] = str(data['tmdbid'])
-				UI.WINDOW['-episode_name-'].update(MP.target['-episode_name-'])
-				UI.WINDOW['-description-'].update(MP.target['-description-'])
-				UI.WINDOW['-air_date-'].update(MP.target['-air_date-'])
-				UI.WINDOW['-still_path-'].update(MP.target['-still_path-'])
-				UI.WINDOW['-tmdbid-'].update(MP.target['-tmdbid-'])
-	elif event == '-table_series-' or event == '-table_movies-' or event == '-table_music-' or event == '-PLAY_TYPE-':
-		if event == '-PLAY_TYPE-':
-			MP.conf['play_type'] = values[event]
-			np.log(f"Play type changed:{MP.conf['play_type']}", 'info')
-			gui_reset()
-		if event == '-table_series-':
-			gui_reset('series', '-db_mgr_layout-')
-		elif event == '-table_movies-':
-			gui_reset('movies', '-db_mgr_layout-')
-		elif event == '-table_music-':
-			gui_reset('music', '-db_mgr_layout-')
-	elif event == '-pbdl_table_series-' or event == '-pbdl_table_movies-' or event == '-pbdl_table_music-':
-		np.log(f"Table changed:{values[event]}", 'info')
-		if event == '-pbdl_table_series-':
-			gui_reset('series', '-db_mgr_layout-')
-		elif event == '-pbdl_table_movies-':
-			gui_reset('movies', '-db_mgr_layout-')
-		elif event == '-pbdl_table_music-':
-			gui_reset('music', '-db_mgr_layout-')
-	elif event == '-setactive-':
-		val = values[event]
-		if val == False:
-			isactive=0
-		elif val == True:
-			isactive=1
-		else:
-			isactive=1
-	elif event == '-PLAY_POS-':
-		val = float(values[event])
-		P.set_position(val)
-		np.log(f"UI: Skipped to position {val}", 'info')
-	elif event == 'play':
-		P.play()
-	elif event == 'pause':
-		P.pause()
-	elif event == 'stop':
-		P.stop()
-	elif event == 'next':
-		MP.skip_next()
-	elif event == 'previous':
-		MP.skip_previous()
-	elif event == 'rotate 90':
-		rotate(90)
-	elif event == 'seek fwd':
-		MP.seek_fwd()
-	elif event == 'seek rev':
-		MP.seek_rev()
-	elif event == 'fullscreen':
-		if MP.conf['fullscreen'] == 1:
-			fs = 0
-		elif MP.conf['fullscreen'] == 0:
-			fs = 1
-		if fs == 1:
-			P.set_fullscreen(True)
-		elif fs == 0:
-			P.set_fullscreen(False)
-		np.updateConf(conf, 'fullscreen', fs)
-	elif event == '-SET_SCREEN-':
-		MP.conf['screen'] = int(values[event])
-		MP.conf = UI.set_window_screen(MP.conf['screen'])
-		np.writeConf(MP.conf)
-		np.log(f"Active screen updated! Needs restart{MP.conf['screen']}", 'info')
-		gui_reset()	
-	elif event == 'load':
-		MP.stop()
-		MP.next = values['-VIDEO_LOCATION-']
-		if 'http://' in MP.next or 'https://' in MP.next:
-			MP.is_url = True
-			if '/home' in MP.next:
-				split='https://'
-				MP.next = MP.next.split(split)[1]
-				MP.next = ('https://' + MP.next)
-			v = pafy.new(MP.next)
-			stream = v.getbest()
-			P = MP.init_vlc(stream.url)
-			set_video_out()
-			P.play()
-		else:
-			MP.is_url = False
-			MP.play(MP.next)
-	elif event == 'Refresh from Database':
-		MP.media = np.create_media()
-		UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.DBMGR_RESULTS)
-	elif event == 'VPN On/Off':
-		if VPN == True:
-			VPN = False
-		elif VPN == False:
-			VPN = True
-		UI.toggle_vpn()
-	elif event == '-CURRENT_PLAYLIST-':
-		MP.selected_playlist_item
-		val = None
-		_id = None
-		table = None
-		if MP.play_mode == 'playlist':
-			val = values[event][0]
-			if 'series:' in val or 'movies:' in val or 'music:' in val:
-				if 'series:' in val:
-					_id = val.split(':')[5]
-					table = val.split(':')[0]
-					playlist_click(_id, table)
-				elif 'movies:' in val:
-					table = val.split(':')[0]
-					title = val.split(':')[1]
-					year = val.split(':')[2]
-					_id = val.split(':')[3]
-					playlist_click(_id, table)
-				elif 'music:' in val:
-					val = values[event][0]
-					_id = val.split(':')[6]
-					table = val.split(':')[0]
-					playlist_click(_id, table)
-			else:
-				MP.play(val)
-		elif MP.play_mode == 'database':
-			if MP.conf['play_type'] == 'series':
-				try:
-					val = values[event][0]
-					_id = val.split(':')[5]
-					table = val.split(':')[0]
-					playlist_click(_id, table)
-				except Exception as e:
-					np.log(f"Error: Series list is empty! Details:{e}, {val}, {_id}, {table}", 'error')
-			elif MP.conf['play_type'] == 'movies':
-				try:
-					val = values[event][0]
-					table = val.split(':')[0]
-					title = val.split(':')[1]
-					year = val.split(':')[2]
-					_id = val.split(':')[3]
-					playlist_click(_id, table)
-				except Exception as e:
-					np.log(f"Error: Movies list is empty! Details:{e}, {val}, {_id}, {table}", 'error')
-			elif MP.conf['play_type'] == 'music':
-				try:
-					val = values[event][0]
-					_id = val.split(':')[6]
-					table = val.split(':')[0]
-					playlist_click(_id, table)
-				except Exception as e:
-					np.log(f"Error: List is empty! Details:{e}, {val}, {_id}, {table}", 'error')
-	elif event == '-DBMGR_PICKED_COLUMNS-':
-		string = None
-		if len(values[event]) == 1:
-			column = str(values[event][0])
-			string = (column + " like '%%'")
-			UI.WINDOW['-DBMGR_QUERY_STRING-'].update(string)
-		else:
-			for column in values[event]:
-				if string == None:
-					string = (column + " like '%%'")
-				else:
-					string = (string + " and " + column + " = ''")
-			UI.WINDOW['-DBMGR_QUERY_STRING-'].update(string)
-		UI.WINDOW.refresh()
-	elif event == 'SQL Search':
-		query_string = values['-DBMGR_QUERY_STRING-']
-		ckbox = UI.isactive
-		if ckbox:
-			is_active = 1
-		else:
-			is_active = 0
-		if query_string is not None:
-			table = MP.conf['play_type']
-			if table == 'series':
-				query_string = (query_string + " and isactive = '" + str(is_active) + "'")
-				rows = np.querydb(table='series', column='id,series_name,tmdbid,season,episode_number,episode_name,description,air_date,still_path,filepath', query=query_string)
-				MP.media = np.create_media(rows=rows)
-				if rows is not None:
-					UI.WINDOW['-DBMGR_RESULTS-'].update(MP.media['DBMGR_RESULTS'])
-				else:
-					UI.WINDOW['-DBMGR_RESULTS-'].update("Looks like you better figure out how to search without that active flag....")
-	elif event == 'Search':
-		season = None
-		table = MP.conf['play_type']
-		query_string = values['-SEARCH_QUERY-']
-		is_active = MP.is_active
-		if query_string is not None:
-			if table is None:
-				table = MP.conf['play_type']
-			if table == 'series':
-				if ':' in query_string:
-					series_name = query_string.split(':')[0]
-					season = query_string.split(':')[1]
-					try:
-						episode_number = query_string.split(':')[2]
-						query_string = ("series_name like '%" + series_name + "%' and season = " + str(season) + " and episode_number = " + str(episode_number) + " and isactive = " + str(is_active))
-					except:
-						query_string = ("series_name like '%" + series_name + "%' and season = " + str(season) + " and isactive = " + str(is_active))
-				else:
-					series_name = query_string
-					query_string = ("series_name like '%" + series_name + "%' and isactive = " + str(is_active))
-					if season is not None:
-						try:
-							episode_number = query_string.split(':')[3]
-							query_string = ("series_name like '%" + series_name + "%' and season = " + season + " episode_number = " + episode_number + " and isactive = '" + str(is_active) + "'")
-						except:
-							query_string = ("series_name like '%" + series_name + "%' and season = " + season + " and isactive = '" + str(is_active) + "'")
-					np.log(f"Query string:{query_string}", 'info')
-				rows = np.querydb(table='series', column='id,series_name,tmdbid,season,episode_number,episode_name,description,air_date,still_path,filepath', query=query_string)
-				MP.media = np.create_media(rows=rows)
-				if rows is not None:
-					UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.media['DBMGR_RESULTS'])
-					MP.play_mode = 'playlist'
-					UI.WINDOW['-PLAY_MODE-'].update(MP.play_mode)
-				else:
-					UI.WINDOW['-CURRENT_PLAYLIST-'].update("Looks like you better figure out how to search without that active flag....")
-			elif table == 'movies':
-				query_string = ("title like '%" + query + "%' and isactive = '" + str(is_active) + "'")
-				rows = querydb(table='movies', column='id,tmdbid,title,year,release_date,description,poster,filepath', query=query_string)
-				MP.media = np.create_media(rows=rows)
-				if rows is not None:
-					UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.media['DBMGR_RESULTS'])
-					MP.play_mode = 'playlist'
-					UI.WINDOW['-PLAY_MODE-'].update(MP.play_mode)
-			elif table == 'music':
-				np.log(f"TODO: querydb music", 'info')
-				#rows = querydb(table = 'music', column='id,title,accoustic_id,album,album_id,artist_id,year,artist,track,track_ct,filepath', query='isactive = 1')
-	elif event == '-DBMGR_RESULTS-':
-		MP.dbmgr_picked_items = values['-DBMGR_RESULTS-']
-		UI.window['-DBMGR_SELECTED_ROWS-'].update(MP.dbmgr_picked_items)
-		UI.window.refresh()
-	elif event == 'Volume Up':
-		MP.volume_up()
-		np.log(f"Volume up:{MP.conf['volume']}", 'info')
-	elif event == 'Volume Down':
-		MP.volume_down()
-		np.log(f"Volume down:{MP.conf['volume']}", 'info')
-	elif event == '-Remove Selected-':
-		for line in MP.dbmgr_picked_items:
-			table = line.split(':')[0]
-			series_name = line.split(':')[1]
-			season = line.split(':')[2]
-			episode_number = line.split(':')[3]
-			episode_name = line.split(':')[4]
-			_id = line.split(':')[5]
-			query_string = ("id = " + str(_id))
-			ret = np.removefromdb(table, query_string)
-			MP.media['DBMGR_RESULTS'].remove(line)
-		MP.dbmgr_picked_items = []
-		UI.window['-DBMGR_SELECTED_ROWS-'].update(MP.dbmgr_picked_items)
-		np.log(f"Remove selected:{MP.dbmgr_picked_items}", 'info')
-		UI.window['-DBMGR_RESULTS-'].update(MP.media['DBMGR_RESULTS'])
-	elif event == 'Torrent Manager':
-		pbdl.create_window()
-		pbdl.get_torrents()
-		pbdl.run()
-	elif event == 'Pirate Bay Downloader':
-		if pbdl.downloader == False:
-			UI.pbdl_dl_win = pbdl.create_downloader()
-			np.log(f"Loaded pirate bay downloader!", 'info')
-		else:
-			np.log(f"Pirate bay downloader alread running!", 'info')
-		pbdl.run()
-	elif event == '-PBDL_SEARCH-':
-		pbdl.results = pbdl.get_magnet(pbdl.pbdl_query, pbdl.category)
-		print (pbdl.results)
-		UI.pbdl_dl_win['-PBDL_RESULTS-'].update(pbdl.results)
-	elif event == '-PBDL_RESULTS-':
-		key = values[event]
-		if type(pbdl.results) == list:
-			for item in pbdl.results:
-				magnet = item[key]
-				com = ("transmission-remote -a '" + magnet + "'")
-				print (com)
-	elif event == '-PBDL_SEARCH_QUERY-':
-		pbdl.pbdl_query = values[event]
-		print (pbdl.pbdl_query)
-	elif event == 'youtube-dl':
-		Y = np.ytdl()
-		Y.start()
-	elif event == 'Recenter UI':
-		recenter_ui()
-	elif event == "-Load Playlist-":
-		load_playlist(values[event])
-	elif event == "-Save Playlist-":
-		filepath = np.file_browse_window()
-		ret = MP.save_playlist(filepath, MP.media['DBMGR_RESULTS'])
-		if ret is True:
-			np.log(f"Save playlist: Success: {filepath}", 'info')
-		else:
-			np.log(f"Save playlist: Failed! {filepath}", 'info')
-	elif event== "-Load Directory-":
-		path = np.folder_browse_window()
-		MP.stop()
-		MP.media['DBMGR_RESULTS'] = MP.load_directory(path)
-		UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.media['DBMGR_RESULTS'])
-		MP.play_mode = 'playlist'
-		UI.WINDOW['-PLAY_MODE-'].update(MP.play_mode)
-		filepath = MP.media['DBMGR_RESULTS'][0]
-		MP.play(filepath)
-	elif event == '-PLAY_MODE-':
-		MP.play_mode = values[event]
-		np.log(f"Play mode changed:{MP.play_mode}", 'info')
-	elif event == '-Set Active-':
-		np.log(f"TODO: Set active:{MP.dbmgr_picked_items}", 'info')
-	elif event == '-Set Inactive-':
-		np.log(f"TODO: Set inactive:{MP.dbmgr_picked_items}", 'info')
-	elif event == '-Select All-':
-		dbmgr_select_all()
-	elif event == '-Clear All-':
-		dbmgr_clear_all()
-	elif event == 'Hide UI':
-		np.log(f"GUI Menu hidden!", 'info')
-	elif event == '-VID_OUT-':
-		np.log(f"Don't touch me, booger blaster!", 'info')
-	elif event == 'Fix Focus':
-		UI.WINDOW.TKroot.focus_force()
-		UI.WINDOW.Element('-SEARCH_QUERY-').SetFocus()
-		np.log(f"Set focus on search query input!", 'info')
-	elif event == 'Screenshot':
-		ret = MP.screenshot()
-		print (ret)
-	elif event in np.VLC_VIDEO_FILTERS or event in np.VLC_AUDIO_FILTERS:
-		f = event
-		np.log(f"Changing filter:{f}", 'info')
-		ret = change_filter(f)
-		print (ret)
-	else:
-		if event != '__TIMEOUT__' and event is not None:
-			try:
-				np.log(f"np.py, function=uievents_handler(), Unhandled event and value received:{event}, {values[event]}", 'info')
-			except Exception as e:
-				np.log(f"np.py, function=uievents_handler(), Unhandled event received:{event}", 'info')
-
 
 def btn_handler(btn):
 	global P, MP, UI
@@ -723,47 +348,54 @@ def btn_handler(btn):
 
 def remote_handler(com, arg):
 	global P, MP, UI
+	np.log(f"Command: '{com}', Argument: '{arg}'", 'info')
 	if com == 'play':					
 		MP.play()
-		np.log("REMOTE: Playing!", 'info')
+		log("REMOTE: Playing!", 'info')
+	elif com == 'create_gui':
+		UI.create_gui_window()
+	elif com == 'close_gui':
+		UI.WINDOW.close()
+	elif com == 'close_viewer':
+		UI.WINDOW2.close()
 	elif com == 'pause':
 		P.pause()
-		np.log("REMOTE: Paused", 'info')
+		log("REMOTE: Paused", 'info')
 	elif com == 'stop':
 		MP.stop()
-		np.log("REMOTE: Stopped", 'info')
+		log("REMOTE: Stopped", 'info')
 	elif com == 'skip_next':
 		MP.skip_next()
-		np.log("REMOTE: Skipped Next", 'info')
+		log("REMOTE: Skipped Next", 'info')
 	elif com == 'skip_prev':
 		MP.skip_previous()
-		np.log("REMOTE: Skipped Previous", 'info')
+		log("REMOTE: Skipped Previous", 'info')
 	elif com == 'vol_set':
 		MP.volume_set(arg)
-		np.log(f"REMOTE: vol_set={arg}", 'info')
+		log(f"REMOTE: vol_set={arg}", 'info')
 	elif com == 'vol_up':
-		np.log("REMOTE: volume_up", 'info')
+		log("REMOTE: volume_up", 'info')
 		MP.volume_up()
 	elif com == 'vol_down':
 		MP.volume_down()
-		np.log("REMOTE: volume_down", 'info')
+		log("REMOTE: volume_down", 'info')
 	elif com == 'mute':
 		MP.volume_set(0)
-		np.log("REMOTE: Mute", 'info')
+		log("REMOTE: Mute", 'info')
 	elif com == 'unmute':
 		vol = int(self.conf['volume'])
 		MP.volume_set(vol)
-		np.log("REMOTE: Unmuted", 'info')
+		log("REMOTE: Unmuted", 'info')
 	elif com == 'quit':
-		np.log("REMOTE: Quitting...", 'info')
+		log("REMOTE: Quitting...", 'info')
 		update_resume()
 		MP.exit = True
 	elif com == 'load':
-		np.log(f"REMOTE: Loading file:{arg}", 'info')
+		log(f"REMOTE: Loading file:{arg}", 'info')
 		load_playlist(arg)
 	elif com == 'yt':
 		MP.next = str(arg)
-		np.log(f"REMOTE: Loading youtube video:{arg}", 'info')
+		log(f"REMOTE: Loading youtube video:{arg}", 'info')
 		MP.stop()
 		if 'http://' in MP.next or 'https://' in MP.next:
 			MP.is_url = True
@@ -776,9 +408,9 @@ def remote_handler(com, arg):
 			r = requests.get(url)
 			status = r.status_code
 			if str(code).startswith('2') or str(code).startswith('3'):
-				np.log(f"PLAYER: Youtube uri checked ok!, url='{url}", 'info')
+				log(f"PLAYER: Youtube uri checked ok!, url='{url}", 'info')
 			else:
-				np.log(f"PLAYER: Youtube url check Failed!, url='{url}', status='{status}', message='{r.text}'", 'error')
+				log(f"PLAYER: Youtube url check Failed!, url='{url}', status='{status}', message='{r.text}'", 'error')
 				MP.stop()
 			P = MP.init_vlc()
 			M = self.vlcInstance.media_new(self.next)
@@ -788,41 +420,42 @@ def remote_handler(com, arg):
 			P.play()
 	elif com == 'play_mode':
 		MP.play_mode = arg
-		np.log(f"REMOTE: Play mode set:{arg}", 'info')
+		log(f"REMOTE: Play mode set:{arg}", 'info')
 	elif com == 'play_type':
 		MP.conf['play_type'] = arg
 		np.writeConf(MP.conf)
 		MP.play_type = arg
-		np.log(f"REMOTE: Play type set:{arg}", 'info')
+		log(f"REMOTE: Play type set:{arg}", 'info')
 	elif com == 'seek':
 		pos = float(float(arg) / 100)
 		P.set_position(pos)
-		np.log(f"seek to position:{pos}", 'info')
+		log(f"seek to position:{pos}", 'info')
 	elif com == 'hide_gui':
 		UI.WINDOW.close()
-		np.log(f"GUI Window closed by remote!", 'info')
+		log(f"GUI Window closed by remote!", 'info')
 	elif com == 'show_gui':
 		UI.create_gui_window()
-		np.log(f"GUI Window opened by remote!", 'info')
+		log(f"GUI Window opened by remote!", 'info')
 	elif com == 'move_gui':
 		x, y = int(arg.split(',')[0]), int(arg.split(',')[1])
 		UI.move_window('gui', x, y)
-		np.log(f"GUI Window moved by remote: ({x},{y})", 'info')
+		log(f"GUI Window moved by remote: ({x},{y})", 'info')
 	elif com == 'move_player':
 		x, y = int(arg.split(',')[0]), int(arg.split(',')[1])
 		UI.move_window('player', x, y)
-		np.log(f"Player Window moved by remote: ({x},{y})", 'info')
+		log(f"Player Window moved by remote: ({x},{y})", 'info')
 	elif com == 'get_pos':
 		pos = MP.get_position()
-		np.log(f"PLAYBACK_POSITION={pos}", 'info')
+		log(f"PLAYBACK_POSITION={pos}", 'info')
 	elif com == 'get_window_location':
-		UI.get_window_location(arg)
+		loc = UI.get_window_location(arg)
+		print (loc)
 	elif com == 'media_pick':
 		try:
 			MP.next = arg
 			MP.play(MP.next)
 		except Exception as e:
-			np.log(f"Failed to play file:{arg}, Details:{e}", 'error')
+			log(f"Failed to play file:{arg}, Details:{e}", 'error')
 	elif com == 'media_get':
 		if arg is None:
 			files = get_media(arg)
@@ -836,26 +469,31 @@ def remote_handler(com, arg):
 			l.append(string)
 		j = "\n"
 		l = j.join(l)
-		np.log(f"MEDIA_FILES={l}")
+		log(f"MEDIA_FILES={l}")
 		MP.remote_media = l
 	elif com == 'debug':
 		try:
 			debug = bool(arg)
 			set_debug(debug)
 		except Exception as e:
-			np.log(f"Failed to set debug mode: {e}", 'error')
+			log(f"Failed to set debug mode: {e}", 'error')
 
 
 def start():
-	global P, MP, UI, conf
+	global P, MP, UI, conf, update_ct
+	update = 0
 	conf = None
 	btn = None
-	subprocess.check_output('sudo chmod -R a+rwx /dev/input/', shell=True)
+	#subprocess.check_output('sudo chmod -R a+rwx /dev/input/', shell=True)
 	MP = np.nplayer()
 	P = MP.init_vlc()
 	media = np.create_media()
 	tab = '-player_control_layout-'
 	MP.conf = np.readConf()
+	try:
+		DEBUG = MP.conf['debug']
+	except:
+		MP.conf['debug'] = False
 	if MP.conf is None:
 		print ("conf is None, re-initializing...")
 		MP.conf = np.initConf()
@@ -874,9 +512,9 @@ def start():
 	if MP.conf['network_mode']['media_mode'] == 'local':
 		try:
 			media_dirs = MP.conf['media_directories']
-			np.log("Media directories found in conf!", 'info')
+			log("Media directories found in conf!", 'info')
 		except Exception as e:
-			np.log("Error: media directories not found inf conf file:{e}", 'error')
+			log("Error: media directories not found inf conf file:{e}", 'error')
 			np.set_media_paths()
 	UI = np.gui()
 	try:
@@ -892,118 +530,539 @@ def start():
 	media['continuous'] = 1
 	input_enabled = 0
 	btn = None
+	evque = []
 	while True:
+		start_timer = timeit.default_timer()
+		data = None
+		update = update + 1
 		#Check COMFILE for input commands from np.remote
-		try:
-			com = None
-			with open (np.COMFILE, 'r') as f:
-				data = f.read().strip()
-				f.close()
-			with open (np.COMFILE, 'w') as f:
-				f.write('')
-				f.close()
-		except:
-			with open (np.COMFILE, 'w') as f:
-				data = ''
-				f.write(data)
-				f.close()
-				data = None
-		if data is not None and data != '':
-			com = data.split('=')[0]
+		if update >= update_ct or update == 0:
 			try:
-				arg = data.split('=')[1]
+				com = None
+				with open (np.COMFILE, 'r') as f:
+					data = f.read().strip()
+				f.close()
+				if data is not None and data != '':
+					log(f"Command received: '{data}'", 'info')
+					if '=' in data:
+						com = data.split('=')[0]
+						try:
+							arg = data.split('=')[1]
+							log(f"Com: {com}, Arg: {arg}", 'info')
+							remote_handler(com, arg)
+						except Exception as e:
+							arg = None
+							log(f"Com: {com}, Arg: None", 'error')
+							remote_handler(com, arg)
+						# if command received via COMFILE (from np.remote), pass to handler.
+					else:
+						com = data
+						arg = None
+						remote_handler(com, arg)
+						
+				with open (np.COMFILE, 'w') as f:
+					f.write('')
+					f.close()
 			except Exception as e:
-				arg = None
-			# if command received via COMFILE (from np.remote), pass to handler.
-			remote_handler(com, arg)
-		UI.window, UI.uievent, UI.uivalues = UI.get_events()
-		if UI.uievent is None and UI.uivalues is None:
-			pass
-		else:
-			# Pass UI events to handler	
-			uievents_handler(UI.event, UI.values)
-		if MP.conf['GUI_RESET'] == True:
-			np.log(f"reset executing: {MP.conf['play_type']}", 'info')
-			MP.conf = np.readConf()
-			MP = np.nplayer()
-			P = MP.init_vlc()
-			media = np.create_media()
-			media['series_history'] = np.read_history()
-			UI = np.gui()
-			set_video_out()
-			media['continuous'] = 1
-			UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.DBMGR_RESULTS)
-			UI.WINDOW['-PLAY_TYPE-'].update(MP.conf['play_type'])
-			np.log("np.py: Resuming from reset = True...", 'info')
-			MP.play()
-			time.sleep(0.5)
-			P.set_position(MP.conf['nowplaying']['play_pos'])
-			np.log(f"Skipped to {MP.conf['nowplaying']['play_pos']}", 'info')
-			media['continuous'] = 1
-			#np.writeConf(MP.conf)
-			MP.conf['GUI_RESET'] = False
-			np.log(f"Reset flag unset:{MP.conf['GUI_RESET']}", 'info')
-		elif MP.play_needed == 1:
-			np.log("Playing from 'play needed'", 'info')
-			filepath = MP.conf['nowplaying']['filepath']
-			play_pos = MP.conf['nowplaying']['play_pos']
-			if filepath is not None:
-				filepath = urllib.parse.unquote(filepath)
-				np.log(f"using resume from file:{filepath}", 'info')
-				MP.play(filepath)
-				P.set_position(play_pos)
-				np.log(f"np.py, Skipped to {play_pos} by play_needed = 1", 'info')
-			else:
-				print ('not resuming...', filepath)
-				if MP.play_mode == 'playlist':
-					MP.next = MP.get_playlist_next()
-					MP.play(MP.next)
-				else:
-					MP.play()
-			play_needed = 0	
-		elif UI.uievent == sg.WIN_CLOSED and media['continuous'] == 0 and MP.conf['GUI_RESET'] == False:
-			np.log(f"Window closed (gui): continuout=0, reset=False", 'info')
-			np.writeConf(MP.conf)
-			MP.exit = True
-			if MP.scale_needed == 1:
-				MP.conf['scale'] = np.calculate_scale(MP.next)
-				P.video_set_scale(MP.conf['scale'])
-		# if button event, pass to btn handler
-		if btn is not None:
-			btn_handler(btn)			
-		#if com, btn, or event handler set nplayer's 'exit' class attribute to True for any reason, stop main loop.
-		if MP.exit == True:
-			break
-		#If nplayer's art update class attribute is set, update art.
-		if MP.ART_UPDATE_NEEDED == True and P.is_playing():
-			UI.WINDOW2['-VID_OUT-'].update(MP.album_art)
-			np.log(f"art updated:{MP.album_art}", 'info')
-			UI.WINDOW2.refresh()
-			MP.ART_UPDATE_NEEDED = False
-		# update elapsed time if there is a video loaded and the media is playing
-		if P.is_playing() and MP.is_url == False:
-			s='%20'
-			j = ' '
-			s2 = 'file://'
-			media['is_playing'] = 1
-			filepath = P.get_media().get_mrl().split("file://")[1]
-			MP.conf['nowplaying']['filepath'] = urllib.parse.unquote(filepath)
-			MP.conf['nowplaying']['play_pos'] = P.get_position()
-			pos = (MP.conf['nowplaying']['play_pos'])
-			UI.WINDOW['-PLAY_POS-'].update(MP.conf['nowplaying']['play_pos'])
-			txt = "{:02d}:{:02d} / {:02d}:{:02d}".format(*divmod(P.get_time()//1000, 60), *divmod(P.get_length()//1000, 60))
-			if MP.next is not None:
-				txt = (txt + "::" + str(MP.next))
-			UI.WINDOW['-MESSAGE_AREA-'].update(txt)
-		# if media is playing but it's a url, skip info update
-		elif P.is_playing() and MP.is_url == True:
-			pass
-		# if media not playing, update status message
-		else:
-			media['is_playing'] = 0
-			UI.WINDOW['-MESSAGE_AREA-'].update('Load media to start')
+				com = (f"fusermount -u '{np.SFTP_DIR}'")
+				subprocess.check_output(com, shell=True)
+				com = (f"google-drive-ocamlfuse '{np.SFTP_DIR}'")
+				subprocess.check_output(com, shell=True)
+				log(f"Exception receiving remote command: '{e}'", 'error')
+				with open (np.COMFILE, 'w') as f:
+					data = ''
+					f.write(data)
+					f.close()
+					data = None
 
-	UI.WINDOW.close()
+				
+			UI.window, UI.uievent, UI.uivalues = UI.get_events()
+			if UI.uievent is not None and UI.uievent != '__TIMEOUT__':
+				needspacer = 1
+				event = UI.uievent
+				if UI.uivalues is not None:
+					values = UI.uivalues
+				print (f"Event: {event}")
+				if MP.conf['debug'] == True:
+					log(f"EVENT_HANDLER: event={event}, values={values}", 'debug')
+				if needspacer == 1:
+					if event == '-MEDIA_MODE-':
+						media_mode = values[event]
+						if media_mode == 'remote':
+							if media_host is None:
+								media_host = UI.get_user_input('Please enter remote ip:' )
+							if media_user is None:
+								media_user = UI.get_user_input('Please enter remote username: ')
+						MP.conf['network_mode']['media_mode'] = media_mode
+						MP.conf['network_mode']['media_host'] = media_host
+						MP.conf['network_mode']['media_user'] = media_user
+						np.writeConf(MP.conf)
+						log(f"Network media mode changed:{media_mode}", 'info')
+					elif event == '-CONTROL_MODE-':
+						control_mode = values[event]
+						if media_mode == 'remote':
+							conf['network_mode']['control_mode'] = 'remote'
+							if conf['network_mode']['control_host'] == None:
+								conf['network_mode']['control_host'] = UI.get_user_input('Please enter remote host ip: ')
+				
+						if control_mode == 'remote':
+							if control_host is None:
+								control_host = UI.get_user_input('Please enter remote ip:' )
+							if control_user is None:
+								control_user = UI.get_user_input('Please enter remote username: ')
+						np.set_control_mode(control_mode=control_mode, control_host=control_host, control_user=control_user)
+						log(f"Network controller mode changed:{control_mode}", 'info')
+					elif event == 'Hide UI':
+						hide_ui()
+						log("UI Hidden!", 'info')
+					elif event == 'Exit' or event == 'Close':
+						update_resume()
+						MP.exit = True
+						log(f"Exit set to true {event}", 'info')
+					elif event == 'store_window_location':
+						store_window_location()
+						log("Window location stored!", 'info')
+					elif event == '-episode_number-' or event == '-filepath-' or event == '-series_name-' or event == '-season-':
+						k = event
+						v = values[event]
+						MP.target[k] = v
+						log(f"set target {k} to {v}", 'info')
+					elif event == '-Query TMDB-':
+						if MP.target['-series_name-'] is not None and MP.target['-season-'] is not None and MP.target['-episode_number-'] is not None:
+							data = np.lookup_series(MP.target['-series_name-'], MP.target['-season-'], MP.target['-episode_number-'])
+							if data:
+								MP.target['-episode_name-'] = str(data['name'])
+								MP.target['-description-'] = str(data['overview'])
+								MP.target['-air_date-'] = str(data['air_date'])
+								MP.target['-still_path-'] = str(data['still_path'])
+								MP.target['-tmdbid-'] = str(data['tmdbid'])
+								UI.WINDOW['-episode_name-'].update(MP.target['-episode_name-'])
+								UI.WINDOW['-description-'].update(MP.target['-description-'])
+								UI.WINDOW['-air_date-'].update(MP.target['-air_date-'])
+								UI.WINDOW['-still_path-'].update(MP.target['-still_path-'])
+								UI.WINDOW['-tmdbid-'].update(MP.target['-tmdbid-'])
+					elif event == '-table_series-' or event == '-table_movies-' or event == '-table_music-' or event == '-PLAY_TYPE-':
+						if event == '-PLAY_TYPE-':
+							MP.conf['play_type'] = values[event]
+							np.writeConf(conf)
+							log(f"Play type changed:{MP.conf['play_type']}", 'info')
+							gui_reset()
+						if event == '-table_series-':
+							gui_reset('series', '-db_mgr_layout-')
+						elif event == '-table_movies-':
+							gui_reset('movies', '-db_mgr_layout-')
+						elif event == '-table_music-':
+							gui_reset('music', '-db_mgr_layout-')
+					elif event == '-pbdl_table_series-' or event == '-pbdl_table_movies-' or event == '-pbdl_table_music-':
+						log(f"Table changed:{values[event]}", 'info')
+						if event == '-pbdl_table_series-':
+							gui_reset('series', '-db_mgr_layout-')
+						elif event == '-pbdl_table_movies-':
+							gui_reset('movies', '-db_mgr_layout-')
+						elif event == '-pbdl_table_music-':
+							gui_reset('music', '-db_mgr_layout-')
+					elif event == '-setactive-':
+						val = values[event]
+						if val == False:
+							isactive=0
+						elif val == True:
+							isactive=1
+						else:
+							isactive=1
+					elif event == '-PLAY_POS-':
+						val = float(values[event])
+						P.set_position(val)
+						log(f"UI: Skipped to position {val}", 'info')
+					elif event == 'play':
+						P.play()
+					elif event == 'pause':
+						P.pause()
+					elif event == 'stop':
+						P.stop()
+					elif event == 'next':
+						MP.skip_next()
+					elif event == 'previous':
+						MP.skip_previous()
+					elif event == 'rotate 90':
+						rotate(90)
+					elif event == 'seek fwd':
+						MP.seek_fwd()
+					elif event == 'seek rev':
+						MP.seek_rev()
+					elif event == 'fullscreen':
+						if MP.conf['fullscreen'] == 1:
+							fs = 0
+						elif MP.conf['fullscreen'] == 0:
+							fs = 1
+						if fs == 1:
+							P.set_fullscreen(True)
+						elif fs == 0:
+							P.set_fullscreen(False)
+						np.updateConf(conf, 'fullscreen', fs)
+					elif event == '-SET_SCREEN-':
+						MP.conf['screen'] = int(values[event])
+						MP.conf = UI.set_window_screen(MP.conf['screen'])
+						np.writeConf(MP.conf)
+						log(f"Active screen updated! Needs restart{MP.conf['screen']}", 'info')
+						gui_reset()	
+					elif event == 'load':
+						MP.stop()
+						MP.next = values['-VIDEO_LOCATION-']
+						if 'http://' in MP.next or 'https://' in MP.next:
+							MP.is_url = True
+							if '/home' in MP.next:
+								split='https://'
+								MP.next = MP.next.split(split)[1]
+								MP.next = ('https://' + MP.next)
+							v = pafy.new(MP.next)
+							stream = v.getbest()
+							P = MP.init_vlc(stream.url)
+							set_video_out()
+							P.play()
+						else:
+							MP.is_url = False
+							MP.play(MP.next)
+					elif event == 'Refresh from Database':
+						MP.media = np.create_media()
+						UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.DBMGR_RESULTS)
+					elif event == 'VPN On/Off':
+						if VPN == True:
+							VPN = False
+						elif VPN == False:
+							VPN = True
+						UI.toggle_vpn()
+					elif event == '-CURRENT_PLAYLIST-':
+						MP.selected_playlist_item
+						val = None
+						_id = None
+						table = None
+						if MP.play_mode == 'playlist':
+							val = values[event][0]
+							if 'series:' in val or 'movies:' in val or 'music:' in val:
+								if 'series:' in val:
+									_id = val.split(':')[5]
+									table = val.split(':')[0]
+									playlist_click(_id, table)
+								elif 'movies:' in val:
+									table = val.split(':')[0]
+									title = val.split(':')[1]
+									year = val.split(':')[2]
+									_id = val.split(':')[3]
+									playlist_click(_id, table)
+								elif 'music:' in val:
+									val = values[event][0]
+									_id = val.split(':')[6]
+									table = val.split(':')[0]
+									playlist_click(_id, table)
+							else:
+								MP.play(val)
+						elif MP.play_mode == 'database':
+							if MP.conf['play_type'] == 'series':
+								try:
+									val = values[event][0]
+									_id = val.split(':')[5]
+									table = val.split(':')[0]
+									playlist_click(_id, table)
+								except Exception as e:
+									log(f"Error: Series list is empty! Details:{e}, {val}, {_id}, {table}", 'error')
+							elif MP.conf['play_type'] == 'movies':
+								try:
+									val = values[event][0]
+									table = val.split(':')[0]
+									title = val.split(':')[1]
+									year = val.split(':')[2]
+									_id = val.split(':')[3]
+									playlist_click(_id, table)
+								except Exception as e:
+									log(f"Error: Movies list is empty! Details:{e}, {val}, {_id}, {table}", 'error')
+							elif MP.conf['play_type'] == 'music':
+								try:
+									val = values[event][0]
+									_id = val.split(':')[6]
+									table = val.split(':')[0]
+									playlist_click(_id, table)
+								except Exception as e:
+									log(f"Error: List is empty! Details:{e}, {val}, {_id}, {table}", 'error')
+					elif event == '-DBMGR_PICKED_COLUMNS-':
+						string = None
+						if len(values[event]) == 1:
+							column = str(values[event][0])
+							string = (column + " like '%%'")
+							UI.WINDOW['-DBMGR_QUERY_STRING-'].update(string)
+						else:
+							for column in values[event]:
+								if string == None:
+									string = (column + " like '%%'")
+								else:
+									string = (string + " and " + column + " = ''")
+							UI.WINDOW['-DBMGR_QUERY_STRING-'].update(string)
+						UI.WINDOW.refresh()
+					elif event == 'SQL Search':
+						query_string = values['-DBMGR_QUERY_STRING-']
+						ckbox = UI.isactive
+						if ckbox:
+							is_active = 1
+						else:
+							is_active = 0
+						if query_string is not None:
+							table = MP.conf['play_type']
+							if table == 'series':
+								query_string = (query_string + " and isactive = '" + str(is_active) + "'")
+								rows = np.querydb(table='series', column='id,series_name,tmdbid,season,episode_number,episode_name,description,air_date,still_path,filepath', query=query_string)
+								MP.media = np.create_media(rows=rows)
+								if rows is not None:
+									UI.WINDOW['-DBMGR_RESULTS-'].update(MP.media['DBMGR_RESULTS'])
+								else:
+									UI.WINDOW['-DBMGR_RESULTS-'].update("Looks like you better figure out how to search without that active flag....")
+					elif event == 'Search':
+						season = None
+						table = MP.conf['play_type']
+						query_string = values['-SEARCH_QUERY-']
+						is_active = MP.is_active
+						if query_string is not None:
+							if table is None:
+								table = MP.conf['play_type']
+							if table == 'series':
+								if ':' in query_string:
+									series_name = query_string.split(':')[0]
+									season = query_string.split(':')[1]
+									try:
+										episode_number = query_string.split(':')[2]
+										query_string = ("series_name like '%" + series_name + "%' and season = " + str(season) + " and episode_number = " + str(episode_number) + " and isactive = " + str(is_active))
+									except:
+										query_string = ("series_name like '%" + series_name + "%' and season = " + str(season) + " and isactive = " + str(is_active))
+								else:
+									series_name = query_string
+									query_string = ("series_name like '%" + series_name + "%' and isactive = " + str(is_active))
+									if season is not None:
+										try:
+											episode_number = query_string.split(':')[3]
+											query_string = ("series_name like '%" + series_name + "%' and season = " + season + " episode_number = " + episode_number + " and isactive = '" + str(is_active) + "'")
+										except:
+											query_string = ("series_name like '%" + series_name + "%' and season = " + season + " and isactive = '" + str(is_active) + "'")
+									log(f"Query string:{query_string}", 'info')
+								rows = np.querydb(table='series', column='id,series_name,tmdbid,season,episode_number,episode_name,description,air_date,still_path,filepath', query=query_string)
+								MP.media = np.create_media(rows=rows)
+								if rows is not None:
+									UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.media['DBMGR_RESULTS'])
+									MP.play_mode = 'playlist'
+									UI.WINDOW['-PLAY_MODE-'].update(MP.play_mode)
+								else:
+									UI.WINDOW['-CURRENT_PLAYLIST-'].update("Looks like you better figure out how to search without that active flag....")
+							elif table == 'movies':
+								query_string = ("title like '%" + query + "%' and isactive = '" + str(is_active) + "'")
+								rows = querydb(table='movies', column='id,tmdbid,title,year,release_date,description,poster,filepath', query=query_string)
+								MP.media = np.create_media(rows=rows)
+								if rows is not None:
+									UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.media['DBMGR_RESULTS'])
+									MP.play_mode = 'playlist'
+									UI.WINDOW['-PLAY_MODE-'].update(MP.play_mode)
+							elif table == 'music':
+								log(f"TODO: querydb music", 'info')
+								#rows = querydb(table = 'music', column='id,title,accoustic_id,album,album_id,artist_id,year,artist,track,track_ct,filepath', query='isactive = 1')
+					elif event == '-DBMGR_RESULTS-':
+						MP.dbmgr_picked_items = values['-DBMGR_RESULTS-']
+						UI.window['-DBMGR_SELECTED_ROWS-'].update(MP.dbmgr_picked_items)
+						UI.window.refresh()
+					elif event == 'Volume Up':
+						MP.volume_up()
+						log(f"Volume up:{MP.conf['volume']}", 'info')
+					elif event == 'Volume Down':
+						MP.volume_down()
+						log(f"Volume down:{MP.conf['volume']}", 'info')
+					elif event == '-Remove Selected-':
+						for line in MP.dbmgr_picked_items:
+							table = line.split(':')[0]
+							series_name = line.split(':')[1]
+							season = line.split(':')[2]
+							episode_number = line.split(':')[3]
+							episode_name = line.split(':')[4]
+							_id = line.split(':')[5]
+							query_string = ("id = " + str(_id))
+							ret = np.removefromdb(table, query_string)
+							MP.media['DBMGR_RESULTS'].remove(line)
+						MP.dbmgr_picked_items = []
+						UI.window['-DBMGR_SELECTED_ROWS-'].update(MP.dbmgr_picked_items)
+						log(f"Remove selected:{MP.dbmgr_picked_items}", 'info')
+						UI.window['-DBMGR_RESULTS-'].update(MP.media['DBMGR_RESULTS'])
+					elif event == 'Torrent Manager':
+						pbdl.create_window()
+						pbdl.get_torrents()
+						pbdl.run()
+					elif event == 'Pirate Bay Downloader':
+						if pbdl.downloader == False:
+							UI.pbdl_dl_win = pbdl.create_downloader()
+							log(f"Loaded pirate bay downloader!", 'info')
+						else:
+							log(f"Pirate bay downloader alread running!", 'info')
+						pbdl.run()
+					elif event == '-PBDL_SEARCH-':
+						pbdl.results = pbdl.get_magnet(pbdl.pbdl_query, pbdl.category)
+						print (pbdl.results)
+						UI.pbdl_dl_win['-PBDL_RESULTS-'].update(pbdl.results)
+					elif event == '-PBDL_RESULTS-':
+						key = values[event]
+						if type(pbdl.results) == list:
+							for item in pbdl.results:
+								magnet = item[key]
+								com = ("transmission-remote -a '" + magnet + "'")
+								print (com)
+					elif event == '-PBDL_SEARCH_QUERY-':
+						pbdl.pbdl_query = values[event]
+						print (pbdl.pbdl_query)
+					elif event == 'youtube-dl':
+						Y = np.ytdl()
+						Y.start()
+					elif event == 'Recenter UI':
+						recenter_ui()
+					elif event == "-Load Playlist-":
+						load_playlist(values[event])
+					elif event == "-Save Playlist-":
+						filepath = np.file_browse_window()
+						ret = MP.save_playlist(filepath, MP.media['DBMGR_RESULTS'])
+						if ret is True:
+							log(f"Save playlist: Success: {filepath}", 'info')
+						else:
+							log(f"Save playlist: Failed! {filepath}", 'info')
+					elif event== "-Load Directory-":
+						path = np.folder_browse_window()
+						MP.stop()
+						MP.media['DBMGR_RESULTS'] = MP.load_directory(path)
+						UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.media['DBMGR_RESULTS'])
+						MP.play_mode = 'playlist'
+						UI.WINDOW['-PLAY_MODE-'].update(MP.play_mode)
+						filepath = MP.media['DBMGR_RESULTS'][0]
+						MP.play(filepath)
+					elif event == '-PLAY_MODE-':
+						MP.play_mode = values[event]
+						log(f"Play mode changed:{MP.play_mode}", 'info')
+					elif event == '-Set Active-':
+						log(f"TODO: Set active:{MP.dbmgr_picked_items}", 'info')
+					elif event == '-Set Inactive-':
+						log(f"TODO: Set inactive:{MP.dbmgr_picked_items}", 'info')
+					elif event == '-Select All-':
+						dbmgr_select_all()
+					elif event == '-Clear All-':
+						dbmgr_clear_all()
+					elif event == 'Hide UI':
+						log(f"GUI Menu hidden!", 'info')
+					elif event == '-VID_OUT-':
+						log(f"Don't touch me, booger blaster!", 'info')
+					elif event == 'Fix Focus':
+						UI.WINDOW.TKroot.focus_force()
+						UI.WINDOW.Element('-SEARCH_QUERY-').SetFocus()
+						log(f"Set focus on search query input!", 'info')
+					elif event == 'Screenshot':
+						ret = MP.screenshot()
+						print (ret)
+					elif event in np.VLC_VIDEO_FILTERS or event in np.VLC_AUDIO_FILTERS:
+						f = event
+						log(f"Changing filter:{f}", 'info')
+						ret = change_filter(f)
+						print (ret)
+					elif event == sg.WIN_CLOSED and media['continuous'] == 0 and MP.conf['GUI_RESET'] == False:
+						log(f"Window closed (gui): continuout=0, reset=False", 'info')
+						np.writeConf(MP.conf)
+						MP.exit = True
+						if MP.scale_needed == 1:
+							MP.conf['scale'] = np.calculate_scale(MP.next)
+							P.video_set_scale(MP.conf['scale'])
+
+					else:
+						if event is not None:
+							try:
+								log(f"np.py, function=uievents_handler(), Unhandled event and value received:{event}, {values[event]}", 'info')
+							except Exception as e:
+								log(f"np.py, function=uievents_handler(), Unhandled event received:{event}", 'info')
+
+			if MP.conf['GUI_RESET'] == True:
+				log(f"reset executing: {MP.conf['play_type']}", 'info')
+				MP.conf = np.readConf()
+				MP = np.nplayer()
+				P = MP.init_vlc()
+				media = np.create_media()
+				media['series_history'] = np.read_history()
+				UI = np.gui()
+				set_video_out()
+				media['continuous'] = 1
+				UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.DBMGR_RESULTS)
+				UI.WINDOW['-PLAY_TYPE-'].update(MP.conf['play_type'])
+				log("np.py: Resuming from reset = True...", 'info')
+				MP.play()
+				time.sleep(0.5)
+				P.set_position(MP.conf['nowplaying']['play_pos'])
+				log(f"Skipped to {MP.conf['nowplaying']['play_pos']}", 'info')
+				media['continuous'] = 1
+				#np.writeConf(MP.conf)
+				MP.conf['GUI_RESET'] = False
+				log(f"Reset finished!:{MP.conf['GUI_RESET']}", 'info')
+			elif MP.play_needed == 1:
+				log("Playing from 'play needed'", 'info')
+				filepath = MP.conf['nowplaying']['filepath']
+				play_pos = MP.conf['nowplaying']['play_pos']
+				if filepath is not None:
+					filepath = urllib.parse.unquote(filepath)
+					log(f"using resume from file:{filepath}", 'info')
+					MP.play(filepath)
+					P.set_position(play_pos)
+					log(f"np.py, Skipped to {play_pos} by play_needed = 1", 'info')
+				else:
+					print ('not resuming...', filepath)
+					if MP.play_mode == 'playlist':
+						MP.next = MP.get_playlist_next()
+						MP.play(MP.next)
+					else:
+						MP.play()
+				play_needed = 0	
+
+			# if button event, pass to btn handler
+			if btn is not None:
+				btn_handler(btn)
+				log(f"Button event: {btn}", 'info')			
+			#if com, btn, or event handler set nplayer's 'exit' class attribute to True for any reason, stop main loop.
+			if MP.exit == True:
+				log(f"Exit (break)!", 'info')
+				break
+			#If nplayer's art update class attribute is set, update art.
+			if MP.ART_UPDATE_NEEDED == True and P.is_playing():
+				UI.WINDOW2['-VID_OUT-'].update(MP.album_art)
+				log(f"art updated:{MP.album_art}", 'info')
+				UI.WINDOW2.refresh()
+				MP.ART_UPDATE_NEEDED = False
+			# update elapsed time if there is a video loaded and the media is playing
+			if P.is_playing() and MP.is_url == False:
+				if update >= update_ct:
+					update = 0
+					s='%20'
+					j = ' '
+					s2 = 'file://'
+					media['is_playing'] = 1
+					filepath = P.get_media().get_mrl().split("file://")[1]
+					MP.conf['nowplaying']['filepath'] = urllib.parse.unquote(filepath)
+					MP.conf['nowplaying']['play_pos'] = P.get_position()
+					pos = (MP.conf['nowplaying']['play_pos'])
+					UI.WINDOW['-PLAY_POS-'].update(MP.conf['nowplaying']['play_pos'])
+					txt = "{:02d}:{:02d} / {:02d}:{:02d}".format(*divmod(P.get_time()//1000, 60), *divmod(P.get_length()//1000, 60))
+					if MP.next is not None:
+						txt = (txt + "::" + str(MP.next))
+					UI.WINDOW['-MESSAGE_AREA-'].update(txt)
+			# if media is playing but it's a url, skip info update
+			elif P.is_playing() and MP.is_url == True:
+				pass
+			# if media not playing, update status message
+			else:
+				media['is_playing'] = 0
+				UI.WINDOW['-MESSAGE_AREA-'].update('Load media to start')
+				log("is_playing set to 0!", 'info')
+			stop_timer = timeit.default_timer()
+			loop_time = stop_timer - start_timer
+			ts = str(loop_time).split('.')[0]
+			if int(ts) >= 5 and UI.event != '__TIMEOUT__':
+				log(f"Loop took long! {loop_time}. DATA: {UI.event, UI.values}", 'warning')
+			if MP.conf['debug'] == True:
+				log(f"Main loop cycle timer: {loop_time}", 'debug')
+	
+		UI.WINDOW.close()
 	
 
 if __name__ == "__main__":

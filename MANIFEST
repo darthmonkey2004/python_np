@@ -6,7 +6,9 @@ np/__init__.py
 np/np
 np/core/__init__.py
 np/core/conf.py
+np/core/conf_mgr.py
 np/core/core.py
+np/core/err.py
 np/core/gui.py
 np/core/log.py
 np/core/nplayer.py
@@ -19,6 +21,7 @@ np/scripts/mkmedialist
 np/scripts/np.remote
 np/scripts/setup_np.sh
 np/utils/__init__.py
+np/utils/functions.py
 np/utils/guess_intro.py
 np/utils/gui_create.py
 np/utils/init_conf.py
@@ -32,7 +35,10 @@ np/utils/pbdl_dl.py
 np/utils/pbdl_se_isin.py
 np/utils/query_movies.py
 np/utils/query_series.py
+np/utils/scan_all.py
+np/utils/scan_movies.py
 np/utils/scan_music.py
+np/utils/scan_series.py
 np/utils/tmdb_query_series.py
 np/utils/torrent_mgr.py
 np/utils/xrandr.py

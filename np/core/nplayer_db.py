@@ -3,7 +3,7 @@ from collections import OrderedDict
 
 def create_connection(database=None):
 	if database == None:
-		database = "/home/monkey/.np/nplayer.db"
+		database = "/home/monkey/gdrive/.np/nplayer.db"
 	cur = None
 	#print ("Using database:", database)
 	conn = sqlite3.connect(database)
@@ -28,7 +28,7 @@ def updatedb(table, update_string, query):
 
 
 def addtodb(table, sql_data):
-	print ("adding to db:", sql_data)
+	#print ("adding to db:", sql_data)
 	try:
 		conn = create_connection()
 		cur = conn.cursor()

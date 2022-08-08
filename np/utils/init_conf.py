@@ -35,6 +35,7 @@ def run_setup():
 	conf['video_players'] = ['vlc', 'mplayer', 'mpv', 'cv2']
 	conf['nowplaying'] = ['filepath', 'play_pos']
 	conf['windows'] = np.init_window_position()
+	conf['GUI_RESET'] = False
 
 if __name__ == "__main__":
 	run_setup()

@@ -23,7 +23,7 @@ class nplayer():
 		self.nowplaying['pos'] = None
 		self.nowplaying['vw'] = None
 		self.nowplaying['vh'] = None
-		self.create_media = np.core.core.create_media
+		self.create_media = np.create_media
 		self.conf = {}
 		self.conf['vlc'] = {}
 		self.conf = np.readConf()
@@ -479,7 +479,7 @@ class nplayer():
 		sftp_data_file = (np.SFTP_DIR + os.path.sep + 'info.txt')
 		if not os.path.exists(sftp_data_file):
 			try:
-				com = ("sshfs '" + user + "@" + host + ":/var/storage' '" + np.SFTP_DIR + "'")
+				com = (f"sshfs {user}@{host}:/media/monkey/usbhdbackup/storage {np.SFTP_DIR}")
 				ret = subprocess.check_output(com, shell=True).decode()
 				if ret != '':
 					np.log (("sftp mount returned value:" + ret), 'error')
@@ -580,7 +580,7 @@ class nplayer():
 			is_mounted = self.test_sftp()
 			if not is_mounted:
 				self.mount_sftp()
-			fpath = self.next.split('/var/storage/')[1]
+			fpath = self.next.split(np.MEDIA_DIR)[1]
 			self.next = (np.SFTP_DIR + os.path.sep + fpath)
 			#self.next = ('/run/user/1000/gvfs/sftp:host=' + host + ',user=' + user + self.next)
 			print ("Network uri:", self.next)

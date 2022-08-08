@@ -6,11 +6,24 @@ import vlc
 import pickle
 import os
 import inspect
+import subprocess
+from np.core.log import np_logger
+logger = np_logger()
+log = logger.log_msg
+
 from np.utils.xrandr import xrandr
 import pickle
 from videoprops import get_video_properties
 from np.core.nplayer_db import querydb
-import np
+#import np
+import os
+home = os.path.expanduser("~")
+DATA_DIR = (f"{home}{os.path.sep}gdrive{os.path.sep}.np")
+global LOGFILE, CONFFILE
+LOGFILE = f"{DATA_DIR}/nplayer.log"
+CONFFILE = f"{DATA_DIR}/nplayer.conf"
+mk_conf = False
+
 
 user = os.getlogin()
 npdir = (os.path.sep + "home" + os.path.sep + user + os.path.sep + ".np")
@@ -45,6 +58,7 @@ def initConf():
 	global user
 	#print ("Init conf running!")
 	conf = {}
+	conf['GUI_RESET'] = False
 	conf['play_type'] = 'series'
 	conf['play_types'] = ['series', 'movies', 'videos', 'music']
 	conf['screen'] = 1
@@ -84,90 +98,39 @@ def initConf():
 	conf['network_mode']['control_port'] = 4444
 	conf['remote'] = {}
 	conf['debug'] = False
+	conf['init'] = True
 	#conf['watched_devices'] = ['/dev/input/event11', '/dev/input/event2']
 	#conf['grab_devices'] = ['/dev/input/event11']
-	ret = writeConf(conf)
+	#ret = writeConf(conf)
 	return conf
 
-class log():
-	def __init__(self):
-		global conf
-		self.conf = conf
-		self.log_type = 'debug'
-		self.msg = None
-		t = datetime.datetime.now()
-		self.ts = (str(t.day) + "-" + str(t.month) + "-" + str(t.year) + " " + str(t.hour) + ":" + str(t.minute) + ":" + str(t.second) + ":" + str(t.microsecond))
-		try:
-			self.debug = self.conf['debug']
-		except Exception as e:
-			print (f"Error: debug setting not in conf: {e}")
-	def log(self, *args):
-		pos = -1
-		for arg in args:
-			pos = pos + 1
-			if pos == 0:
-				self.msg = (self.ts + "--" + str(arg))
-			elif pos == 1:
-				self.log_type = arg
-		self.log_level = getattr(logging, self.log_type.upper(), None)
-		if not isinstance(self.log_level, int):
-			raise ValueError('Invalid log level: %s' % self.log_type)
-			return
-		logging.basicConfig(filename=np.LOGFILE, level=self.log_level)
-		if self.msg == None:
-			raise ValueError('No message data provided!')
-		if self.debug == True:
-			print ("DEBUG MESSAGE:", self.msg)
-		if self.log_level == 10:#debug level
-			logging.debug(self.msg)
-		elif self.log_level == 20:
-			logging.info(self.msg)
-		elif self.log_level == 30:
-			logging.warning(self.msg)
-		elif self.log_level == 40:
-			logging.error(self.msg)
-			try:
-				print("Nplayer logged an error:", self.msg)
-			except Exception as e:
-				ouch=("Unable to print error message, background process(?)", self.msg, e)
-				logging.error(ouch)
-				raise RuntimeError(ouch) from e
-				return
-		return
-
+def writeConf(data):
+	with open(CONFFILE, 'wb') as f:
+		pickle.dump(data, f)
+	f.close()
+	return True
 
 def readConf():
 	try:
-		with open(conf_file, 'rb') as f:
+		with open(CONFFILE, 'rb') as f:
 			data = pickle.load(f)
 		f.close()
 		return data
-	except Exception as e:
-		print ("Exception in core.py, readConf, line 87:", e)
-		return None
+	except:
+		conf = initConf()
+		writeConf(conf)
+		with open(CONFFILE, 'rb') as f:
+			data = pickle.load(f)
+		f.close()
+		return data
 conf = readConf()
 
-def writeConf(data):
-	try:
-		logger = log().log
-	except:
-		pass
-	try:
-		with open(conf_file, 'wb') as f:
-			pickle.dump(data, f)
-		f.close()
-		
-		logger('core.py, writeConf: Conf updated!', 'info')
-		return True
-	except Exception as e:
-		print(f"Exception in core.py, writeConf, line 149:{e}")
-		return False
+
 
 
 class err():
 	def __init__(self):
-		self.logger = log()
-		self.log = self.logger.log
+		self.log = log
 		self.err_type = None
 		self.msg = None
 	def err(self, *args):
@@ -251,7 +214,7 @@ def read_history():
 			history_dict = pickle.load(f)
 		f.close()			
 	except Exception as e:
-		print ("Exception in core.py, read_history, line 159:", e)
+		print ("Exception in core.py, read_history, line 223:", e)
 	return history_dict
 
 
@@ -262,7 +225,7 @@ def write_history(history_dict):
 		f.close()
 		return True
 	except Exception as e:
-		print ("Exception in core.py, write_history, line 170:", e)
+		print ("Exception in core.py, write_history, line 234:", e)
 		return False
 
 
@@ -315,7 +278,174 @@ else:
 
 
 def init_window_position():
-	np.init_screens()
+	log('core.py.init_window_position running from somewhere...', 'info')
+	screen = conf['screen']
+	windows = {}
+	windows['viewer'] = {}
+	windows['gui'] = {}
+	windows['pbdl'] = {}
+	windows['pbdl_dl'] = {}
+	windows['ytdl'] = {}
+	windows['browser'] = {}
+	w0 = int(conf['screens'][0]['w'])
+	h0 = int(conf['screens'][0]['h'])
+	pos_x0 =  int(conf['screens'][0]['pos_x'])
+	pos_y0 =  int(conf['screens'][0]['pos_y'])
+	w1 = int(conf['screens'][1]['w'])
+	h1 = int(conf['screens'][1]['h'])
+	pos_x1 =  int(conf['screens'][1]['pos_x'])
+	pos_y1 =  int(conf['screens'][1]['pos_y'])	
+	viewer_win_w0 = w0
+	viewer_win_h0 = h0
+	viewer_win_x0 = pos_x0
+	viewer_win_y0 = pos_y0
+	viewer_win_w1 = w1
+	viewer_win_h1 = h1
+	viewer_win_x1 = pos_x1
+	viewer_win_y1 = pos_y1	
+	gui_win_w = 1024
+	gui_win_h = 600
+	browser_win_w = 600
+	browser_win_h = 150
+	pbdl_win_w = 900
+	pbdl_win_h = 900
+	pbdl_dl_win_w = 600
+	pbdl_dl_win_h = 300
+	ytdl_win_w = 750
+	ytdl_win_h = 300
+	half = viewer_win_h0 / 2
+	if viewer_win_y0 >= 0 and viewer_win_y0 <= half:
+		#gui_win_x0 = viewer_win_x0 + viewer_win_w0 - gui_win_w - 147
+		#gui_win_y0 = viewer_win_y0 + viewer_win_h0 + 33
+		gui_win_x0 = 0
+		gui_win_y0 = 0
+		pbdl_win_x = viewer_win_x0 + viewer_win_w0 - pbdl_win_w - 147
+		pbdl_win_y = viewer_win_y0 + viewer_win_h0 + 33
+		pbdl_dl_win_x = viewer_win_x0 + viewer_win_w0 - pbdl_dl_win_w - 147
+		pbdl_dl_win_y = viewer_win_y0 + viewer_win_h0 + 33
+		ytdl_win_x = viewer_win_x0 + viewer_win_w0 - ytdl_win_w - 147
+		ytdl_win_y = viewer_win_y0 + viewer_win_h0 + 33
+		browser_win_x = gui_win_x0
+		browser_win_y = gui_win_y0 + gui_win_h
+	elif viewer_win_y0 >= half:
+		#gui_win_x0 = viewer_win_x0
+		#gui_win_y0 = 0 + gui_win_h
+		gui_win_x0 = 0
+		gui_win_y0 = 0
+		pbdl_win_x = viewer_win_x0
+		pbdl_win_y = 0 + pbdl_win_h
+		pbdl_dl_win_x = viewer_win_x0
+		pbdl_dl_win_y = 0 + pbdl_dl_win_h
+		ytdl_win_x = viewer_win_x0
+		ytdl_win_y = 0 + ytdl_win_h
+		browser_win_x = gui_win_x0
+		browser_win_y = gui_win_y0 + gui_win_h
+	else:
+		print ("window in weird spot...")
+		#gui_win_x0 = viewer_win_x0
+		#gui_win_y0 = 0 + gui_win_h
+		gui_win_x0 = 0
+		gui_win_y0 = 0
+		pbdl_win_x = viewer_win_x0
+		pbdl_win_y = 0 + pbdl_win_h
+		pbdl_dl_win_x = viewer_win_x0
+		pbdl_dl_win_y = 0 + pbdl_dl_win_h
+		ytdl_win_x = viewer_win_x0
+		ytdl_win_y = 0 + ytdl_win_h
+		browser_win_x = gui_win_x0
+		browser_win_y = gui_win_y0 + gui_win_h
+	half = viewer_win_h1 / 2
+	if viewer_win_y1 >= 0 and viewer_win_y1 <= half:
+		#gui_win_x1 = viewer_win_x1 + viewer_win_w1 - gui_win_w - 147
+		#gui_win_y1 = viewer_win_y1 + viewer_win_h1 + 33
+		gui_win_x1 = 0
+		gui_win_y1 = 0
+		pbdl_win_x = viewer_win_x1 + viewer_win_w1 - pbdl_win_w - 147
+		pbdl_win_y = viewer_win_y1 + viewer_win_h1 + 33
+		pbdl_dl_win_x = viewer_win_x1 + viewer_win_w1 - pbdl_dl_win_w - 147
+		pbdl_dl_win_y = viewer_win_y1 + viewer_win_h1 + 33
+		ytdl_win_x = viewer_win_x1 + viewer_win_w1 - ytdl_win_w - 147
+		ytdl_win_y = viewer_win_y1 + viewer_win_h1 + 33
+		browser_win_x = gui_win_x1
+		browser_win_y = gui_win_y1 + gui_win_h
+	elif viewer_win_y1 >= half:
+		#gui_win_x1 = viewer_win_x1
+		#gui_win_y1 = 0 + gui_win_h
+		gui_win_x1 = 0
+		gui_win_y1 = 0
+		pbdl_win_x = viewer_win_x1
+		pbdlwin_y = 0 + pbdl_win_h
+		pbdl_dl_win_x = viewer_win_x1
+		pbdl_dl_win_y = 0 + pbdl_dl_win_h
+		ytdl_win_x = viewer_win_x1
+		ytdlwin_y = 0 + ytdl_win_h
+		browser_win_x = gui_win_x1
+		browser_win_y = gui_win_y1 + gui_win_h
+	else:
+		print ("window in weird spot...")
+		#gui_win_x1 = viewer_win_x1
+		#gui_win_y1 = 0 + gui_win_h
+		gui_win_x1 = 0
+		gui_win_y1 = 0
+		pbdl_win_x = viewer_win_x1
+		pbdl_win_y = 0 + pbdl_win_h
+		pbdl_dl_win_x = viewer_win_x1
+		pbdl_dl_win_y = 0 + pbdl_dl_win_h
+		ytdl_win_x = viewer_win_x1
+		ytdl_win_y = 0 + ytdl_win_h
+		browser_win_x = gui_win_x1
+		browser_win_y = gui_win_y1 + gui_win_h
+	windows['viewer'][0] = {}
+	windows['viewer'][0]['x'] = viewer_win_x0
+	windows['viewer'][0]['y'] = viewer_win_y0
+	windows['viewer'][0]['w'] = viewer_win_w0
+	windows['viewer'][0]['h'] = viewer_win_h0
+	windows['viewer'][1] = {}
+	windows['viewer'][1]['x'] = viewer_win_x1
+	windows['viewer'][1]['y'] = viewer_win_y1
+	windows['viewer'][1]['w'] = viewer_win_w1
+	windows['viewer'][1]['h'] = viewer_win_h1
+	windows['pbdl']['x'] = pbdl_win_x
+	windows['pbdl']['y'] = pbdl_win_y
+	windows['pbdl']['w'] = pbdl_win_w
+	windows['pbdl']['h'] = pbdl_win_h
+	windows['pbdl_dl']['x'] = pbdl_dl_win_x
+	windows['pbdl_dl']['y'] = pbdl_dl_win_y
+	windows['pbdl_dl']['w'] = pbdl_dl_win_w
+	windows['pbdl_dl']['h'] = pbdl_dl_win_h
+	windows['ytdl']['x'] = ytdl_win_x
+	windows['ytdl']['y'] = ytdl_win_y
+	windows['ytdl']['w'] = ytdl_win_w
+	windows['ytdl']['h'] = ytdl_win_h
+	windows['browser']['x'] = browser_win_x
+	windows['browser']['y'] = browser_win_y
+	windows['browser']['w'] = browser_win_w
+	windows['browser']['h'] = browser_win_h
+	windows['gui']['visible'] = {}
+	windows['gui']['visible'][0] = {}
+	windows['gui']['visible'][0]['x'] = gui_win_x0
+	windows['gui']['visible'][0]['y'] = gui_win_y0
+	windows['gui']['visible'][0]['w'] = gui_win_w
+	windows['gui']['visible'][0]['h'] = gui_win_h
+	windows['gui']['visible'][1] = {}
+	windows['gui']['visible'][1]['x'] = gui_win_x1
+	windows['gui']['visible'][1]['y'] = gui_win_y1
+	windows['gui']['visible'][1]['w'] = gui_win_w
+	windows['gui']['visible'][1]['h'] = gui_win_h
+	windows['gui']['hidden'] = {}
+	windows['gui']['hidden'][0] = {}
+	windows['gui']['hidden'][0]['x'] = 483
+	windows['gui']['hidden'][0]['y'] = 666
+	windows['gui']['hidden'][0]['w'] = gui_win_w
+	windows['gui']['hidden'][0]['h'] = gui_win_h
+	windows['gui']['hidden'][1] = {}
+	windows['gui']['hidden'][1]['x'] = 483
+	windows['gui']['hidden'][1]['y'] = 666
+	windows['gui']['hidden'][1]['w'] = gui_win_w
+	windows['gui']['hidden'][1]['h'] = gui_win_h
+	windows['is_default'] = True
+	windows['visible_state'] = 'visible'
+	return windows
 
 
 def create_media(play_type=None, rows=None):
@@ -448,7 +578,7 @@ def folder_browse_window():
 
 def set_media_paths():
 	conf = readConf()
-	np.log("Starting interactive directory setup...", 'info')
+	log("Starting interactive directory setup...", 'info')
 	media_dirs = None
 	media_dirs = input("Enter media storage directory (see readme file in git download folder for details) ")
 	if media_dirs is None:
@@ -463,6 +593,6 @@ def set_media_paths():
 		conf['media_directories']['movies'] = movies_dir
 		conf['media_directories']['music'] = music_dir
 		conf['media_directories']['series'] = series_dir
-		np.writeConf(conf)
-		np.log("Media directories configured! Continuing...", 'info')
+		writeConf(conf)
+		log("Media directories configured! Continuing...", 'info')
 

@@ -63,7 +63,7 @@ def scan_music(target_dir=None):
 			if ret is not True:
 				print (ret)
 		except Exception as e:
-			txt = ("Exception in scan_music:" + e + ", filepath=" + filepath)
+			txt = (f"Exception in scan_music: {e}, filepath: '{filepath}'")
 			np.log(txt, 'error')
 			needs_tagged.append(filepath)
 	tagct = len(needs_tagged)

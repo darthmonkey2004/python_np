@@ -41,13 +41,17 @@ reset() {
 }
 
 update() {
-	ssh "$NP_CONNSTRING" "cd \"$HOME\"; if [ -d python_np ]; then rm -rf python_np; fi; git clone 'https://github.com/darthmonkey2004/python_np.git'; cd python_np/dist; pip3 install --user 'np-1.0.tar.gz'"
+	ssh "$NP_CONNSTRING" "cd \"$HOME\"; if [ -d python_np ]; then rm -rf python_np; fi; git clone 'https://github.com/darthmonkey2004/python_np.git'; cd python_np; pip3 install --user 'dist/np-1.0.tar.gz' -r reqmirements.txt"
 }
 
 com() {
 	com="$1"
 	echo "Executing: '$com'"
-	ssh "$NP_CONNSTRING" "cd '$HOME/.np'; echo '$com' > nplayer.com"
+	if [ "$method" = "local" ]; then
+		echo "$com" > "$HOME/gdrive/.np/nplayer.com"
+	else
+		ssh "$NP_CONNSTRING" echo "$com" > "$HOME/gdrive/.np/nplayer.com"
+	fi
 }
 
 commands() {
@@ -55,7 +59,7 @@ commands() {
 	echo "Options:"
 	echo "	1. '-h/--help/commands' - Show this menu"
 	echo "	2. '-l/--local/local' - Runs remote in local cli mode (this machine)"
-	commands=('media_get - Returns a list of media based on play_type or a supplied argument.' 'media_pick - Selects an item from the return of media_get' 'get_pos - Gets current playback percentage', 'debug - Sets debug to True/False. Example: np.remote debug=True' 'hide_gui - closes gui window' 'show_gui - opens gui window' 'move_gui - relocates gui window to provided coordinates.' 'move_player - relocates player window to provided coordinates.' 'get_window_location - Retreives current window position for the named window provided. Usage: "np.remote get_window_location=player/viewer/gui".' 'seek - seek to position (playback percentage)' 'setup - creates np.remote.conf in "$HOME/.np".' 'reset - Resets conf file in event of bad data saved that cause crash on startup.' 'update - updates to latest version from github.com' 'commands - This help menu.' 'start - Run nplayer.' 'readConf - Reads conf file. Used for manually changing data in python3 interpreter or using "python3 -c"' 'clearLog - Clears "$HOME/.np/nplayer.log".' 'play - Starts or unpauses nplayer.' 'pause - Pause playback.' 'stop - Stops playback.' 'skip_next - Skips to next playlist item or next randomized database item dependant on conf["play_type"].' 'skip_prev - Skips backward through history.' 'vol_set - sets volume. Usage: "np.remote vol_set=<0:100>.' 'vol_up - Turn volume up by 10.' 'vol_down - Turn volume down by 10.' 'mute - Mutes volume.' 'unmute - Unmutes volume.' 'quit - Exit nplayer, preserving last played item and play position in conf file for resume on next start.' 'load - Load a specific file or playlist.' 'yt - Loads youtube video (WARNING: SLOW, skippy, and buggy. Unfinished)' 'play_mode - Sets mode. Options: "database", "playlist". ' 'play_type - "Sets play type. Options: "series", "music", "movies".')
+	commands=('create_gui - Re-opens gui window', 'close_gui - closes gui window', 'close_viewer - closes video viewer window', 'media_get - Returns a list of media based on play_type or a supplied argument.' 'media_pick - Selects an item from the return of media_get' 'get_pos - Gets current playback percentage', 'debug - Sets debug to True/False. Example: np.remote debug=True' 'hide_gui - closes gui window' 'show_gui - opens gui window' 'move_gui - relocates gui window to provided coordinates.' 'move_player - relocates player window to provided coordinates.' 'get_window_location - Retreives current window position for the named window provided. Usage: "np.remote get_window_location=player/viewer/gui".' 'seek - seek to position (playback percentage)' 'setup - creates np.remote.conf in "$HOME/gdrive/.np".' 'reset - Resets conf file in event of bad data saved that cause crash on startup.' 'update - updates to latest version from github.com' 'commands - This help menu.' 'start - Run nplayer.' 'readConf - Reads conf file. Used for manually changing data in python3 interpreter or using "python3 -c"' 'clearLog - Clears "$HOME/gdrive/.np/nplayer.log".' 'play - Starts or unpauses nplayer.' 'pause - Pause playback.' 'stop - Stops playback.' 'skip_next - Skips to next playlist item or next randomized database item dependant on conf["play_type"].' 'skip_prev - Skips backward through history.' 'vol_set - sets volume. Usage: "np.remote vol_set=<0:100>.' 'vol_up - Turn volume up by 10.' 'vol_down - Turn volume down by 10.' 'mute - Mutes volume.' 'unmute - Unmutes volume.' 'quit - Exit nplayer, preserving last played item and play position in conf file for resume on next start.' 'load - Load a specific file or playlist.' 'yt - Loads youtube video (WARNING: SLOW, skippy, and buggy. Unfinished)' 'play_mode - Sets mode. Options: "database", "playlist". ' 'play_type - "Sets play type. Options: "series", "music", "movies".')
 	echo "Command list:"
 	pos=0
 	for com in "${commands[@]}"; do
@@ -75,12 +79,20 @@ readConf() {
 }
 
 readLog() {
-	ssh "$NP_CONNSTRING" "cd '$HOME/.np'; cat nplayer.log"
+	logfile="$HOME/gdrive/.np/nplayer.log"
+	if [ "$method" = "local" ]; then
+		cat "$logfile"
+	else
+		echo "$NP_CONNSTRING"
+		com="cat '$logfile'"
+		ssh "$NP_CONNSTRING" "cat '$logfile'"
+	fi
 }
 
 clearLog() {
 	echo "Clearing log..."
-	ssh "$NP_CONNSTRING" "cd '$HOME/.np'; rm nplayer.log; touch nplayer.log"
+	logfile="$HOME/gdrive/.np/nplayer.log"
+	ssh "$NP_CONNSTRING" "rm \"$logfile\"; touch \"$logfile\""
 	echo "Log cleared!"
 }
 
@@ -119,7 +131,7 @@ get_playback_position() {
 	pos="${data[$ct]}"
 	echo "$pos"
 }
-remote_conf="$HOME/.np/np.remote.conf"
+remote_conf="$HOME/gdrive/.np/np.remote.conf"
 if [ ! -f "$remote_conf" ]; then
 	setup
 fi
@@ -129,13 +141,13 @@ if [ -n "$1" ]; then
 fi
 if [ -n "$2" ]; then
 	if [ "$2" = "local" ] || [ "$2" = "-l" ] || [ "$2" = "--local" ]; then
-		method="local"
+		export method="local"
 		export NP_CONNSTRING="$NP_LOCAL_USER@$NP_LOCAL_IP"
 	else
 		echo "Unrecongized option. Options are 'local', '-l', or '--local'. To run in remote, simply omit the '-l' flag."
 	fi
 else
-	method="remote"
+	export method="remote"
 	export NP_CONNSTRING="$NP_REMOTE_USER@$NP_REMOTE_IP"
 fi
 haseq=$(echo "$func" | grep '=')
@@ -149,10 +161,10 @@ if [ "$func" = "reset" ]; then
 	reset
 elif [ "$func" = "media_get" ]; then
 	data=$(media_get)
-	echo "$data" > "$HOME/.np/media_get_list.txt"
+	echo "$data" > "$HOME/gdrive/.np/media_get_list.txt"
 	echo "$data"
 elif [ "$func" = "media_pick" ]; then
-	IFS=$'\n' data=($(cat "$HOME/.np/media_get_list.txt"))
+	IFS=$'\n' data=($(cat "$HOME/gdrive/.np/media_get_list.txt"))
 	for item in "${data[@]}"; do
 		num=$(echo "$item" | cut -d ':' -f 1)
 		if [ "$num" = "$arg" ]; then

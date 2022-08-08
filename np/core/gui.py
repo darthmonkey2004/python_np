@@ -20,8 +20,11 @@ class gui():
 		elif self.conf['screen'] == 1:
 			scrnbtn0_val = False
 			scrnbtn1_val = True
-		#self.conf['windows'] = np.init_window_position()
-		state = self.conf['windows']['visible_state']
+		try:
+			state = self.conf['windows']['visible_state']
+		except:
+			self.conf['windows'] = np.init_window_position()
+			state = self.conf['windows']['visible_state']
 		screen = self.conf['screen']
 		self.gui_win_x = self.conf['windows']['gui'][state][screen]['x']
 		self.gui_win_y = self.conf['windows']['gui'][state][screen]['y']
@@ -165,7 +168,7 @@ class gui():
 			except Exception as e:
 				np.log(f"Error Getting Window location: Name=appears to be closed!", 'error')
 				return None
-		np.log(f"Window location: Name={window}, Visible state={self.conf['windows']['visible_state']}, Coords={coords}", 'info')
+		np.log(f"Window location: Name={window}, Coords={coords}", 'info')
 		return coords
 	
 
@@ -291,7 +294,7 @@ class gui():
 			elif len(args) == 2:
 				src = args[0]
 				key = args[1]
-			return sg.Image(src, subsample=4, expand_x=True, expand_y=True, enable_events=True, key=key)
+			return sg.Image(src, subsample=4, expand_x=True, expand_y=True, enable_events=False, key=key)
 		
 		if args == []:
 			print ("Argument dictionary not provided! Aborting...", args)
@@ -332,7 +335,11 @@ class gui():
 	def set_window_screen(self, screen: int):
 		self.conf['screens'] = np.xrandr()
 		self.conf['screen'] = screen
-		state = self.conf['windows']['gui']['visible_status']
+		try:
+			state = self.conf['windows']['gui']['visible_']
+		except:
+			self.conf['windows'] = np.init_window_position()
+			state = self.conf['windows']['visible_state']
 		if screen == 1:
 			gui_screen = 0
 		elif screen == 0:
