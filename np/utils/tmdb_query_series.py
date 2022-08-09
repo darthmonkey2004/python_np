@@ -93,6 +93,111 @@ def tmdb_query_series(series_name, season, episode_number):
 		json_data = json.loads(data)
 		json_data['tmdbid'] = tmdbid
 		return json_data
+
+
+def lookup_series_google(series_name, season):
+	slength = len(str(season))
+	if slength >= 1 and '0' not in str(season):
+		qseason=('0' + str(season))
+	target0 = ("S" + qseason + " E")
+	base_url = "https://www.google.com/search?q="
+	query=(series_name + "+Season+" + str(season))
+	url = (base_url + query)
+	r = requests.get(url, allow_redirects=True)
+	chunks = r.text.strip().split("\n")
+	target1=(' · ')
+	target2='href="/imgres?imgurl='
+	pos = -1
+	lpos = -1
+	keepdata = []
+	data = None
+	for chunk in chunks:
+		pos = pos + 1
+		if target0 in chunk:
+			lines = chunk.split("<div class=")
+			for line in lines:
+				lpos = lpos + 1
+				if target1 in line:
+					data = chunks[pos]
+					data = data.split("</style>")[1]
+					import pickle
+					with open("temp.sinfo.pickle", 'wb') as f:
+						pickle.dump(chunks[pos], f)
+					f.close()
+					if data is not None and data not in keepdata:
+						keepdata.append(data)
+						data = None
+	out = {}
+	s='<div class="'
+	lines = []
+	for data in keepdata:
+		data = data.split(s)
+		lines+=data
+	pos = -1
+	target2='href="/imgres?imgurl='
+	images = []
+	ct = 0
+	for line in lines:
+		item = {}
+		pos = pos + 1
+		if target2 in line:
+			chunks = line.split(target2)
+			for chunk in chunks:
+				img_url = chunk.split('"')[0]
+				if 'http' in img_url:
+					s = 'https://'
+					pieces = img_url.split(s)
+					for p in pieces:
+						s = None
+						if '.jpg' in p:
+							s = '.jpg'
+						elif '.png' in p:
+							s = '.png'
+						elif '.gif' in p:
+							s = '.gif'
+						if s is not None:
+							u = p.split(s)[0]
+							u = ('https://' + u + s)
+							img_url = urllib.parse.unquote(u)
+							images.append(img_url)
+							still_path = img_url[0]
+		if ' · ' in line:
+			#try:
+			trimmed = line.split('>')[1].split('<')[0]
+			if '% ·' not in trimmed:
+				episode_number = int(trimmed.split(' E')[1].split(' ')[0])
+				ten = str(episode_number)
+				if '0' in ten:
+					test = ten[1:2]
+					if test != '0':
+						episode_number = int(test)
+				item['series_name'] = series_name
+				item['season'] = int(season)
+				item['episode_number'] = int(episode_number)
+				item['episode_name'] = trimmed.split(' · ')[1]
+				item['overview'] = item['episode_name']
+				dpos = pos + 1
+				air_date = lines[dpos].split('>')[1].split('<')[0]
+				t = datetime.strptime(air_date, '%b %d, %Y')
+				ts = (str(t.day) + "-" + str(t.month) + "-" + str(t.year))
+				item['air_date'] = ts
+				try:
+					item['still_path'] = still_path
+				except:
+					item['still_path'] = None
+				out[episode_number] = item
+	for episode_number in out:
+		item = out[episode_number]
+		if item['still_path'] == None:
+			try:
+				item['still_path'] = images[0]
+			except Exception as e:
+				print ("Unable to get still shot url:", e, images)
+	out['images'] = images
+	out['season'] = season
+	out['series_name'] = series_name
+	print (out['images'])
+	return out
 	
 	
 def lookup(arg):

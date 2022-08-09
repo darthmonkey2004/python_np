@@ -1,10 +1,30 @@
 import urllib
 import requests
 import json
+from np import log
 
 #TODO: create fail logger, or find switchover solution when 100 tmdb api calls daily is exhausted.
 
+
+
+def set_empty(title):
+	info = {}
+	info['title'] = title
+	info['isactive'] = 1
+	info['tmdbid'] = 'Unknown'
+	info['release_date'] = 'Unknown'
+	info['duration'] = 0
+	info['filepath'] = None
+	info['md5'] = None
+	info['url'] = None
+	info['description'] = 'Unknown'
+	info['year'] = 'Unknown'
+	info['poster'] = 'Unknown'
+	return info
+
 def query_imdb(title):
+	attempts = 0
+	log (f"Looking up movie... Title: '{title}'", 'info')
 	info = {}
 	title_nw = urllib.parse.quote(title)
 	tmdb_api_key = "ac1bdc4046a5e71ef8aa0d0bd93f8e9b"
@@ -13,18 +33,41 @@ def query_imdb(title):
 	imdb_url = ("https://imdb-api.com/en/API/SearchMovie/" + str(imdb_api_key) + "/" + title_nw)
 	r = requests.get(imdb_url)
 	if r.status_code != 200:
-		out = ("Error:", r.status_code)
-		return out
+		out = (f"TMDB Query Error: Response code {r.status_code}")
+		log(out, 'error')
+		info = set_empty(title)
+		return info
 	json_data = json.loads(r.text)
-	print (f"Json data: '{json_data}'")
+	errmsg = json_data['errorMessage']
+	if errmsg is not None:
+		tries_exceeded = 'Maximum usage'
+		if errmsg == 'Server busy':
+			attempts += 1
+			while attempts < 4:
+				log(f"TMDB query: Server Busy. Retrying in 5 seconds... (Attempts: {attempts} of 3)", 'info')
+				time.sleep(5)
+				r = requests.get(imdb_url)
+				if r.status_code == 200:
+					json_data = json.loads(r.text)
+					errmsg = json_data['errorMessage']
+					if errmsg is None:
+						break
+			log (f"TMDB lookup failed! Server is busy, maximum attempts exceeded", 'error')
+			info = set_empty(title)
+			return info
+		if tries_exceeded in errmsg:
+			log (f"Uh, oh! Out of lookups for today! Aborting...", 'error')
+			info = set_empty(title)
+			return info
 	if json_data['results'] is None:
-		if json_data['errorMessage'] is not None:
-			print (f"An error occured: '{json_data['errorMessage']}'")
-		else:
-			print (f"Failed to get results for title: '{title}'!")
-		return None
-	imdbid = json_data['results'][0]['id']
+		log (f"Failed to get results for title: '{title}'!", 'error')
+		info = set_empty(title)
+		return info
 
+
+				
+				
+	imdbid = json_data['results'][0]['id']
 	imdb_url2 = ("https://www.imdb.com/title/" + str(imdbid) + "/plotsummary?ref_=tttg_sa_1")
 	r = requests.get(imdb_url2)
 	if r.status_code != 200:
@@ -34,7 +77,7 @@ def query_imdb(title):
 	try:
 		data = r.text.split(s)[1]
 	except Exception as e:
-		print (f"query_imdb exception: {e}")
+		log (f"query_movies.py, query_imdb exception: {e}", 'error')
 		return None
 	info['description'] = data.split('</p>')[0].split('<p>')[1]
 	data = r.text.split("\n")
@@ -44,11 +87,9 @@ def query_imdb(title):
 		if 'class="poster"' in line:
 			poster_pos = pos + 4
 			info['poster'] = data[poster_pos].split('"')[1]
-			#print (info['poster'])
 		elif ') - Plot Summary Poster"' in line:
 			info['title'] = line.split('"')[1].split('(')[0].strip()
-			info['year'] = line.split('"')[1].split('(')[1].split(')')[0]
-			
+			info['year'] = line.split('"')[1].split('(')[1].split(')')[0]			
 			if ' ' in str(info['year']):
 				chunks = info['year'].split(' ')
 				for chunk in chunks:
@@ -57,14 +98,18 @@ def query_imdb(title):
 						if chunk >= 0:
 							info['year'] = chunk
 							break
-							
 					except:
 						pass
-						
-				
 	info['isactive'] = 1
-	info['tmdbid'] = imdbid
-	info['release_date'] = info['year']
+	try:
+		info['tmdbid'] = imdbid
+	except:
+		info['tmdbid'] = 'None'
+	try:
+		info['release_date'] = info['year']
+	except:
+		info['release_data'] = 'Unknown'
+	
 	info['duration'] = 0
 	info['filepath'] = None
 	info['md5'] = None

@@ -10,7 +10,7 @@ def scan_movies(target_dir=None):
 	np.test_db()
 	conf = np.readConf()
 	if target_dir == None:
-		target_dir = conf['media_directories']['music']
+		target_dir = conf['media_directories']['movies']
 	for ext in exts:
 		com = (f"find '{target_dir}' -name '*.{ext}'")
 		files = subprocess.check_output(com, shell=True).decode().strip()
@@ -37,6 +37,7 @@ def scan_movies(target_dir=None):
 						out = (f"{out}{chunk}")
 					data['title'] = out
 				sql_string = (f"INSERT into movies (isactive, tmdbid, title, year, release_date, duration, description, poster, filepath) VALUES (1, '{data['tmdbid']}', '{data['title']}', {data['year']}, '{data['release_date']}', '{data['duration']}', '{data['description']}', '{data['poster']}', '{filepath}');")
+				print (sql_string)
 				ret = np.addtodb('movies', sql_string)
 				if ret == True:
 					print ("Ok!")

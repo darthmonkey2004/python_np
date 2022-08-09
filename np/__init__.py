@@ -12,7 +12,6 @@ from np.core.nplayer_db import querydb
 from np.core.nplayer_db import updatedb
 from np.core.nplayer_db import removefromdb
 from np.core.nplayer_db import get_columns
-from np.core.nplayer_db import addtodb_new as add_to_db
 from np.core.nplayer_db import addtodb_new
 from np.core.nplayer_db import create_db
 from np.core.nplayer_db import test_db
@@ -35,9 +34,12 @@ from np.utils.query_series import tmdb_query_series as lookup_series
 from np.utils.query_series import get_sinfo_from_filepath as seinfo
 from np.utils.query_movies import query_imdb as lookup_movies
 from np.core.nplayer_db import addtodb
+from np.utils.tadb_search import lookup as lookup_music
 from np.utils.scan_music import scan_music
 from np.utils.scan_series import scan_series
 from np.utils.scan_movies import scan_movies
+from np.utils.scan_all import scan_all
+from np.utils.scan_all import scan_all as mediascan
 from np.utils.ytdl import ytdl
 from np.utils.init_conf import run_setup
 home = os.path.expanduser("~")

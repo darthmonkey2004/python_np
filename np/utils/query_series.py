@@ -58,7 +58,7 @@ def get_sinfo_from_filepath(filepath):
 		return False
 
 
-def tmdb_query_series(series_name, season, episode_number):
+def tmdb_query_series(filepath, series_name, season, episode_number):
 	info = {}
 	series_name_nw = urllib.parse.quote(series_name)
 	API_KEY="ac1bdc4046a5e71ef8aa0d0bd93f8e9b"
@@ -87,7 +87,9 @@ def tmdb_query_series(series_name, season, episode_number):
 	r = requests.get(url)
 	if r.status_code != 200:
 		out = ("Error:", r.status_code, "URL:", url)
+		info['error'] = True
 		info['response'] = out
+		info['filepath'] = filepath
 		info['tmdbid'] = tmdbid
 		info['series_name'] = series_name
 		info['season'] = season
@@ -105,6 +107,8 @@ def tmdb_query_series(series_name, season, episode_number):
 		json_data = json.loads(data)
 		out = ("OK:", r.status_code, "URL:", url)
 		info['response'] = out
+		info['error'] = False
+		info['filepath'] = filepath
 		info['tmdbid'] = tmdbid
 		info['series_name'] = series_name
 		info['season'] = season

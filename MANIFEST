@@ -39,6 +39,7 @@ np/utils/scan_all.py
 np/utils/scan_movies.py
 np/utils/scan_music.py
 np/utils/scan_series.py
+np/utils/tadb_search.py
 np/utils/tmdb_query_series.py
 np/utils/torrent_mgr.py
 np/utils/xrandr.py

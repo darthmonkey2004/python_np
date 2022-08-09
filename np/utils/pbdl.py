@@ -25,7 +25,7 @@ def get_permissions():
 		ret = subprocess.call(com, shell=True)
 		if ret:
 			return ret
-		else
+		else:
 			return "Ok."
 	except:
 		return None
