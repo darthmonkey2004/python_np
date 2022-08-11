@@ -3,10 +3,11 @@
 if [ -n "$1" ]; then
 	dir="$1"
 else
-	dir=$(pwd)
+	dir=$(python3 -c "import np; conf = np.readConf(); print(conf['media_directories']['main'])")
 fi
 movies="$dir/Movies"
 series="$dir/Series"
+music="$dir/Music"
 medialist="$dir/medialist.txt"
 if [ -f "$medialist" ]; then
 	mv  "$medialist" "$medialist.bak"
@@ -28,3 +29,4 @@ find "$movies" -name "*.avi" >> "$medialist"
 find "$series" -name "*.avi" >> "$medialist"
 find "$movies" -name "*.flv" >> "$medialist"
 find "$series" -name "*.flv" >> "$medialist"
+find "$music" -name "*.mp3" >> "$medialist"

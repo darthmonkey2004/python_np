@@ -8,14 +8,13 @@ import os
 import inspect
 import subprocess
 from np.core.log import np_logger
-logger = np_logger()
-log = logger.log_msg
+from np.core.conf import readConf, writeConf, initConf
+log = np_logger().log_msg
 
 from np.utils.xrandr import xrandr
 import pickle
 from videoprops import get_video_properties
 from np.core.nplayer_db import querydb
-#import np
 import os
 home = os.path.expanduser("~")
 DATA_DIR = (home + os.path.sep + ".np")
@@ -54,75 +53,6 @@ def get_local_ip():
 	return subprocess.check_output(com, shell=True).decode().strip()
 
 
-def initConf():
-	global user
-	#print ("Init conf running!")
-	conf = {}
-	conf['GUI_RESET'] = False
-	conf['play_type'] = 'series'
-	conf['play_types'] = ['series', 'movies', 'videos', 'music']
-	conf['screen'] = 1
-	conf['fullscreen'] = 1
-	conf['screens'] = {}
-#	conf['pos_x'] = None
-#	conf['pos_y'] = None
-#	conf['w'] = None
-#	conf['h'] = None
-	conf['scale'] = 2.799999952316284
-	conf['volume'] = 100
-	conf['rotate'] = 0
-	conf['shuffle'] = 1
-	conf['mute'] = False
-	conf['video_method'] = 'internal'
-	conf['video_methods'] = ['external', 'internal']#select between external video player window and internal xwindow widget
-	conf['video_player'] = 'vlc'
-	conf['video_players'] = ['vlc', 'mplayer', 'mpv', 'cv2']# list of usuable playback engines (internal are cv2 and vlc, external are all
-	screens = xrandr()
-	conf['screens'] = screens
-	conf['nowplaying'] = {}
-	conf['nowplaying']['filepath'] = None
-	conf['nowplaying']['play_pos'] = None
-	conf['vlc'] = {}
-	conf['vlc']['opts'] = "--no-xlib"
-	conf['debug'] = True
-	conf['network_modes'] = {}
-	conf['network_modes']['control_modes'] = ['local', 'remote', 'server']
-	conf['network_modes']['media_modes'] = ['local', 'remote']
-	conf['network_mode'] = {}
-	conf['network_mode']['media_mode'] = 'local'
-	conf['network_mode']['media_host'] = None
-	conf['network_mode']['media_user'] = user
-	conf['network_mode']['control_mode'] = 'local'
-	conf['network_mode']['control_host'] = None
-	conf['network_mode']['control_user'] = user
-	conf['network_mode']['control_port'] = 4444
-	conf['remote'] = {}
-	conf['debug'] = False
-	conf['init'] = True
-	#conf['watched_devices'] = ['/dev/input/event11', '/dev/input/event2']
-	#conf['grab_devices'] = ['/dev/input/event11']
-	#ret = writeConf(conf)
-	return conf
-
-def writeConf(data):
-	with open(CONFFILE, 'wb') as f:
-		pickle.dump(data, f)
-	f.close()
-	return True
-
-def readConf():
-	try:
-		with open(CONFFILE, 'rb') as f:
-			data = pickle.load(f)
-		f.close()
-		return data
-	except:
-		conf = initConf()
-		writeConf(conf)
-		with open(CONFFILE, 'rb') as f:
-			data = pickle.load(f)
-		f.close()
-		return data
 conf = readConf()
 
 
@@ -237,6 +167,8 @@ def set_play_type(play_type):
 
 
 def calculate_scale(_file, conf=None, _type='file'):
+	if _file == None:
+		return 0
 	log(f"ACTION:calculate_scale, file='{_file}'", 'info')
 	if _type != 'file':
 		print ("type is not file, cannot calculate scale:", _type)
@@ -484,24 +416,4 @@ def folder_browse_window():
 	path = j.join(path.split(s)).split(s2)[1]
 	return path
 
-
-def set_media_paths():
-	conf = readConf()
-	log("Starting interactive directory setup...", 'info')
-	media_dirs = None
-	media_dirs = input("Enter media storage directory (see readme file in git download folder for details) ")
-	if media_dirs is None:
-		txt = ("Error: no media directory entered! Aborting...")
-		return
-	else:
-		conf['media_directories'] = {}
-		conf['media_directories']['main'] = media_dirs
-		music_dir = (media_dirs + os.path.sep + "Music")
-		movies_dir = (media_dirs + os.path.sep + "Movies")
-		series_dir = (media_dirs + os.path.sep + "Series")
-		conf['media_directories']['movies'] = movies_dir
-		conf['media_directories']['music'] = music_dir
-		conf['media_directories']['series'] = series_dir
-		writeConf(conf)
-		log("Media directories configured! Continuing...", 'info')
 

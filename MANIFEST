@@ -7,7 +7,6 @@ np/__init__.py
 np/np
 np/core/__init__.py
 np/core/conf.py
-np/core/conf_mgr.py
 np/core/core.py
 np/core/err.py
 np/core/gui.py

@@ -272,6 +272,8 @@ class nplayer():
 			else:
 				txt = ("Last file recorded not in playlist:" + self.last + ", " + str(_list))
 				np.log(txt, 'warning')
+			if self.conf['debug'] == True:
+				np.log(f"DEBUG=True:get_next exited. next={self.next}", 'info')
 			return self.next
 		elif self.conf['play_type'] == 'movies':
 			_list = np.querydb(table='movies', column='filepath', query='isactive = 1')
@@ -327,7 +329,8 @@ class nplayer():
 			elif self.play_mode == 'playlist':
 				self.play()
 			self.history['pos'] = len(self.history['history']) - 1
-			np.log("skip_next, Not using history:" + str(self.history['history']))
+			if self.conf['debug'] == True:
+				np.log("skip_next, Not using history:" + str(self.history['history']))
 		elif self.history['playing_from_history'] == True:
 			try:
 				#self.history['pos'] = self.history['history'].index(self.next)

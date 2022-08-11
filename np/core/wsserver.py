@@ -1,20 +1,19 @@
 import asyncio
-import logging
+from np import log
 import websockets
 from websockets import WebSocketServerProtocol
 
-logging.basicConfig(level=logging.INFO)
 
 class Server:
 	clients = set()
 	
 	async def register(self, ws: WebSocketServerProtocol) -> None:
 		self.clients.add(ws)
-		logging.info(f'{ws.remote_address} connects.')
+		np.log(f'{ws.remote_address} connects.', 'info')
 
 	async def unregister(self, ws: WebSocketServerProtocol) -> None:
 		self.clients.remove(ws)
-		logging.info(f'{ws.remote_address} disconnects.')
+		np.log(f'{ws.remote_address} disconnects.', 'info')
 
 	async def send_to_clients(self, message: str) -> None:
 		if self.clients:
@@ -22,12 +21,12 @@ class Server:
 
 	async def ws_handler(self, ws: WebSocketServerProtocol) -> None:
 		await self.register(ws)
-		logging.info('Web socket registered')
+		np.log('Web socket registered', 'info')
 		try:
 			await self.distribute(ws)
 		finally:
 			await self.unregister(ws)
-			logging.info('Web socket unregistered!')
+			np.log('Web socket unregistered!', 'info')
 			
 
 	async def distribute(self, ws: WebSocketServerProtocol) -> None:

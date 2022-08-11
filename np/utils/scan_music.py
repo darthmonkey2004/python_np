@@ -104,7 +104,6 @@ def scan_music(target_dir=None):
 		track = info['track']
 
 		sql_string = (f"INSERT INTO music (isactive, title, mbid, album, album_id, artist_id, artist, genre, track, filepath) VALUES({isactive}, '{title}', '{mbid}', '{album}', '{album_id}', '{artist_id}', '{artist}', '{genre}', {track}, '{filepath}');")
-		print (sql_string)
 		ret = addtodb('music', sql_string)
 		if ret is not True:
 			print (ret)
