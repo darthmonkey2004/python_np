@@ -248,17 +248,18 @@ class nplayer():
 			except:
 				self.last = None
 			if self.last in _list and self.last is not None:
-				np.log("Last in list:" + self.last)
+				if self.conf['debug'] == True:
+					np.log("Last in list: {self.last}", 'info')
 				idx = int(_list.index(self.last))
 				idx = idx + 1
 				try:
 					self.next = _list[idx]
 					self.selected_playlist_item = self.get_info_string(self.next)
-					np.log("Next set! Series Name, Index, Next:" + series_name + ", " + str(idx) + ", " + self.next)
+					np.log(f"get_next:Next set! Series Name: {series_name}, Index: {idx}, Next: {self.next}", 'info')
 				except:
 					self.next = _list[0]
 					self.selected_playlist_item = self.get_info_string(self.next)
-					np.log("Next not set (reset to 0)! Series Name, Index, Next:" + series_name + ", " + str(idx) + ", " + self.next)
+					np.log(f"get_next:Next not set (reset to 0)! Series Name: {series_name}, Index: {idx}, Next: {self.next}", 'info')
 				if self.history['playing_from_history'] == False:
 					self.history['history'].append(self.next)
 				elif self.history['playing_from_history'] == True:
@@ -610,7 +611,6 @@ class nplayer():
 			if self.is_url == False:
 				time.sleep(0.5)
 				if self.next is not None:
-					np.log(f"EVENT:next set, next='{self.next}'", 'info')
 					self.scale = np.calculate_scale(self.next)
 					if self.scale == None:
 						self.scale_needed = 0

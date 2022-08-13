@@ -2,6 +2,7 @@ import urllib
 import requests
 import json
 from np import log
+import time
 
 #TODO: create fail logger, or find switchover solution when 100 tmdb api calls daily is exhausted.
 

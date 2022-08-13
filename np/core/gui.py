@@ -105,13 +105,12 @@ class gui():
 			player_controls2,
 			slider_scale,
 			[sg.Text('Load media to start', key='-MESSAGE_AREA-')],
-			line_window_ctl,
+			[sg.Sizegrip(key='-gui_size-')],
 			[]
 		]
 		dbitems = []
 		listbox_dbitems = [[sg.Listbox(columns_list, size=(20, 10), select_mode='multiple', change_submits=True, auto_size_text=True, enable_events=True, key='-DBMGR_PICKED_COLUMNS-'), sg.Listbox(dbitems, size=(70, 10), select_mode='multiple', change_submits=True, auto_size_text=True, expand_x=True, enable_events=True, key='-DBMGR_RESULTS-'), sg.Listbox(self.dbmgr_picked_items, size=(20, 10), select_mode='multiple', change_submits=True, auto_size_text=True, enable_events=True, key='-DBMGR_SELECTED_ROWS-')]]
 		listbox_dbitems = sg.Frame(title='', layout=listbox_dbitems, key='listbox_dbitems', expand_x=True, grab=True, element_justification="left", vertical_alignment="top")
-		#ckbox_is_active = [self.create_old('checkbox', ['Active:', '-setactive-'])]
 		btn_update_info = [self.create_old('btn', ['Query TMDB', '-Query TMDB-']), self.create_old('btn', ['Read Info', '-Read Info-']), self.create_old('btn', ['Update Info', '-Update Info-']), self.create_old('btn', ['Set Active', '-Set Active-']), self.create_old('btn', ['Set Inactive', '-Set Inactive-']), self.create_old('btn', ['Remove Selected', '-Remove Selected-'])]
 		textinput_query_string = [[sg.Checkbox(text='Active Only', auto_size_text=True, change_submits=True, enable_events=True, key='-QUERY_ACTIVE-'), sg.Input(size=(30, 1), expand_x=True, enable_events=True, key='-DBMGR_QUERY_STRING-'), self.create_old('btn', ['SQL Search'])]]
 		textinput_query_string = sg.Frame(title='', layout=textinput_query_string, key='textinput_query_string', expand_x=True, grab=True, element_justification="left", vertical_alignment="top")
@@ -141,13 +140,11 @@ class gui():
 			text2 = None
 			key = None
 			key2 = None
-		#self.db_mgr_layout.append(ckbox_is_active)
 		self.db_mgr_layout.append(btn_update_info)
-		self.db_mgr_layout.append(self.poster_img)
+		#self.db_mgr_layout.append(self.poster_img)
+		self.db_mgr_layout.append([sg.Sizegrip(key='-gui_size-')])
 		self.menu_def = [['&File', ['-&Load Directory-', '-&Load Playlist-', '-&Save Playlist-', 'E&xit']], ['&Tools', ['&Pirate Bay Downloader', '&Torrent Manager', '&youtube-dl', '&Video Filters', [np.VLC_VIDEO_FILTERS], '&Audio Filters', [np.VLC_AUDIO_FILTERS]]], ['&Help', '&About...']]
-
-		self.layout = [[sg.MenubarCustom(self.menu_def, tearoff=True, key='-menubar_key-'), sg.Button("Close")], [sg.TabGroup([[sg.Tab('MP Controls', self.player_control_layout, key='-player_control_layout-')], [sg.Tab('DB Manager', self.db_mgr_layout, key='-db_mgr_layout-')]], expand_x=True, expand_y=True, enable_events=True)], [sg.Sizegrip(key='-gui_size-')]]
-
+		self.layout = [[sg.MenubarCustom(self.menu_def, tearoff=True, key='-menubar_key-'), sg.Button("Close")], [sg.TabGroup([[sg.Tab('MP Controls', self.player_control_layout, key='-player_control_layout-')], [sg.Tab('DB Manager', self.db_mgr_layout, key='-db_mgr_layout-')], line_window_ctl], expand_x=True, expand_y=True, enable_events=True)]]
 		self.WINDOW = sg.Window('GUI', self.layout, no_titlebar=True, location=(int(self.gui_win_x),int(self.gui_win_y)), size=(self.gui_win_w,self.gui_win_h), keep_on_top=False, grab_anywhere=True, element_justification='center', finalize=True, resizable=True).Finalize()
 		return self.WINDOW
 
