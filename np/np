@@ -27,6 +27,26 @@ def sqlite3(query):
 	return out
 
 
+def folder_browse_window():
+	x = MP.conf['windows']['browser']['x']
+	y = MP.conf['windows']['browser']['y']
+	w = MP.conf['windows']['browser']['w']
+	h = MP.conf['windows']['browser']['h']
+	path = None
+	folder_browser_layout = [[sg.T("")], [sg.Text("Choose directory: "), sg.Input(), sg.FolderBrowse(key="-SAVE_PATH-")], [sg.Button("Submit")]]
+	folder_browser_window = sg.Window("Save playlist file...", folder_browser_layout, location=(int(x), int(y)), size=(int(w), int(h)))
+	while True:
+		folder_browser_event, folder_browser_values = folder_browser_window.read()
+		if folder_browser_event == sg.WIN_CLOSED or folder_browser_event=="Exit":
+			path = None
+			return None
+		elif folder_browser_event == "Submit":
+			ret = folder_browser_values[0]
+			print (ret)
+			folder_browser_window.close()
+			return ret
+
+
 def get_media(table=None, isactive=1):
 	if table == None:
 		table = MP.conf['play_type']
@@ -1003,11 +1023,8 @@ def start():
 					pbdl.get_torrents()
 					pbdl.run()
 				elif event == 'Pirate Bay Downloader':
-					if pbdl.downloader == False:
-						UI.pbdl_dl_win = pbdl.create_downloader()
-						log(f"Loaded pirate bay downloader!", 'info')
-					else:
-						log(f"Pirate bay downloader alread running!", 'info')
+					UI.pbdl_dl_win = pbdl.create_downloader()
+					log(f"Loaded pirate bay downloader!", 'info')
 					pbdl.run()
 				elif event == '-PBDL_SEARCH-':
 					pbdl.results = pbdl.get_magnet(pbdl.pbdl_query, pbdl.category)
@@ -1030,7 +1047,8 @@ def start():
 					recenter_ui()
 					log("EVENT:UI Recentered", 'info')
 				elif event == "-Load Playlist-":
-					load_playlist(values[event])
+					path = np.file_browse_window()
+					load_playlist(path)
 				elif event == "-Save Playlist-":
 					filepath = np.file_browse_window()
 					ret = MP.save_playlist(filepath, MP.media['DBMGR_RESULTS'])
@@ -1039,14 +1057,19 @@ def start():
 					else:
 						log(f"Save playlist: Failed! {filepath}", 'info')
 				elif event == "-Load Directory-":
-					path = np.folder_browse_window()
 					MP.stop()
+					path = folder_browse_window()
+					print (f"np.py, path to dir='{path}'")
 					MP.media['DBMGR_RESULTS'] = MP.load_directory(path)
-					UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.media['DBMGR_RESULTS'])
-					MP.play_mode = 'playlist'
-					UI.WINDOW['-PLAY_MODE-'].update(MP.play_mode)
-					filepath = MP.media['DBMGR_RESULTS'][0]
-					MP.play(filepath)
+					if MP.media['DBMGR_RESULTS'] is not None:
+						UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.media['DBMGR_RESULTS'])
+						MP.play_mode = 'playlist'
+						UI.WINDOW['-PLAY_MODE-'].update(MP.play_mode)
+						filepath = MP.media['DBMGR_RESULTS'][0]
+						MP.play(filepath)
+					else:	
+						np.log(f"Failed to load directory '{path}'.", 'error')
+						MP.play_needed = 1
 				elif event == "-Database Editor-":
 					UI.db_editor()
 				elif event == '-PLAY_MODE-':

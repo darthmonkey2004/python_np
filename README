@@ -4,15 +4,13 @@ To install, first clone the repo (insure git is installed i.e. sudo apt-get inst
 git clone "https://github.com/darthmonkey2004/python_np.git"
 
 Then, open a command prompt (ctrl + alt + t), and cd into the downloaded directory.
+Make the installer executable, and then run.
+commands below:
+
 cd python_np
+sudo chmod a+x install_np.sh
+./install_np.sh
 
-Finally, run the setup script. If it fails, make executable (sudo chmod a+x setup_np.sh), and try again.
-./setup_np.sh
-
-The installer will ask if you want to set up ssh authentication. If this is already done, you may skip this step.
-TODO: code in a decent way of locating the previously downloaded source directory to avoid the need to provide the path at setup script launch.
-Then, it will install the necessary apt packages (if you don't use apt, you'll need to install these with your preferred package manager)
-Finally, it will install np from the downloaded tarball in python_np/dist, and install the required python packages from requirements.txt
 
 That's it! To run, just open a command prompt and type 'np'.
 
