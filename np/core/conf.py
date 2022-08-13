@@ -91,6 +91,7 @@ def initConf():
 		conf['media_directories']['series'] = series_dir
 		log("Media directories configured! Continuing...", 'info')
 	home = os.path.expanduser("~")
+	conf['pbdl_url'] = None
 	conf['DATA_DIR'] = (f"{home}{os.path.sep}.np")
 	conf['LOGFILE'] = f"{conf['DATA_DIR']}/nplayer.log"
 	conf['CONFFILE'] = f"{conf['DATA_DIR']}/nplayer.conf"

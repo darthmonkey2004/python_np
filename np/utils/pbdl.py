@@ -39,9 +39,6 @@ class pbdl():
 		self.conf = np.readConf()
 		self.conf['windows'] = {}
 		self.conf['windows']['pbdl'] = {}
-		self.columns_list = []
-		self.columns_ct = 0
-		self.old_columns_ct = 0
 		self.poster_img_size_w = 300
 		self.poster_img_size_h = 300
 		self.tid = None
@@ -120,12 +117,24 @@ class pbdl():
 		self.torrent_mgr = False
 		self.downloader = False
 		self.play_type = 'series'
+		self.columns_list = list(np.get_columns('series').keys())
+		self.columns_ct = len(self.columns_list)
+		self.old_columns_ct = self.columns_ct
 		self.query = None
 		self.season = None
 		self.episode_number = None
 		self.series_name = None
 		self.title = None
 		self.episode_name = None
+		try:
+			self.pbdl_remote_host = self.conf['pbdl_url']
+		except:
+			self.pbdl_remote_host = None
+			self.conf['pbdl_url'] = None
+		if self.pbdl_remote_host == None:
+			self.conf['pbdl_url'] = input("Enter ip address of transmission-daemon server: ")
+			np.writeConf(self.conf)
+			self.pbdl_remote_host = self.conf['pbdl_url']
 
 
 	def lookup_series_google(self, series_name, season):
@@ -236,19 +245,23 @@ class pbdl():
 
 	def get_torrents(self):
 		torrents = {}
-		data = self.send_command("transmission-remote -l")
+		com = (f"transmission-remote {self.conf['pbdl_url']} -l")
+		data = subprocess.check_output(com, shell=True).decode().strip().split('\n')
 		outlist = []
+		pos = -1
 		for line in data:
+			pos += 1
 			outstr = None
-			line = line.strip()
-			chunks = line.split(" ")
-			for chunk in chunks:
-				if chunk != '':
-					if outstr == None:
-						outstr = str(chunk)
-					else:
-						outstr = (outstr + "|" + str(chunk))
-			outlist.append(outstr)
+			if pos > 0:
+				line = line.strip()
+				chunks = line.split(" ")
+				for chunk in chunks:
+					if chunk != '':
+						if outstr == None:
+							outstr = str(chunk)
+						else:
+							outstr = (outstr + "|" + str(chunk))
+				outlist.append(outstr)
 		for line in outlist:
 			data = {}
 			if line is not None:
@@ -257,7 +270,9 @@ class pbdl():
 				else:
 
 					chunks = line.split('|')
-					tid = int(chunks[0])
+					tid = chunks[0]
+					if '*' in tid:
+						tid = int(tid.split('*')[0])
 					data['percent'] = chunks[1]
 					data['have'] = chunks[2]
 					data['size_unit'] = chunks[3]
@@ -419,20 +434,20 @@ class pbdl():
 		title = None
 		pos = -1
 		for line in lines:
-				t = 'class="detLink" title="'
-				m = '<a href="magnet:?'
-				if title is not None and magnet is not None:
-						results[title] = magnet
-						magnet = None
-						title = None
-				if m in line:
-						pos = pos + 1
-						magnet = line.split('"')[1]
-				elif t in line:
-						title = line.split('title="')[1].split('"')[0]
-						s = 'Details for '
-						if s in title:
-							title = title.split(s)[1]
+			t = 'title="Details'
+			m = '<a href="magnet:?'
+			if title is not None and magnet is not None:
+				results[title] = magnet
+				magnet = None
+				title = None
+			if m in line:
+				pos = pos + 1
+				magnet = line.split('"')[1]
+			elif t in line:
+				title = line.split('title="')[1].split('"')[0]
+				s = 'Details for '
+				if s in title:
+					title = title.split(s)[1]
 		return results
 
 
@@ -490,7 +505,7 @@ class pbdl():
 
 
 	def get_files(self, tid):
-		string = ("transmission-remote -t" + str(tid) + " --files")
+		string = (f"transmission-remote {self.conf['pbdl_url']} -t{tid} --files")
 		data = self.send_command(string)
 		pos = -1
 		files = []
@@ -534,7 +549,7 @@ class pbdl():
 			try:
 				test = self.conf['windows']
 			except:
-				self.conf['windows'] = {}
+				pass
 			self.conf['windows']['pbdl'] = {}
 			self.conf['windows']['pbdl']['w'] = 900
 			self.conf['windows']['pbdl']['h'] = 900
@@ -545,6 +560,8 @@ class pbdl():
 			self.conf['windows']['pbdl_dl']['h'] = 300
 			self.conf['windows']['pbdl_dl']['x'] = x
 			self.conf['windows']['pbdl_dl']['y'] = y
+			w = self.conf['windows']['pbdl_dl']['w']
+			h = self.conf['windows']['pbdl_dl']['h']
 			np.writeConf(self.conf)
 		self.pbdl_dl_win = sg.Window('GUI', self.pbdl_search_layout, no_titlebar=False, location=(x,y), size=(w,h), keep_on_top=False, grab_anywhere=True, element_justification='center', finalize=True, resizable=True).Finalize()
 		self.downloader = True
@@ -555,11 +572,11 @@ class pbdl():
 		self.play_type = self.conf['play_type']
 		self.menu_def = [['&File', ['E&xit']], ['&Toolbar', ['&Remove Torrent', '&Delete Torrent', '&Query TMDB', 'VPN', ['&0 Off', '&1 On', '&2 Status'], 'View &Downloader']], ['&Help', '&About...']]
 		if self.play_type == 'movies':
-			self.columns_list = ['isactive', 'title', 'tmdbid', 'year', 'release_date', 'duration', 'description', 'poster', 'filepath', 'md5', 'url']
-		elif self.play_type == 'series' or self.play_type == 'videos':
-			self.columns_list = ['isactive', 'series_name', 'tmdbid', 'season', 'episode_number', 'episode_name', 'description', 'air_date', 'still_path', 'duration', 'filepath', 'md5', 'url']
+			self.columns_list = list(np.get_columns('movies').keys())
+		elif self.play_type == 'series':
+			self.columns_list = list(np.get_columns('series').keys())
 		elif self.play_type == 'music':
-			self.columns_list = ['isactive', 'title', 'accoustic_id', 'album', 'album_id', 'artist_id', 'year', 'artist', 'track', 'track_ct', 'filepath']
+			self.columns_list = list(np.get_columns('music').keys())
 		poster_path = (np.npdir + os.path.sep + 'poster.png')
 
 		self.pbdl_layout = [
@@ -604,7 +621,7 @@ class pbdl():
 		info_frame = sg.Frame(title='Torrent Data', layout=self.pbdl_layout, key='info_frame', expand_x=True, grab=True, element_justification="left", vertical_alignment="top")
 		poster_frame = sg.Frame(title='Poster Data', layout=self.poster_layout, key='poster_frame', expand_x=True, grab=True, element_justification="center", vertical_alignment="center")
 		media_info_frame = sg.Frame(title='Media Info', layout=self.media_info_layout, key='media_info_frame', expand_x=True, grab=True, element_justification="right", vertical_alignment="top")
-		self.layout = [[self.title_bar_frame], [info_frame, poster_frame, [media_info_frame]], [sg.Sizegrip(key='-gui_size-')]]
+		self.layout = [[self.title_bar_frame], [info_frame, poster_frame, [media_info_frame, sg.Sizegrip(key='-gui_size-')]]]
 		
 		#get sizes
 		try:
@@ -630,13 +647,15 @@ class pbdl():
 			self.conf['windows']['pbdl_dl']['h'] = 300
 			self.conf['windows']['pbdl_dl']['x'] = x
 			self.conf['windows']['pbdl_dl']['y'] = y
-		self.pbdl_win = sg.Window('GUI', self.layout, no_titlebar=True, location=(x,y), size=(w,h), keep_on_top=False, grab_anywhere=True, element_justification='center', finalize=True, resizable=True).Finalize()
+			w = self.conf['windows']['pbdl_dl']['w']
+			h = self.conf['windows']['pbdl_dl']['h']
+		self.pbdl_win = sg.Window('GUI', self.layout, no_titlebar=False, location=(x,y), size=(600,900), keep_on_top=False, grab_anywhere=True, element_justification='center', finalize=True, resizable=True).Finalize()
 		self.torrent_mgr = True
 		return self.torrent_mgr
 
 
 	def remove_torrent(self, tid):
-		com = ("transmission-remote -t" + str(tid) + " -rad")
+		com = (f"transmission-remote {self.conf['pbdl_url']} -t{tid} -rad")
 		ret = self.send_command(com)
 		self.get_torrents()
 		return ret
@@ -699,56 +718,68 @@ class pbdl():
 
 
 	def enable_vpn(self):
-		com = 'nordvpn status | cut =d " " -f 2'
-		self.vpn_status = self.send_command(com)
-		print ("VPN State:", vpn_status)
+		com = (f"ssh monkey@192.168.2.2 \"nordvpn status\" | grep \"Status\"")
+		s = 'Status: '
+		self.vpn_status = subprocess.check_output(com, shell=True).decode().strip().split(s)[1]
+		print ("VPN State:", self.vpn_status)
 		if self.vpn_status == 'Disconnected':
-			print ("VPN off. Enabling...")
-			com = "nordvpn connect"
-			ret = self.send_command(com)
-			print (ret)
+			np.log("WARNING:VPN off...", 'warning')
+			#com = "ssh monkey@192.168.2.2 \"nordvpn connect\""
+			#ret = self.send_command(com)
+			#print (ret)
 		else:
 			print ("VPN alread enabled!", self.vpn_status)
+		return self.vpn_status
 
 
-	def select_torrent(self, filepath=None, play_type = None):
+	def select_torrent(self, filepath=None, play_type = None, tid = None):
+		if tid == None:
+			tid = self.tid
 		if play_type is not None:
 			self.play_type = play_type
 		if filepath is not None:
 			self.filepath = filepath
-		info = self.torrents[self.tid]['info']
-		name = self.torrents[self.tid]['name']
-		self.pbdl_win['-TID-'].update(self.tid)
+		print (self.torrents)
+		try:
+			info = self.torrents[tid]
+		except:
+			print (f"Info??? {self.torrents[tid]}")
+		name = self.torrents[tid]['name']
+		self.pbdl_win['-TID-'].update(tid)
 		self.pbdl_win['-Name-'].update(name)
-		self.play_type = info[self.filepath]['play_type']
+		#self.play_type = info['play_type']
 		if self.play_type == 'series':
 			t_key = ("-" + str(self.columns_list.index('series_name')) + "-")
-			self.pbdl_win[t_key].update(info[filepath]['series_name'])
+			self.pbdl_win[t_key].update(info['series_name'])
 			sidx = ("-" + str(self.columns_list.index('season')) + "-")
 			eidx = ("-" + str(self.columns_list.index('episode_number')) + "-")
 			if self.episode_number is not None:
-				self.pbdl_win[eidx].update(info[filepath]['episode_number'])
-			self.pbdl_win[sidx].update(info[filepath]['season'])
+				self.pbdl_win[eidx].update(info['episode_number'])
+			self.pbdl_win[sidx].update(info['season'])
 
 		elif self.play_type == 'movies' or self.play_type == 'music':
-			title = info[filepath]['title']
-			year = info[filepath]['year']
+			fname = info['name']
+			s = ' ('
+			if s in fname:
+				title = fname.split(s)[0]
+				year = fname.split(s)[1].split(')')[0]
+			info['title'] = title
+			info['year'] = year
 			t_key = ("-" + str(self.columns_list.index('title')) + "-")
 			y_key = ("-" + str(self.columns_list.index('year')) + "-")			
 			self.pbdl_win[t_key].update(title)
 			self.pbdl_win[y_key].update(year)
-			self.pbdl_win[self.columns_list.index('title')].update(name)
-		self.pbdl_win['-Percent-'].update(self.torrents[self.tid]['percent'])
-		string = (str(self.torrents[self.tid]['have']) + " " + str(self.torrents[self.tid]['size_unit']))
+		self.pbdl_win['-Percent-'].update(self.torrents[tid]['percent'])
+		string = (str(self.torrents[tid]['have']) + " " + str(self.torrents[tid]['size_unit']))
 		self.pbdl_win['-Have-'].update(string)
-		self.pbdl_win['-ETA-'].update(self.torrents[self.tid]['eta'])
-		self.pbdl_win['-Upload Rate-'].update(self.torrents[self.tid]['up'])
-		self.pbdl_win['-Download Rate-'].update(self.torrents[self.tid]['down'])
-		self.pbdl_win['-Status-'].update(self.torrents[self.tid]['status'])
-		self.pbdl_win['-Ratio-'].update(self.torrents[self.tid]['ratio'])
+		self.pbdl_win['-ETA-'].update(self.torrents[tid]['eta'])
+		self.pbdl_win['-Upload Rate-'].update(self.torrents[tid]['up'])
+		self.pbdl_win['-Download Rate-'].update(self.torrents[tid]['down'])
+		self.pbdl_win['-Status-'].update(self.torrents[tid]['status'])
+		self.pbdl_win['-Ratio-'].update(self.torrents[tid]['ratio'])
 		self.torrents[self.tid]['files'] = self.get_files(self.tid)
 
-		return self.torrents[self.tid]
+		return self.torrents[tid]
 
 
 	def migrate(self, tid, play_type=None):
@@ -766,6 +797,8 @@ class pbdl():
 
 
 	def update_media_type(self, play_type=None):
+		diff = 0
+		extra_length = 0
 		if play_type is not None:
 			self.play_type = play_type
 		else:
@@ -785,11 +818,11 @@ class pbdl():
 			#print ("ct, old_ct, ct, diff:", self.columns_ct, self.old_columns_ct, ct, diff)
 			extra_length = self.columns_ct + diff
 		if self.play_type == 'movies':
-			self.columns_list = ['isactive', 'title', 'tmdbid', 'year', 'release_date', 'duration', 'description', 'poster', 'filepath', 'md5', 'url']
-		elif self.play_type == 'series' or self.play_type == 'videos':
-			self.columns_list = ['isactive', 'series_name', 'tmdbid', 'season', 'episode_number', 'episode_name', 'description', 'air_date', 'still_path', 'duration', 'filepath', 'md5', 'url']
+			self.columns_list = list(np.get_columns('movies').keys())
+		elif self.play_type == 'series':
+			self.columns_list = list(np.get_columns('series').keys())
 		elif self.play_type == 'music':
-			self.columns_list = ['isactive', 'title', 'accoustic_id', 'album', 'album_id', 'artist_id', 'year', 'artist', 'track', 'track_ct', 'filepath']
+			self.columns_list = list(np.get_columns('music').keys())
 		self.columns_ct = len(self.columns_list)
 		pos = -1
 		for column in self.columns_list:
@@ -857,10 +890,11 @@ class pbdl():
 					break
 			else:
 				if self.event != '__TIMEOUT__':
-					print (self.event)
 					if self.event == '-TORRENT_SELECT-':
-						self.filepath = int(self.values[self.event][0].split(':')[1])
-						self.select_torrent(self.filepath)
+						val = self.values[self.event][0]
+						self.filepath = val.split(':')[1].split('|')[0]
+						self.tid = int(val.split(':')[0])
+						self.select_torrent(filepath=self.filepath, tid=self.tid)
 						self.event = None
 					elif self.event == '-PBDL_SEARCH_QUERY-':
 						self.pbdl_query = self.values[self.event]
@@ -892,13 +926,16 @@ class pbdl():
 						self.results = self.search_pb(self.pbdl_query, self.category)
 						self.pbdl_dl_win['-PBDL_RESULTS-'].update(self.results)
 					elif self.event == '-PBDL_RESULTS-':
-						#print (self.event)
-						picked = self.values[self.event][0]
-						print ("Downloading:", picked)
-						magnet = self.results[picked]
-						self.enable_vpn()
-						com = ("transmission-remote -a '" + str(magnet) + "'")
-						r = self.send_command(com)
+						try:
+							#print (self.event)
+							picked = self.values[self.event][0]
+							print ("Downloading:", picked)
+							magnet = self.results[picked]
+							#self.enable_vpn()
+							com = (f"transmission-remote {self.conf['pbdl_url']} -a \"{magnet}\"")
+							r = self.send_command(com)
+						except:
+							print ("list empty!")
 					elif self.event == '-0-' or self.event == '-1-' or self.event == '-2-' or self.event == '-3-' or self.event == '-4-' or self.event == '-5-' or self.event == '-6-' or self.event == '-7-' or self.event == '-8-' or self.event == '-9-' or self.event == '-10-':
 						val = self.values[self.event]
 						ret = update_info(val)
@@ -913,7 +950,7 @@ class pbdl():
 					elif self.event == '0 Off':
 						print(self.send_command('nordvpn disonnect'))
 					elif self.event == '1 On':
-						self.enable_vpn()
+						#self.enable_vpn()
 						print ("VPN Enabled!")
 					else:
 						print (self.event, self.values)

@@ -137,7 +137,7 @@ class gui():
 		self.db_mgr_layout.append(btn_update_info)
 		#self.db_mgr_layout.append(self.poster_img)
 		self.db_mgr_layout.append([sg.Sizegrip(key='-gui_size-')])
-		self.menu_def = [['&File', ['-&Load Directory-', '-&Load Playlist-', '-&Save Playlist-', 'E&xit']], ['&Tools', ['&Pirate Bay Downloader', '-&Database Editor-', '&Torrent Manager', '&youtube-dl', '&Video Filters', [np.VLC_VIDEO_FILTERS], '&Audio Filters', [np.VLC_AUDIO_FILTERS]]], ['&Help', '&About...']]
+		self.menu_def = [['&File', ['-&Load Directory-', '-&Load Playlist-', '-&Save Playlist-', 'E&xit']], ['&Tools', ['&Pirate Bay Downloader', '-&Database Editor-', '&Torrent Manager', '&Video Filters', [np.VLC_VIDEO_FILTERS], '&Audio Filters', [np.VLC_AUDIO_FILTERS]]], ['&Help', '&About...']]
 		self.layout = [[sg.MenubarCustom(self.menu_def, tearoff=True, key='-menubar_key-'), sg.Button("Close")], [sg.TabGroup([[sg.Tab('MP Controls', self.player_control_layout, key='-player_control_layout-')], [sg.Tab('DB Manager', self.db_mgr_layout, key='-db_mgr_layout-')], line_window_ctl], expand_x=True, expand_y=True, enable_events=True)]]
 		self.WINDOW = sg.Window('GUI', self.layout, no_titlebar=True, location=(int(self.gui_win_x),int(self.gui_win_y)), size=(self.gui_win_w,self.gui_win_h), keep_on_top=False, grab_anywhere=True, element_justification='center', finalize=True, resizable=True).Finalize()
 		return self.WINDOW

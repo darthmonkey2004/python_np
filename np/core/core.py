@@ -404,20 +404,15 @@ def folder_browse_window():
 	w = conf['windows']['browser']['w']
 	h = conf['windows']['browser']['h']
 	path = None
-	folder_browser_layout = [[sg.T("")], [sg.Text("Choose directory: "), sg.Input(), sg.FolderBrowse(key="-SAVE_PATH-")], sg.Button("Submit")]
+	folder_browser_layout = [[sg.T("")], [sg.Text("Choose directory: "), sg.Input(), sg.FolderBrowse(key="-SAVE_PATH-")], [sg.Button("Submit")]]
 	folder_browser_window = sg.Window("Save playlist file...", folder_browser_layout, location=(int(x), int(y)), size=(int(w), int(h)))
 	while True:
 		folder_browser_event, folder_browser_values = folder_browser_window.read()
 		if folder_browser_event == sg.WIN_CLOSED or folder_browser_event=="Exit":
 			path = None
-			break
+			return None
 		elif folder_browser_event == "Submit":
-			path = folder_browser_values["-IN-"]
+			path = folder_browser_values["-SAVE_PATH-"]
 			folder_browser_window.close()
-			break
-	j = ' '
-	s2 = 'file://'
-	path = j.join(path.split(s)).split(s2)[1]
-	return path
-
+			return path
 

@@ -143,21 +143,25 @@ def show_editor():
 	
 	h = 640
 	w = 320
+	WINDOW = sg.Window('GUI', layout, location=(0,0), size=(h, w), keep_on_top=False, grab_anywhere=True, element_justification='center', finalize=True, resizable=True).Finalize()
+	return WINDOW
+
+			
+def run():
 	title = None
 	series_name = None
 	artist = None
 	season = None
 	episode_number = None
 	episode_name = None
-	WINDOW = sg.Window('GUI', layout, location=(0,0), size=(h, w), keep_on_top=False, grab_anywhere=True, element_justification='center', finalize=True, resizable=True).Finalize()
-	return WINDOW
-
-			
-def run():
 	global WINDOW
 	WINDOW = show_editor()
 	while True:
-		window, event, values = sg.read_all_windows(timeout=10)
+		try:
+			window, event, values = sg.read_all_windows(timeout=10)
+		except Exception as e:
+			np.log(f"Error reading window (closed?)", 'error')
+			break
 		try:
 			table = get_table(values)
 		except:

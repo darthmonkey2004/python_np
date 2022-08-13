@@ -692,14 +692,18 @@ class nplayer():
 		if self.conf['network_mode']['media_mode'] == 'remote':
 			fpath = filepath.split('/var/storage/')[1]
 			filepath = (np.SFTP_DIR + os.path.sep + fpath)
-		try:
-			results = []
-			with open(filepath, 'r') as f:
-				lines = f.read().strip().split("\n")
-			f.close()
-			return lines
-		except Exception as e:
-			np.log("Unable to load media playlist:" + str(e) + ", " + filepath)
+		if os.path.exists(filepath):
+			try:
+				results = []
+				with open(filepath, 'r') as f:
+					lines = f.read().strip().split("\n")
+				f.close()
+				return lines
+			except Exception as e:
+				np.log("Unable to load media playlist:" + str(e) + ", " + filepath)
+				return None
+		else:
+			np.log("Playlist file does not exist! '{filepath}'", 'error')
 			return None
 
 
@@ -717,8 +721,8 @@ class nplayer():
 
 	def load_directory(self, path):
 		try:
-			com = ("mkmedialist '" + path + "'")
-			playlist = subprocess.check_output(com, shell=True)
+			com = (f"mkmedialist '{path}'")
+			playlist = (f"{path}{os.path.sep}medialist.txt")
 			items = self.load_playlist(playlist)
 			return items
 		except Exception as e:

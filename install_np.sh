@@ -47,7 +47,7 @@ np_setup() {
 
 need_vlc=$(sudo dpkg -l | grep "python3-vlc")
 if [ -z "$need_vlc" ]; then
-	 sudo apt-get install -y python3-vlc
+	 sudo apt-get install -y python3-vlc libsecret-tools curl transmission-daemon imagemagick
 fi
 hassqllite3=$(which sqlite3)
 if [ -z "$hassqllite3" ]; then

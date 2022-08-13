@@ -51,16 +51,13 @@ update() {
 	cp $(which np.remote) np/scripts/np.remote
 	echo "Running sdist..."
 	cd "/var/dev/np_dev/python_np"
-	read -p "ak" k
 	python3 setup.py sdist
 	git add .
 	git status
 	token=$(cat ~/.bash_aliases | grep "git_token" | cut -d "'" -f 2)
 	echo "Authentication token: Paste when prompted for password."
 	echo "$token"
-	read -p "Any key to update: " ak
 	git commit -am "$commit_msg"
-	read -p "any key to push.."
 	git push
 }
 hasdash=$(echo "$1" | grep '-')
