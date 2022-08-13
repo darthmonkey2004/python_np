@@ -81,3 +81,4 @@ wadllib==1.3.3
 xkit==0.0.0
 youtube-dl==2020.3.24
 zipp==3.8.0
+websockets==10.3

@@ -38,7 +38,7 @@ np_setup() {
 		python3 -c "import np; print ('Scanning movies..'); np.scan_music($movies_dir)"
 		python3 -c "import np; print ('Scanning series..'); np.scan_music($series_dir)"
 	fi
-	logfile=$(python3 -c "import np; print (np.LOGFILE)")
+	logfile="$HOME/.np/nplayer.log"
 	if [ ! -f "$logfile" ]; then
 		touch "$logfile"
 	fi
@@ -81,5 +81,6 @@ fi
 if [ -z "$inrc" ]; then
 	echo "export PATH='$PATH'" >> ~/.bashrc
 fi
+. ~/.bashrc
 
 np_setup;

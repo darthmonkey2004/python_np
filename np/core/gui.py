@@ -171,6 +171,7 @@ class gui():
 
 	def db_editor(self):
 		from np.core import db_editor
+		#WINDOW_EDITOR = db_editor.show_editor()
 		db_editor.run()
 		
 	

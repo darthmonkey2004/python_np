@@ -4,10 +4,13 @@ echo "$#"
 	
 
 rmPycache() {
-	dir=$(pwd)
-	if [ -d "$dir/np/__pycache__" ]; then rm -rf "$dir/np/__pycache__"; fi
-	if [ -d "$dir/np/core/__pycache__" ]; then rm -rf "$dir/np/core/__pycache__"; fi
-	if [ -d "$dir/np/utils/__pycache__" ]; then rm -rf "$dir/np/utils/__pycache__"; fi
+	
+	pc1="$HOME/.local/lib/python3.8/site-packages/np/__pycache__"
+	pc2="$HOME/.local/lib/python3.8/site-packages/np/core/__pycache__"
+	pc3="$HOME/.local/lib/python3.8/site-packages/np/utils/__pycache__"
+	if [ -d "$pc1" ]; then rm -rf "$pc1"; fi
+	if [ -d "$pc2" ]; then rm -rf "$pc2"; fi
+	if [ -d "$pc3" ]; then rm -rf "$pc3"; fi
 }
 
 get_status() {
@@ -20,59 +23,36 @@ update() {
 	cd "$HOME/.local/lib/python3.8/site-packages/np"
 	echo "Backing up current install..."
 	ts=$(date +%s)
-	tarfile="/home/monkey/usbhdbackup/storage/Software/Linux/np_backup/np_backup.$ts.tar.gz"
-	tar -zcvf "$tarfile" "/home/monkey/usbhdbackup/storage/Software/Linux/python_np"
+	tarfile="/var/dev/np_dev/python_np_backups/np_backup.$ts.tar.gz"
+	tar -zcvf "$tarfile" "/var/dev/np_dev/python_np"
 		if [ -f "$tarfile" ]; then
 			echo "Backup successful!"
 		else
 			echo "Failed to create tarball backup! Aborting..."
 			exit 1
 		fi
-	rm -rf "/home/monkey/usbhdbackup/storage/Software/Linux/python_np/np"
-	echo "copying to storage..."
-	cd ..
-	cp -R np "/home/monkey/usbhdbackup/storage/Software/Linux/python_np/"
+	cd "$HOME/.local/lib/python3.8/site-packages"
+	cp -R np "/var/dev/np_dev/python_np/"
 	rmPycache
 	echo "removing old distutils junk..."
-	if [ -d "/home/monkey/usbhdbackup/storage/Software/Linux/python_np/dist" ]; then
-		rm -rf "/home/monkey/usbhdbackup/storage/Software/Linux/python_np/dist"
+	if [ -d "/var/dev/np_dev/python_np/dist" ]; then
+		rm -rf "/var/dev/np_dev/python_np/dist"
 	fi
-	if [ -d "/home/monkey/usbhdbackup/storage/Software/Linux/python_np/np.egg-info" ]; then
-		rm -rf "/home/monkey/usbhdbackup/storage/Software/Linux/python_np/np.egg-info"
+	if [ -d "/var/dev/np_dev/python_np/np.egg-info" ]; then
+		rm -rf "/var/dev/np_dev/python_np/np.egg-info"
 	fi
-	if [ -d "/home/monkey/usbhdbackup/storage/Software/Linux/python_np/build" ]; then
-		rm -rf "/home/monkey/usbhdbackup/storage/Software/Linux/python_np/build"
+	if [ -d "/var/dev/np_dev/python_np/build" ]; then
+		rm -rf "/var/dev/np_dev/python_np/build"
 	fi
-	cd "/home/monkey/usbhdbackup/storage/Software/Linux/python_np"
-	echo "Removing pycache files..."
-	rmPycache
-	mkdir np/scripts
-	cp "/home/monkey/usbhdbackup/storage/Software/Linux/np_dist_stuff/scripts/mkmedialist" np/scripts/mkmedialist
-	if [ ! -f poster.png ]; then
-		cp "/home/monkey/usbhdbackup/storage/Software/Linux/np_dist_stuff/poster.png" .
+	if [ ! -d "np/scripts" ]; then
+		mkdir np/scripts
 	fi
-	if [ ! -f README ]; then
-		cp "/home/monkey/usbhdbackup/storage/Software/Linux/np_dist_stuff/README" .
-	fi
-	if [ ! -f requirements.txt ]; then
-		cp "/home/monkey/usbhdbackup/storage/Software/Linux/np_dist_stuff/requirements.txt" .
-	fi
-	if [ ! -f setup.py ]; then
-		cp "/home/monkey/usbhdbackup/storage/Software/Linux/np_dist_stuff/setup.py" .
-	fi
-	np_remote=$(which np.remote)
-	cp "$np_remote" np/scripts/np.remote
-	if [ ! -f np/np ]; then
-		np=$(which np)
-		cp "$np" np/np
-	fi
+	cp $(which np) np/np
+	cp $(which np.remote) np/scripts/np.remote
 	echo "Running sdist..."
+	cd "/var/dev/np_dev/python_np"
+	read -p "ak" k
 	python3 setup.py sdist
-	cd ..
-	np_dev="$HOME/usbhdbackup/dev/np_dev"
-	echo "Updating git repo in np_dev..."
-	cp -u -R python_np "$np_dev"
-	cd "$np_dev/python_np"
 	git add .
 	git status
 	token=$(cat ~/.bash_aliases | grep "git_token" | cut -d "'" -f 2)
@@ -80,6 +60,7 @@ update() {
 	echo "$token"
 	read -p "Any key to update: " ak
 	git commit -am "$commit_msg"
+	read -p "any key to push.."
 	git push
 }
 hasdash=$(echo "$1" | grep '-')

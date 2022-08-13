@@ -1,7 +1,7 @@
 import np
 import PySimpleGUI as sg
 import subprocess
-
+global WINDOW, WINDOW2
 def sqlite3(com):
 	path = (f"{np.DATA_DIR}/nplayer.db")
 	com = (f"sqlite3 '{path}' '{com}'")
@@ -50,6 +50,7 @@ def get_table(values):
 		return 'movies'
 
 def edit_details(table, _id):
+	global h
 	ew, eh = WINDOW.CurrentLocation()
 	eh = eh + h
 	print (f"Coords: ({ew}, {eh})")
@@ -82,7 +83,9 @@ def edit_details(table, _id):
 	while True:
 		tevent, tvalues = WINDOW2.read(timeout=10)
 		if tevent is not None and tevent != '__TIMEOUT__':
-			if tevent ==  sg.WIN_CLOSED or tevent == '-cancel-':
+			if tevent ==  sg.WIN_CLOSED:
+				break
+			if tevent == '-cancel-':
 				WINDOW2.close()
 				break
 			else:
@@ -118,8 +121,10 @@ def set_active_series(isactive = None, series_name=None, season=None, episode_nu
 		com = ("update series set isactive = {isactive};")
 		ret = sqlite3(com)
 		return ret
-			
-def run():		
+
+
+def show_editor():
+	global h
 	table = 'series'
 	db_items_0 = get_series_list()
 	db_items_1 = []
@@ -145,6 +150,12 @@ def run():
 	episode_number = None
 	episode_name = None
 	WINDOW = sg.Window('GUI', layout, location=(0,0), size=(h, w), keep_on_top=False, grab_anywhere=True, element_justification='center', finalize=True, resizable=True).Finalize()
+	return WINDOW
+
+			
+def run():
+	global WINDOW
+	WINDOW = show_editor()
 	while True:
 		window, event, values = sg.read_all_windows(timeout=10)
 		try:
@@ -156,7 +167,6 @@ def run():
 				break
 			if event == '-quit-':
 				WINDOW.close()
-				break
 				break
 			elif event == '-table_movies-' or event == '-table_music-' or event == '-table_series-':
 				print (event)

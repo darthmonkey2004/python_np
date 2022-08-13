@@ -169,7 +169,7 @@ def set_play_type(play_type):
 def calculate_scale(_file, conf=None, _type='file'):
 	if _file == None:
 		return 0
-	log(f"ACTION:calculate_scale, file='{_file}'", 'info')
+	log(f"ACTION:calculate_scale, file='{_file}', type='{type(_file)}'", 'info')
 	if _type != 'file':
 		print ("type is not file, cannot calculate scale:", _type)
 		return False
@@ -178,7 +178,11 @@ def calculate_scale(_file, conf=None, _type='file'):
 	if not os.path.exists(_file):
 		print ("File not found:,", _file)
 		return False
-	vw, vh = get_res(_file)
+	try:
+		vw, vh = get_res(_file)
+	except Exception as e:
+		log(f"Exception in core.py, calculate_scale:{e}", 'error')
+		vw, vh = 1024, 768
 	screen = conf['screen']
 	h = int(conf['screens'][screen]['h'])
 	w = int(conf['screens'][screen]['w'])
