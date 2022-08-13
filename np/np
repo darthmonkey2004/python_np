@@ -18,8 +18,13 @@ from np.core.log import np_logger
 log = np_logger().log_msg
 update_ct = 5
 def sqlite3(query):
-	com = (f"cd '{np.DATA_DIR}'; sqlite3 nplayer.db \"{query}\"")
-	return subprocess.check_output(com, shell=True).decode().strip().split("\n")
+	dbfile = (f"{np.DATA_DIR}{os.path.sep}nplayer.db")
+	com = (f"sqlite3 '{dbfile}' \"{query}\"")
+	out = subprocess.check_output(com, shell=True).decode().strip().split("\n")
+	if MP.conf['debug'] == True:
+		log(f"SQLITE3 Query: {query}", 'info')
+		log(f"SQLITE3 Results: {out}", 'info')
+	return out
 
 
 def get_media(table=None, isactive=1):
@@ -247,7 +252,6 @@ def update_resume():
 	MP.conf['nowplaying']['filepath'] = urllib.parse.unquote(filepath)
 	MP.conf['nowplaying']['play_pos'] = P.get_position()
 	log(f"np.py, update_resume: modified conf with play_pos and now_playing: play_pos={MP.conf['nowplaying']['play_pos']}, now_playing={MP.conf['nowplaying']['filepath']}, Play Type:{MP.conf['play_type']}", 'info')
-	#print ('set nowplaying filepath:', MP.conf['nowplaying']['filepath'])
 	np.writeConf(MP.conf)
 
 
@@ -599,10 +603,10 @@ def start():
 					f.write('')
 					f.close()
 			except Exception as e:
-				com = (f"fusermount -u '{np.SFTP_DIR}'")
-				subprocess.check_output(com, shell=True)
-				com = (f"google-drive-ocamlfuse '{np.SFTP_DIR}'")
-				subprocess.check_output(com, shell=True)
+				#com = (f"fusermount -u '{np.SFTP_DIR}'")
+				#subprocess.check_output(com, shell=True)
+				#com = (f"google-drive-ocamlfuse '{np.SFTP_DIR}'")
+				#subprocess.check_output(com, shell=True)
 				log(f"Exception receiving remote command: '{e}'", 'error')
 				with open (np.COMFILE, 'w') as f:
 					data = ''
@@ -675,26 +679,26 @@ def start():
 							UI.WINDOW['-air_date-'].update(MP.target['-air_date-'])
 							UI.WINDOW['-still_path-'].update(MP.target['-still_path-'])
 							UI.WINDOW['-tmdbid-'].update(MP.target['-tmdbid-'])
-				elif event == '-table_series-' or event == '-table_movies-' or event == '-table_music-' or event == '-PLAY_TYPE-':
-					if event == '-PLAY_TYPE-':
-						MP.conf['play_type'] = values[event]
-						np.writeConf(conf)
-						log(f"Play type changed:{MP.conf['play_type']}", 'info')
-						gui_reset()
+				elif event == '-table_series-' or event == '-table_movies-' or event == '-table_music-':
+					print (values['-table_series-'])
+					print (values['-table_movies-'])
+					print (values['-table_music-'])
 					if event == '-table_series-':
-						gui_reset('series', '-db_mgr_layout-')
+						#gui_reset()
+						table = 'series'
 					elif event == '-table_movies-':
-						gui_reset('movies', '-db_mgr_layout-')
+						#gui_reset()
+						table = 'movies'
 					elif event == '-table_music-':
-						gui_reset('music', '-db_mgr_layout-')
-				elif event == '-pbdl_table_series-' or event == '-pbdl_table_movies-' or event == '-pbdl_table_music-':
-					log(f"Table changed:{values[event]}", 'info')
-					if event == '-pbdl_table_series-':
-						gui_reset('series', '-db_mgr_layout-')
-					elif event == '-pbdl_table_movies-':
-						gui_reset('movies', '-db_mgr_layout-')
-					elif event == '-pbdl_table_music-':
-						gui_reset('music', '-db_mgr_layout-')
+						#gui_reset()
+						table = 'music'
+					columns = np.get_columns(table)
+					UI.WINDOW['-DBMGR_PICKED_COLUMNS-'].update(columns)
+				elif event == '-PLAY_TYPE-':
+					MP.conf['play_type'] = values[event]
+					np.writeConf(conf)
+					log(f"Play type changed:{MP.conf['play_type']}", 'info')
+					gui_reset()
 				elif event == '-setactive-':
 					val = values[event]
 					if val == False:
@@ -825,31 +829,48 @@ def start():
 						column = str(values[event][0])
 						string = (column + " like '%%'")
 						UI.WINDOW['-DBMGR_QUERY_STRING-'].update(string)
+					elif len(values[event]) == 0:
+						string = "*"
+						UI.WINDOW['-DBMGR_QUERY_STRING-'].update(string)
 					else:
 						for column in values[event]:
 							if string == None:
-								string = (column + " like '%%'")
+								if column == 'season' or column == 'id' or column == 'isactive' or column == 'episode_number':
+									string = (f"{column} = ")
+								else:
+									string = (f"{column} like '%%'")
 							else:
-								string = (string + " and " + column + " = ''")
+								if column == 'season' or column == 'id' or column == 'isactive' or column == 'episode_number':
+									string = (f"{string} and {column} = ")
+								else:
+									string = (f"{string} and {column} like '%%'")
 						UI.WINDOW['-DBMGR_QUERY_STRING-'].update(string)
 					UI.WINDOW.refresh()
+					if MP.conf['debug'] == True:
+						log(f"VALUES:picked={column}, string={string}")
 				elif event == 'SQL Search':
+					if values['-table_music-'] == True:
+						table = 'music'
+					elif values['-table_movies-'] == True:
+						table = 'movies'
+					elif values['-table_series-'] == True:
+						table = 'series'
 					query_string = values['-DBMGR_QUERY_STRING-']
-					ckbox = UI.isactive
-					if ckbox:
+					if values['-QUERY_ACTIVE-'] == True:
 						is_active = 1
 					else:
 						is_active = 0
 					if query_string is not None:
-						table = MP.conf['play_type']
-						if table == 'series':
+						columns = np.get_columns(table)
+						j = ','
+						columns = str(j.join(columns))
+						if is_active == 1:
 							query_string = (query_string + " and isactive = '" + str(is_active) + "'")
-							rows = np.querydb(table='series', column='id,series_name,tmdbid,season,episode_number,episode_name,description,air_date,still_path,filepath', query=query_string)
-							MP.media = np.create_media(rows=rows)
-							if rows is not None:
-								UI.WINDOW['-DBMGR_RESULTS-'].update(MP.media['DBMGR_RESULTS'])
-							else:
-								UI.WINDOW['-DBMGR_RESULTS-'].update("Looks like you better figure out how to search without that active flag....")
+						rows = np.querydb(table=table, column=columns, query=query_string)
+						if rows is not None:
+							UI.WINDOW['-DBMGR_RESULTS-'].update(rows)
+						else:
+							UI.WINDOW['-DBMGR_RESULTS-'].update("Looks like you better figure out how to search without that active flag....")
 				elif event == '-SEARCH_QUERY-':
 					pass
 				elif event == 'Search':
@@ -899,9 +920,63 @@ def start():
 							log(f"TODO: querydb music", 'info')
 							#rows = querydb(table = 'music', column='id,title,accoustic_id,album,album_id,artist_id,year,artist,track,track_ct,filepath', query='isactive = 1')
 				elif event == '-DBMGR_RESULTS-':
-					MP.dbmgr_picked_items = values['-DBMGR_RESULTS-']
-					UI.window['-DBMGR_SELECTED_ROWS-'].update(MP.dbmgr_picked_items)
+					if values['-table_series-'] == True:
+						table = 'series'
+					elif values['-table_music-'] == True:
+						table = 'music'
+					elif values['-table_movies-'] == True:
+						table = 'movies'
+					#MP.dbmgr_picked_items = values['-DBMGR_RESULTS-']
+					#UI.window['-DBMGR_SELECTED_ROWS-'].update(MP.dbmgr_picked_items)
+					try:
+						_list = values['-DBMGR_RESULTS-'][0]
+						_id = int(_list[0])
+						sql_query = (f"select * from {table} where id = {_id};")
+						results = sqlite3(sql_query)[0].split('|')
+					except:
+						results = ['null', 'null', 'null', 'null', 'null', 'null', 'null', 'null', 'null', 'null', 'null', 'null', 'null', 'null']
+					columns = list(np.get_columns(table).keys())
+					pos = -1
+					for column in columns:
+						pos += 1
+						item = results[pos]
+						key = (f"-{column}-")
+						UI.WINDOW[key].update(item)
 					UI.window.refresh()
+				elif event == '-Update Info-':
+					if values['-table_series-'] == True:
+						table = 'series'
+					elif values['-table_music-'] == True:
+						table = 'music'
+					elif values['-table_movies-'] == True:
+						table = 'movies'
+					schema = (np.get_columns(table))
+					columns = list(schema.keys())
+					for column in columns:
+						_id = values['-id-']
+						if column != 'id':
+							dtype = schema[column]['data_type']
+							is_required = schema[column]['is_required']
+							key = (f"-{column}-")
+							val = values[key]
+							string = None
+							if "'" in val:
+								chunks = val.split("'")
+								j = ''
+								val = j.join(chunks)
+							if '"' in val:
+								chunks = val.split('"')
+								j = ''
+								val = j.join(chunks)
+							if dtype == 'INTEGER' or dtype == 'BOOL':
+								val = int(val)
+								string = (f"{column} = {val}")
+							elif dtype == 'TEXT':
+								string = (f"{column} = '{val}'")
+							sql_query = (f"update {table} set {string} where id = {_id};")
+							ret = sqlite3(sql_query)[0]
+							if ret:
+								log(f"Error updating database: {ret}", 'error')
 				elif event == 'Volume Up':
 					MP.volume_up()
 					log(f"ACTION:Volume up,{MP.conf['volume']}", 'info')
@@ -972,6 +1047,8 @@ def start():
 					UI.WINDOW['-PLAY_MODE-'].update(MP.play_mode)
 					filepath = MP.media['DBMGR_RESULTS'][0]
 					MP.play(filepath)
+				elif event == "-Database Editor-":
+					UI.db_editor()
 				elif event == '-PLAY_MODE-':
 					MP.play_mode = values[event]
 					log(f"Play mode changed:{MP.play_mode}", 'info')

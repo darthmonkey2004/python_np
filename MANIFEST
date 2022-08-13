@@ -8,6 +8,7 @@ np/np
 np/core/__init__.py
 np/core/conf.py
 np/core/core.py
+np/core/db_editor.py
 np/core/err.py
 np/core/gui.py
 np/core/log.py
