@@ -25,6 +25,7 @@ np/utils/cleandb.py
 np/utils/functions.py
 np/utils/guess_intro.py
 np/utils/gui_create.py
+np/utils/id3.py
 np/utils/init_conf.py
 np/utils/input_handler.py
 np/utils/migrate_series.py
@@ -40,6 +41,7 @@ np/utils/scan_all.py
 np/utils/scan_movies.py
 np/utils/scan_music.py
 np/utils/scan_series.py
+np/utils/set_media_paths.py
 np/utils/tadb_search.py
 np/utils/tmdb_query_series.py
 np/utils/torrent_mgr.py

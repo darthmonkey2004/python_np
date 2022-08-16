@@ -7,6 +7,7 @@ from np.core.xrandr import xrandr
 
 global conf, LOGFILE, CONFFILE
 home = os.path.expanduser("~")
+user = home.split('/')[2]
 DATA_DIR = (home + os.path.sep + ".np")
 LOGFILE = f"{DATA_DIR}/nplayer.log"
 CONFFILE = f"{DATA_DIR}/nplayer.conf"

@@ -1,8 +1,9 @@
 import subprocess
-import eyed3
 import os
-from np import readConf, test_db, addtodb
+from np import readConf, test_db, addtodb, log
 from np.utils.tadb_search import lookup
+from np.utils.id3 import tag
+id3 = tag()
 
 def scan_music(target_dir=None):
 	test_db()
@@ -17,81 +18,70 @@ def scan_music(target_dir=None):
 	pos = 0
 	for filepath in files:
 		pos = pos + 1
+		hastag = True
 		tag_data = {}
 		title = None
 		artist = None
 		txt = ("Progress: (" + str(pos) + "/" + str(ct) + ", filepath:" + filepath)
+		audiofile = None
 		print (txt)
-		if filepath == '':
-			pass
-
+		if filepath == '' or not os.path.exists(filepath):
+			log("Error: No file path provided (directory might be empty?)", 'info')
+			break
+		tag = id3.read(filepath)
 		try:
-			audiofile = eyed3.load(filepath)
-			tag = audiofile.tag
+			title = tag.title
+			artist = tag.artist
+			hastag = True
 		except:
-			audiofile.initTag()
-			tag_data = {}
 			title = None
 			artist = None
+			hastag = False
 
-		if audiofile.tag is not None:
-			tag_data['isactive'] = 1
-			if tag.title is not None:
-				tag_data['title'] = str(tag.title)
-			if tag.album is not None:
-				tag_data['album'] = str(tag.album)
-			if tag.release_date is not None:
-				tag_data['year'] = str(tag.release_date)
-			if tag.artist is not None:
-				tag_data['artist'] = str(tag.artist)
-			if tag.track_num is not None:
-				tag_data['track'] = tag.track_num
-			tag_data['filepath'] = filepath
-		else:
-			audiofile.initTag()
-			title = None
-			artist = None
-
-		if title is None or artist is None:
+		if tag.title is None or tag.artist is None or hastag == False:
 			split = (f"{target_dir}/")
 			fname = filepath.split(split)[1]
 			if '[' in fname:
-				if title is None:
-					title = fname.split('[')[0].strip()
-				if artist is None:
+				if tag.title is None:
+					tag.title = fname.split('[')[0].strip()
+				if tag.artist is None:
 					s = ' - '
-					artist = fname.split(s)[1].split('.')[0]
+					tag.artist = fname.split(s)[1].split('.')[0]
 			else:
-				if title is None:
-					title = fname.split(s)[0]
-				if artist is None:
-					artist = fname.split(s)[1].split('.')[0]
-		info = lookup(artist, title)
+				s = ' - '
+				try:
+					if tag.title is None:
+						tag.title = fname.split(s)[0]
+					if tag.artist is None:
+						tag.artist = fname.split(s)[1].split('.')[0]
+				except:
+					print (f"File: '{filepath}' - Unable to parse info from path.")
+					tag.title = input("Enter artist name: ")
+					tag.artist = input("Enter song title: ")
+		info = lookup(tag.artist, tag.title)
 
-		if info['artist'] is None:
-			if tag_data['artist'] is None:
-				tag_data['artist'] = input("Enter artist name:")
-			tag.artist = tag_data['artist']
-		else:
+		if info['artist'] != 'Unknown':
 			tag.artist = info['artist']
-		if info['album'] is None:
-			if tag_data['album'] is None:
-				tag_data['album'] = input("Enter album name:")
-			tag.album = tag_data['album']
 		else:
+			if tag.artist == None:
+				tag.artist = input("Enter artist:")
+		if info['album'] != 'Unknown':
 			tag.album = info['album']
-		if info['title'] is None:
-			if tag_data['title'] is None:
-				tag_data['title'] = input("Enter title:")
-			tag.title = tag_data['title']
 		else:
-			tag.title = info['title']
-		if info['track'] is None:
-			if tag_data['track'] is None:
-				tag_data['track'] = input("Enter track:")
-			tag.track = tag_data['track']
-		else:
+			if tag.album == None:
+				tag.artist = input("Enter artist:")
+		if info['track'] != 'Unknown':
 			tag.track = info['track']
+		else:
+			track = 0
+		if info['album_id'] != "Unknown":
+			tag.album_id = info['album_id']
+		if info['artist_id'] != "Unknown":
+			tag.artist_id = info['artist_id']
+		if info['genre'] != "Unknown":
+			tag.genre = info['genre']
+		if info['mbid'] != "Unknown":
+			tag.mbid = info['mbid']
 		tag.save(filepath)
 		isactive = info['isactive']
 		title = info['title']

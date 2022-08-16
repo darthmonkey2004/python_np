@@ -22,11 +22,26 @@ unmount_gdrive() {
 }
 
 np_setup() {
-	cd "$HOME/python_np"
+	dir=$(pwd)
+	dname=$(basename "$dir")
+	if [ "$dname" = "python_np" ]; then
+		pydir="$dir"
+	else
+		pydir="$dir/python_np"
+	fi
+	echo "Git repo dir: '$pydir'"
+	if [ ! -d "$pydir" ]; then
+		read -p "Enter path to git clone (python_np): " pydir
+	fi
+	cd "$pydir"
 	pip3 install --user 'dist/np-1.0.tar.gz' -r requirements.txt
 	dbfile="$HOME/.np/nplayer.db"
+	if [ ! -d "$HOME/.np" ]; then
+		mkdir "$HOME/.np"
+	fi
 	cd $HOME/.np
 	if [ ! -f "$dbfile" ]; then
+		cd "$HOME/.local/lib/python3.8/site-packages/np"
 		echo "Starting setup.."
 		python3 -c "import np; np.set_media_paths()"
 		echo "Creating sql database..."
@@ -34,9 +49,18 @@ np_setup() {
 		music_dir=$(python3 -c "import np; print(np.MUSIC_DIR)")
 		movies_dir=$(python3 -c "import np; print(np.MOVIES_DIR)")
 		series_dir=$(python3 -c "import np; print(np.SERIES_DIR)")
-		python3 -c "import np; print ('Scanning music..'); np.scan_music($music_dir)"
-		python3 -c "import np; print ('Scanning movies..'); np.scan_music($movies_dir)"
-		python3 -c "import np; print ('Scanning series..'); np.scan_music($series_dir)"
+		if [ ! -d "$music_dir" ]; then
+			mkdir -p "$music_dir"
+		fi
+		if [ ! -d "$movies_dir" ]; then
+			mkdir -p "$movies_dir"
+		fi
+		if [ ! -d "$series_dir" ]; then
+			mkdir -p "$series_dir"
+		fi
+		python3 -c "import np; print ('Scanning music..'); np.scan_music('$music_dir')"
+		python3 -c "import np; print ('Scanning movies..'); np.scan_movies('$movies_dir')"
+		python3 -c "import np; print ('Scanning series..'); np.scan_series('$series_dir')"
 	fi
 	logfile="$HOME/.np/nplayer.log"
 	if [ ! -f "$logfile" ]; then

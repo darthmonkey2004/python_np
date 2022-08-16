@@ -47,6 +47,8 @@ from np.utils.scan_all import scan_all as mediascan
 from np.utils.ytdl import ytdl
 from np.utils.init_conf import run_setup
 from np.utils.pbdl_add_to_series import add_series
+from np.utils.set_media_paths import set_media_paths
+from np.utils.id3 import tag
 import np.core.wsreceiver as receiver
 import np.core.wsserver as server
 import np.core.wssender as sender

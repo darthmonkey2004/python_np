@@ -13,10 +13,26 @@ def lookup(artist, title):
 	}
 	r = requests.request("GET", url, headers=headers, params=querystring)
 	code = r.status_code
+	print ("Response code:", code)
 	if code == 200:
 		out = {}
 		data = r.text
-		data = json.loads(data)
+		try:
+			data = json.loads(data)
+		except Exception as e:
+			print (f"Unable to lookup '{artist}:{title}'")
+			out['isactive'] = 1
+			out['title'] = title
+			out['album'] = 'Unknown'
+			out['results'] = False
+			out['album_id'] = 'Unknown'
+			out['artist_id'] = 'Unknown'
+			out['artist'] = artist
+			out['genre'] = 'Unknown'
+			out['track'] = 0
+			out['mbid'] = 'Unknown'
+			out['filepath'] = 'null'
+			return out
 		try:
 			track_data = data['track'][0]
 			out['isactive'] = 1
@@ -68,6 +84,19 @@ def lookup(artist, title):
 			out['mbid'] = 'Unknown'
 			out['filepath'] = 'null'
 			return out
+	else:
+		out['isactive'] = 1
+		out['title'] = title
+		out['album'] = 'Unknown'
+		out['results'] = False
+		out['album_id'] = 'Unknown'
+		out['artist_id'] = 'Unknown'
+		out['artist'] = artist
+		out['genre'] = 'Unknown'
+		out['track'] = 0
+		out['mbid'] = 'Unknown'
+		out['filepath'] = 'null'
+		return out
 	
 
 if __name__ == "__main__":

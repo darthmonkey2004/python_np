@@ -106,6 +106,6 @@ def initConf():
 
 
 
-
-
+if __name__ == "__main__":
+	initConf()
 
