@@ -234,11 +234,10 @@ class pbdl():
 				try:
 					item['still_path'] = images[0]
 				except Exception as e:
-					print ("Unable to get still shot url:", e, images)
+					np.log(f"Unable to get still shot url: {e}, {images}", 'error')
 		out['images'] = images
 		out['season'] = season
 		out['series_name'] = series_name
-		print (out['images'])
 		return out
 
 
@@ -300,7 +299,7 @@ class pbdl():
 
 
 	def build_torrent_data(self):
-		print ("Building torrent data. Please wait a moment...")
+		np.log("Building torrent data. Please wait a moment...", 'info')
 		torrents = self.get_torrents()
 		for tid in torrents:
 			tid = int(tid)
@@ -315,7 +314,8 @@ class pbdl():
 						play_type, series_name, sinfo, season, episode_number = type_info
 					else:
 						play_type, title, year = type_info
-					print ("Play type:", play_type)
+					if self.conf['debug'] == True:
+						np.log(f"Play type:{play_type}", 'info')
 					info[filepath]['oldpath'] = ('/var/lib/transmission-daemon/downloads/' + filepath)
 					if play_type == 'series':
 						info[filepath]['play_type'] = play_type
@@ -355,7 +355,8 @@ class pbdl():
 							info[filepath]['air_date'] = d['air_date']
 							episode_name = info['name']
 						except Exception as e:
-							print ("Series name, season:", series_name, season)
+							if self.conf['debug'] == True:
+								np.log(f"Series name, season:{series_name}, season={season}", 'info')
 							d = self.lookup_series_google(series_name, season)
 							kt = list(d.keys())[0]
 							if type(kt) == str:
@@ -380,7 +381,7 @@ class pbdl():
 							info[filepath]['description'] = description
 							info[filepath]['poster'] = info[filepath]['still_path']
 						except Exception as e:
-							print ("Unable to get episode info:", e)
+							np.log(f"Unable to get episode info:{e}", 'error')
 						_dir = play_type.capitalize()
 						extlen = len(filepath.split('.')) - 1
 						ext = str(filepath.split('.')[extlen])
@@ -388,14 +389,14 @@ class pbdl():
 						newdir = (os.path.sep + 'var' + os.path.sep + "storage" + os.path.sep + _dir + os.path.sep + series_name + os.path.sep + "S" + str(season))
 						pathlib.Path(newdir).mkdir(parents=True, exist_ok=True)
 						newpath = (newdir + os.path.sep + fname)
-						#print (newpath)
 						info[filepath]['filepath'] = newpath
 					else:
-						print ("Movie info:", info[filepath])
+						if self.conf['debug'] == True:
+							np.log(f"Movie info:{info[filepath]}", 'info')
 		with open ("/home/monkey/temp.pickle", 'wb') as f:
 			pickle.dump(torrents, f)
 		f.close()
-		print ("Torrents loaded!")
+		np.log("Torrents loaded!", 'info')
 		self.torrents = torrents
 		return torrents
 
@@ -407,7 +408,7 @@ class pbdl():
 				self.downloader = False
 				return self.downloader
 			except Exception as e:
-				print ("Unable to close downloader:", e)
+				np.log(f"Unable to close downloader:{e}", 'error')
 				return self.downloader
 		elif win == 'torrent_mgr':
 			try:
@@ -415,16 +416,17 @@ class pbdl():
 				self.torrent_mgr = False
 				return self.torrent_mgr
 			except Exception as e:
-				print ("Unable to close torrent manager:", e)
+				np.log(f"Unable to close torrent manager:{e}", 'error')
 				return self.torrent_mgr
 		else:
-			print ("Unknown window:", win)
+			np.log(f"Unknown window:{win}", 'warning')
 			return None
 
 
 	def search_pb(self, query, cat=200):
 		results = {}
-		print ("search html")
+		if self.conf['debug'] == True:
+			np.log("Searching using html function (search_pb)...", 'info')
 		query = quote(query)
 		base_url = self.get_url()
 		url = (base_url + "/search/{query}/1/7/{cat}".format(query=query,cat=cat))
@@ -459,7 +461,7 @@ class pbdl():
 			else:
 				return True
 		except Exception as e:
-			print ("Command failed:", e, com)
+			np.log(f"Command failed:{e}, Command: {com}", 'error')
 			return False
 
 
@@ -676,7 +678,7 @@ class pbdl():
 			self.pbdl_win['-POSTER_PNG-'].update(self.imgfile)
 			self.pbdl_win.refresh()
 		except Exception as e:
-			print ("Unable to deal with poster url...", poster_url)
+			np.log(f"Unable to deal with poster url:{poster_url}", 'error')
 
 
 	def resize_img(self, img, w=None, h=None):
@@ -700,7 +702,7 @@ class pbdl():
 				self.series_name = self.series_name.split('/')[1]
 			return 'series', self.series_name, self.sinfo, self.season, self.episode_number
 		except Exception as e:
-			print ("Unable to extract season info from file path: (not series???)", self.filepath)
+			np.log("Unable to extract season info from file path: (not series???) Data:{self.filepath}", 'error')
 			self.play_type = 'movies'
 			if '(' in self.filepath and ')' in self.filepath:
 				self.year = int(self.filepath.split('(')[1].split(')')[0])
@@ -721,14 +723,15 @@ class pbdl():
 		com = (f"ssh monkey@192.168.2.2 \"nordvpn status\" | grep \"Status\"")
 		s = 'Status: '
 		self.vpn_status = subprocess.check_output(com, shell=True).decode().strip().split(s)[1]
-		print ("VPN State:", self.vpn_status)
+		if self.conf['debug'] == True:
+			np.log("VPN State:{self.vpn_status}", 'info')
 		if self.vpn_status == 'Disconnected':
-			np.log("WARNING:VPN off...", 'warning')
+			np.log("WARNING:VPN off...(uncomment the next 3 lines to enable this)", 'warning')
 			#com = "ssh monkey@192.168.2.2 \"nordvpn connect\""
 			#ret = self.send_command(com)
-			#print (ret)
 		else:
-			print ("VPN alread enabled!", self.vpn_status)
+			if self.conf['debug'] == True:
+				np.log("VPN alread enabled!", 'info')
 		return self.vpn_status
 
 
@@ -739,15 +742,13 @@ class pbdl():
 			self.play_type = play_type
 		if filepath is not None:
 			self.filepath = filepath
-		print (self.torrents)
 		try:
 			info = self.torrents[tid]
-		except:
-			print (f"Info??? {self.torrents[tid]}")
+		except Exception as e:
+			np.log(f"Info??? {self.torrents[tid]}, data={e}", 'error')
 		name = self.torrents[tid]['name']
 		self.pbdl_win['-TID-'].update(tid)
 		self.pbdl_win['-Name-'].update(name)
-		#self.play_type = info['play_type']
 		if self.play_type == 'series':
 			t_key = ("-" + str(self.columns_list.index('series_name')) + "-")
 			self.pbdl_win[t_key].update(info['series_name'])
@@ -803,7 +804,7 @@ class pbdl():
 			self.play_type = play_type
 		else:
 			self.play_type = str(self.values[self.event])
-		print ("Type changed:", self.play_type)
+		np.log(f"Type changed:{self.play_type}", 'info')
 		if self.columns_ct != 0:
 			self.old_columns_ct = self.columns_ct
 		else:
@@ -815,7 +816,6 @@ class pbdl():
 		else:
 			ct = self.columns_ct
 			diff = ct - self.columns_ct
-			#print ("ct, old_ct, ct, diff:", self.columns_ct, self.old_columns_ct, ct, diff)
 			extra_length = self.columns_ct + diff
 		if self.play_type == 'movies':
 			self.columns_list = list(np.get_columns('movies').keys())
@@ -851,11 +851,12 @@ class pbdl():
 					j = "_"
 					key = j.join(chunks)
 		except Exception as e:
-			print ("Update info error:", e)
+			np.log(f"Update info error:{e}", 'error')
 		info = self.torrents[self.tid]['info']
 		for column in info:
 			val = info[column]
-			print ("Update column, val:", column, val)
+			if self.conf['debug'] == True:
+				np.log(f"Update column, val:{column}, {val}", 'info')
 			if column == 'series_name':
 				self.series_name = val
 			elif column == 'season':
@@ -876,7 +877,7 @@ class pbdl():
 			try:
 				self.window, self.event, self.values = sg.read_all_windows(timeout=10)
 			except Exception as e:
-				print ("Exit exception:", e)
+				np.log(f"Exit exception:{e}", 'error')
 				self.exit = True
 			if self.event=='-Close PBDL-' or self.event == "Exit" or self.event == '-DOWNLOADER_EXIT-':
 					self.exit = True
@@ -900,7 +901,8 @@ class pbdl():
 						self.pbdl_query = self.values[self.event]
 					elif self.event == '-Migrate Files-':
 						ret = self.migrate(self.tid)
-						print ("Migration results:", ret)
+						if self.conf['debug'] == True:
+							np.log(f"Migration results:{ret}", 'info')
 					elif self.event == '-Query TMDB-':
 						self.lookup()
 					elif self.event == '-AUTO_REMOVE-':
@@ -908,52 +910,52 @@ class pbdl():
 							self.auto_remove = False
 						else:
 							self.auto_remove = True
-						print ("Auto Remove set to ", self.auto_remove)
+						if self.conf['debug'] == True:
+							np.log(f"Auto Remove set to {self.auto_remove}", 'info')
 					elif self.event == '-TORRENT_FILES-':
 						self.selected_file = self.values[self.event]
 					elif self.event == 'Remove':
 						if self.tid is None:
-							print ("Select a torrent file first!")
+							np.log(f"Select a torrent file first!", 'warning')
 						else:
 							self.remove_torrent(self.tid)
-							print ("Torrent removed:", self.tid)
+							np.log(f"Torrent removed:{self.tid}", 'info')
 							
 					elif self.event == '-MEDIA_TYPE-':
 						self.play_type = str(self.values[self.event])
 						self.update_media_type(self.play_type)
 					elif self.event == '-PBDL_SEARCH-':
-						print ("searching...")
+						np.log("searching...", 'info')
 						self.results = self.search_pb(self.pbdl_query, self.category)
 						self.pbdl_dl_win['-PBDL_RESULTS-'].update(self.results)
 					elif self.event == '-PBDL_RESULTS-':
 						try:
-							#print (self.event)
 							picked = self.values[self.event][0]
-							print ("Downloading:", picked)
+							np.log(f"Downloading:{picked}", 'info')
 							magnet = self.results[picked]
 							#self.enable_vpn()
 							com = (f"transmission-remote {self.conf['pbdl_url']} -a \"{magnet}\"")
 							r = self.send_command(com)
 						except:
-							print ("list empty!")
+							np.log("list empty!", 'warning')
 					elif self.event == '-0-' or self.event == '-1-' or self.event == '-2-' or self.event == '-3-' or self.event == '-4-' or self.event == '-5-' or self.event == '-6-' or self.event == '-7-' or self.event == '-8-' or self.event == '-9-' or self.event == '-10-':
 						val = self.values[self.event]
 						ret = update_info(val)
-						print ("Update info fields result:", ret)
+						np.log("Update info fields result:{ret}", 'info')
 					elif self.event == '-SET_ACTIVE-':
 						info['isactive'] = int(self.values[self.event])
 						self.pbdl_win['-0-'].update(info['isactive'])
 					elif self.event == 'View Downloader':
 						self.create_downloader()
 					elif self.event  == '2 Status':
-						print (self.send_command('nordvpn status'))
+						np.log(f"event:2 Status:{self.send_command('nordvpn status')}", 'info')
 					elif self.event == '0 Off':
-						print(self.send_command('nordvpn disonnect'))
+						np.log(f"{self.send_command('nordvpn disonnect')}", 'info')
 					elif self.event == '1 On':
 						#self.enable_vpn()
-						print ("VPN Enabled!")
+						np.log("VPN Enabled!", 'info')
 					else:
-						print (self.event, self.values)
+						np.log("Unknown event: {self.event}, {self.values}", 'warning')
 						pass
 
 if __name__ == "__main__":

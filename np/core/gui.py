@@ -103,42 +103,44 @@ class gui():
 			[]
 		]
 		dbitems = []
-		listbox_dbitems = [[sg.Listbox(columns_list, size=(20, 10), select_mode='multiple', change_submits=True, auto_size_text=True, enable_events=True, key='-DBMGR_PICKED_COLUMNS-'), sg.Listbox(dbitems, size=(70, 10), select_mode='multiple', change_submits=True, auto_size_text=True, expand_x=True, enable_events=True, key='-DBMGR_RESULTS-'), sg.Listbox(self.dbmgr_picked_items, size=(20, 10), select_mode='multiple', change_submits=True, auto_size_text=True, enable_events=True, key='-DBMGR_SELECTED_ROWS-')]]
-		listbox_dbitems = sg.Frame(title='', layout=listbox_dbitems, key='listbox_dbitems', expand_x=True, grab=True, element_justification="left", vertical_alignment="top")
-		btn_update_info = [self.create_old('btn', ['Query TMDB', '-Query TMDB-']), self.create_old('btn', ['Read Info', '-Read Info-']), self.create_old('btn', ['Update Info', '-Update Info-']), self.create_old('btn', ['Set Active', '-Set Active-']), self.create_old('btn', ['Set Inactive', '-Set Inactive-']), self.create_old('btn', ['Remove Selected', '-Remove Selected-'])]
-		textinput_query_string = [[sg.Checkbox(text='Active Only', auto_size_text=True, change_submits=True, enable_events=True, key='-QUERY_ACTIVE-'), sg.Input(size=(30, 1), expand_x=True, enable_events=True, key='-DBMGR_QUERY_STRING-'), self.create_old('btn', ['SQL Search'])]]
-		textinput_query_string = sg.Frame(title='', layout=textinput_query_string, key='textinput_query_string', expand_x=True, grab=True, element_justification="left", vertical_alignment="top")
-		self.poster_img = [sg.Image(np.DEFAULT_POSTER, subsample=4, key='-poster_img-')]
-		self.db_mgr_layout = [
-			[radio_frame],
-			[listbox_dbitems],
-			[sg.Text()],
-			[textinput_query_string],
-			[sg.Text()],
-		]
-		cct = len(columns_list)
-		cct = cct - 1
-		pos = -1
-		while pos != cct:
-			pos = pos + 1
-			column = columns_list[pos]
-			pos = pos + 1
-			column2 = columns_list[pos]
-			text = (column + ":")
-			key=("-" + column + "-")
-			text2 = (column2 + ":")
-			key2=("-" + column2 + "-")
-			field = sg.Input(size=(30, 1), default_text=text, enable_events=True, expand_x=True, key=key), sg.Text(), sg.Input(size=(30,1), enable_events=True, default_text=text2, expand_x=True, key=key2)
-			self.db_mgr_layout.append(field)
-			text = None
-			text2 = None
-			key = None
-			key2 = None
-		self.db_mgr_layout.append(btn_update_info)
+		#listbox_dbitems = [[sg.Listbox(columns_list, size=(20, 10), select_mode='multiple', change_submits=True, auto_size_text=True, enable_events=True, key='-DBMGR_PICKED_COLUMNS-'), sg.Listbox(dbitems, size=(70, 10), select_mode='multiple', change_submits=True, auto_size_text=True, expand_x=True, enable_events=True, key='-DBMGR_RESULTS-'), sg.Listbox(self.dbmgr_picked_items, size=(20, 10), select_mode='multiple', change_submits=True, auto_size_text=True, enable_events=True, key='-DBMGR_SELECTED_ROWS-')]]
+		#listbox_dbitems = sg.Frame(title='', layout=listbox_dbitems, key='listbox_dbitems', expand_x=True, grab=True, element_justification="left", vertical_alignment="top")
+		#btn_update_info = [self.create_old('btn', ['Query TMDB', '-Query TMDB-']), self.create_old('btn', ['Read Info', '-Read Info-']), self.create_old('btn', ['Update Info', '-Update Info-']), self.create_old('btn', ['Set Active', '-Set Active-']), self.create_old('btn', ['Set Inactive', '-Set Inactive-']), self.create_old('btn', ['Remove Selected', '-Remove Selected-'])]
+		#textinput_query_string = [[sg.Checkbox(text='Active Only', auto_size_text=True, change_submits=True, enable_events=True, key='-QUERY_ACTIVE-'), sg.Input(size=(30, 1), expand_x=True, enable_events=True, key='-DBMGR_QUERY_STRING-'), self.create_old('btn', ['SQL Search'])]]
+		#textinput_query_string = sg.Frame(title='', layout=textinput_query_string, key='textinput_query_string', expand_x=True, grab=True, element_justification="left", vertical_alignment="top")
+		#self.poster_img = [sg.Image(np.DEFAULT_POSTER, subsample=4, key='-poster_img-')]
+		#self.db_mgr_layout = [
+		#	[radio_frame],
+		#	[listbox_dbitems],
+		#	[sg.Text()],
+		#	[textinput_query_string],
+		#	[sg.Text()],
+		#]
+		#cct = len(columns_list)
+		#cct = cct - 1
+		#pos = -1
+		#while pos != cct:
+		#	pos = pos + 1
+		#	column = columns_list[pos]
+		#	pos = pos + 1
+		#	column2 = columns_list[pos]
+		#	text = (column + ":")
+		#	key=("-" + column + "-")
+		#	text2 = (column2 + ":")
+		#	key2=("-" + column2 + "-")
+		#	field = sg.Input(size=(30, 1), default_text=text, enable_events=True, expand_x=True, key=key), sg.Text(), sg.Input(size=(30,1), enable_events=True, default_text=text2, expand_x=True, key=key2)
+		#	self.db_mgr_layout.append(field)
+		#	text = None
+		#	text2 = None
+		#	key = None
+		#	key2 = None
+		#self.db_mgr_layout.append(btn_update_info)
 		#self.db_mgr_layout.append(self.poster_img)
-		self.db_mgr_layout.append([sg.Sizegrip(key='-gui_size-')])
-		self.menu_def = [['&File', ['-&Load Directory-', '-&Load Playlist-', '-&Save Playlist-', 'E&xit']], ['&Tools', ['&Pirate Bay Downloader', '-&Database Editor-', '&Torrent Manager', '&Video Filters', [np.VLC_VIDEO_FILTERS], '&Audio Filters', [np.VLC_AUDIO_FILTERS]]], ['&Help', '&About...']]
-		self.layout = [[sg.MenubarCustom(self.menu_def, tearoff=True, key='-menubar_key-'), sg.Button("Close")], [sg.TabGroup([[sg.Tab('MP Controls', self.player_control_layout, key='-player_control_layout-')], [sg.Tab('DB Manager', self.db_mgr_layout, key='-db_mgr_layout-')], line_window_ctl], expand_x=True, expand_y=True, enable_events=True)]]
+		#self.db_mgr_layout.append([sg.Sizegrip(key='-gui_size-')])
+		
+		self.menu_def = [['&File', ['-&Load Directory-', '-&Load Playlist-', '-&Save Playlist-', 'E&xit']], ['&Tools', ['&Pirate Bay Downloader', '-&Database Editor-', '&Torrent Manager', '&Video Filters', [np.VLC_VIDEO_FILTERS], '&Audio Filters', [np.VLC_AUDIO_FILTERS]]], ['&Help', '&About...'], ['&Media', ['-Scan Movies-', '-Scan Series-', '-Scan Music-', '-Scan All-']]]
+		#self.layout = [[sg.MenubarCustom(self.menu_def, tearoff=True, key='-menubar_key-'), sg.Button("Close")], [sg.TabGroup([[sg.Tab('MP Controls', self.player_control_layout, key='-player_control_layout-')], [sg.Tab('DB Manager', self.db_mgr_layout, key='-db_mgr_layout-')]], 	expand_x=True, expand_y=True, enable_events=True)]]
+		self.layout = [[sg.MenubarCustom(self.menu_def, tearoff=True, key='-menubar_key-'), sg.Button("Close")], [sg.TabGroup([[sg.Tab('MP Controls', self.player_control_layout, key='-player_control_layout-')], line_window_ctl], expand_x=True, expand_y=True, enable_events=True)]]
 		self.WINDOW = sg.Window('GUI', self.layout, no_titlebar=True, location=(int(self.gui_win_x),int(self.gui_win_y)), size=(self.gui_win_w,self.gui_win_h), keep_on_top=False, grab_anywhere=True, element_justification='center', finalize=True, resizable=True).Finalize()
 		return self.WINDOW
 

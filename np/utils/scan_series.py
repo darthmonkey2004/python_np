@@ -30,11 +30,11 @@ def query_series(filepath, series_name, season, episode_number):
 	try:
 		tmdbid = json_data['results'][0]['id']
 	except Exception as e:
-		print ("Error getting tmdbid:", e)
+		np.log(f"Error getting tmdbid:{e}", 'error')
 	try:
 		still_path = json_data['results'][0]['backdrop_path']
 	except Exception as e:
-		print ("Still path was error:", e)
+		np.log(f"Still path was error:{e}", 'error')
 		still_path = json_data['results'][0]['poster_path']
 	if "'" in json_data['results'][0]['name']:
 		temp = json_data['results'][0]['name']
@@ -111,13 +111,14 @@ def scan_series(target_dir=None):
 			episode_number = None
 			com = (f"select filepath from series where filepath = '{filepath}';")
 			exists = sqlite3(com)
-			print (f"Exists: {exists}")
+			if conf['debug'] == True:
+				np.log(f"Exists: {exists}", 'info')
 			if exists == '' or exists is None:
 				if filepath != '' and filepath is not None:
 					go = True
 				else:
 					go = False
-					print("filepath not set!")
+					np.log(f"filepath not set!", 'waring')
 			else:
 				np.log(f"File already in database: '{filepath}'", 'info')
 			if go == True:
@@ -130,11 +131,11 @@ def scan_series(target_dir=None):
 					season = sinfo.split('E')[0].split('S')[1]
 					episode_number = sinfo.split('E')[1]
 					episode_name = fname.split('.')[2]
-					print (f"series_name='{series_name}', season={season}, episode_number={episode_number}")
+					if conf['debug'] == True:
+						np.log(f"series_name='{series_name}', season={season}, episode_number={episode_number}", 'info')
 
 				except Exception as e:
-					print (f"Exception: {e}")
-					print (f"Filepath: {filepath}")
+					np.log(f"Exception:{e}, Filepath: {filepath}", 'error')
 					s = (f"{target_dir}/series")
 					series_name = input("Enter series name:")
 					season = input("Enter season:")
@@ -161,7 +162,7 @@ def scan_series(target_dir=None):
 						info['episode_name'] = episode_name
 				ret = np.addtodb('series', sql_string)
 				if ret is not True:
-					print (f"Error:{ret}, Data:{info}")
+					np.log(f"Error:{ret}, Data:{info}", 'error')
 					input("Press a key...")
 
 

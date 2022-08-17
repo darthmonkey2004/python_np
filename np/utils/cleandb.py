@@ -117,10 +117,49 @@ def clean_series():
 	remove_items(trash, 'series')
 	print ("Done!")
 
-def run():
+def clean_music():
+	print ("Scanning music for duplicates..")
+	com = (f"cd '/home/monkey/.np'; sqlite3 nplayer.db 'select artist,title,id from music order by artist,title;'")
+	_list = subprocess.check_output(com, shell=True).decode().strip().split('\n')
+	keep = []
+	trash = []
+	for item in _list:
+		chunks = item.split('|')
+		artist = chunks[0]
+		title = chunks[1]
+		_id = chunks[2]
+		string = (f"{artist}:{title}")
+		if string not in keep:
+			keep.append(string)
+		elif string in keep:
+			trash.append(_id)
+	print (f"Found {len(trash)} duplicate entries (out of {len(_list)})...")
+	remove_items(trash, 'music')
+	print ("Done!")
+
+def run(opt="all"):
 	backup_db()
-	clean_movies()
-	clean_series()
+	if opt == "all":
+		print("Checking entire database for duplicates...")
+		clean_movies()
+		clean_series()
+		clean_music()
+		return True
+	elif opt == 'music':
+		print("Checking music database for duplicates...")
+		clean_music()
+		return True
+	elif opt == 'series':
+		print("Checking series database for duplicates...")
+		clean_series()
+		return True
+	elif opt == 'movies':
+		print("Checking movies database for duplicates...")
+		clean_movies()
+		return True
+	else:
+		print ("Unrecognized option! Whoopsie doodles...")
+		return False
 
 
 if __name__ == "__main__":

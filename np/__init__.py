@@ -21,9 +21,7 @@ from np.core.nplayer_db import test_db
 from np.utils import cleandb
 from np.core.conf import initConf, readConf, writeConf
 from np.utils.music_mgr import music_mgr
-from np.utils.input_handler import input_handler as dev
 #from np.utils import torrent_mgr as pbdl_mgr
-from np.utils import input_handler as dev
 from np.utils.query_series import tmdb_query_series as query_series
 from np.core.core import *
 from np.core.gui import gui
@@ -44,7 +42,7 @@ from np.utils.scan_series import scan_series
 from np.utils.scan_movies import scan_movies
 from np.utils.scan_all import scan_all
 from np.utils.scan_all import scan_all as mediascan
-from np.utils.ytdl import ytdl
+#from np.utils.ytdl import ytdl
 from np.utils.init_conf import run_setup
 from np.utils.pbdl_add_to_series import add_series
 from np.utils.set_media_paths import set_media_paths

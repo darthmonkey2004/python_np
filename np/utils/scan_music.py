@@ -1,9 +1,21 @@
 import subprocess
 import os
-from np import readConf, test_db, addtodb, log
+from np import readConf, test_db, addtodb, log, DATA_DIR
 from np.utils.tadb_search import lookup
 from np.utils.id3 import tag
 id3 = tag()
+
+
+def test_exists(filepath):
+	conf = readConf()
+	com = (f"sqlite3 \"{DATA_DIR}{os.path.sep}nplayer.db\" \"select id from music where filepath = '{filepath}'\";")
+	exists = subprocess.check_output(com, shell=True).decode().strip()
+	if conf['debug'] == True:
+		log(f"exists: {exists}, filepath: {filepath}", 'debug')
+	if exists != '':
+		return True
+	else:
+		return False
 
 def scan_music(target_dir=None):
 	test_db()
@@ -18,85 +30,91 @@ def scan_music(target_dir=None):
 	pos = 0
 	for filepath in files:
 		pos = pos + 1
-		hastag = True
-		tag_data = {}
-		title = None
-		artist = None
-		txt = ("Progress: (" + str(pos) + "/" + str(ct) + ", filepath:" + filepath)
-		audiofile = None
-		print (txt)
-		if filepath == '' or not os.path.exists(filepath):
-			log("Error: No file path provided (directory might be empty?)", 'info')
-			break
-		tag = id3.read(filepath)
-		try:
-			title = tag.title
-			artist = tag.artist
+		exists = test_exists(filepath)
+		if exists == True:
+			print (f"Already in database: '{filepath}'")
+		else:		
 			hastag = True
-		except:
+			tag_data = {}
 			title = None
 			artist = None
-			hastag = False
+			txt = ("Progress: (" + str(pos) + "/" + str(ct) + ", filepath:" + filepath)
+			audiofile = None
+			print (txt)
+			if filepath == '' or not os.path.exists(filepath):
+				log("Error: No file path provided (directory might be empty?)", 'info')
+				break
+			tag = id3.read(filepath)
+			try:
+				title = tag.title
+				artist = tag.artist
+				hastag = True
+			except:
+				title = None
+				artist = None
+				hastag = False
 
-		if tag.title is None or tag.artist is None or hastag == False:
-			split = (f"{target_dir}/")
-			fname = filepath.split(split)[1]
-			if '[' in fname:
-				if tag.title is None:
-					tag.title = fname.split('[')[0].strip()
-				if tag.artist is None:
-					s = ' - '
-					tag.artist = fname.split(s)[1].split('.')[0]
-			else:
-				s = ' - '
-				try:
+			if tag.title is None or tag.artist is None or hastag == False:
+				split = (f"{target_dir}/")
+				fname = filepath.split(split)[1]
+				if '[' in fname:
 					if tag.title is None:
-						tag.title = fname.split(s)[0]
+						tag.title = fname.split('[')[0].strip()
 					if tag.artist is None:
+						s = ' - '
 						tag.artist = fname.split(s)[1].split('.')[0]
-				except:
-					print (f"File: '{filepath}' - Unable to parse info from path.")
-					tag.title = input("Enter artist name: ")
-					tag.artist = input("Enter song title: ")
-		info = lookup(tag.artist, tag.title)
+				else:
+					s = ' - '
+					try:
+						if tag.title is None:
+							tag.title = fname.split(s)[0]
+						if tag.artist is None:
+							tag.artist = fname.split(s)[1].split('.')[0]
+					except:
+						print (f"File: '{filepath}' - Unable to parse info from path.")
+						tag.title = input("Enter artist name: ")
+						tag.artist = input("Enter song title: ")
+			info = lookup(tag.artist, tag.title)
 
-		if info['artist'] != 'Unknown':
-			tag.artist = info['artist']
-		else:
-			if tag.artist == None:
-				tag.artist = input("Enter artist:")
-		if info['album'] != 'Unknown':
-			tag.album = info['album']
-		else:
-			if tag.album == None:
-				tag.artist = input("Enter artist:")
-		if info['track'] != 'Unknown':
-			tag.track = info['track']
-		else:
-			track = 0
-		if info['album_id'] != "Unknown":
-			tag.album_id = info['album_id']
-		if info['artist_id'] != "Unknown":
-			tag.artist_id = info['artist_id']
-		if info['genre'] != "Unknown":
-			tag.genre = info['genre']
-		if info['mbid'] != "Unknown":
-			tag.mbid = info['mbid']
-		tag.save(filepath)
-		isactive = info['isactive']
-		title = info['title']
-		mbid = info['mbid']
-		album = info['album']
-		album_id = info['album_id']
-		artist_id = info['artist_id']
-		artist = info['artist']
-		genre = info['genre']
-		track = info['track']
+			if info['artist'] != 'Unknown':
+				tag.artist = info['artist']
+			else:
+				if tag.artist == None:
+					tag.artist = input("Enter artist:")
+			if info['album'] != 'Unknown':
+				tag.album = info['album']
+			else:
+				if tag.album == None:
+					tag.artist = input("Enter artist:")
+			if info['track'] != 'Unknown':
+				tag.track = info['track']
+			else:
+				track = 0
+			if info['album_id'] != "Unknown":
+				tag.album_id = info['album_id']
+			if info['artist_id'] != "Unknown":
+				tag.artist_id = info['artist_id']
+			if info['genre'] != "Unknown":
+				tag.genre = info['genre']
+			if info['mbid'] != "Unknown":
+				tag.mbid = info['mbid']
+			tag.save(filepath)
+			isactive = info['isactive']
+			title = info['title']
+			mbid = info['mbid']
+			album = info['album']
+			album_id = info['album_id']
+			artist_id = info['artist_id']
+			artist = info['artist']
+			genre = info['genre']
+			track = info['track']
 
-		sql_string = (f"INSERT INTO music (isactive, title, mbid, album, album_id, artist_id, artist, genre, track, filepath) VALUES({isactive}, '{title}', '{mbid}', '{album}', '{album_id}', '{artist_id}', '{artist}', '{genre}', {track}, '{filepath}');")
-		ret = addtodb('music', sql_string)
-		if ret is not True:
-			print (ret)
+			sql_string = (f"INSERT INTO music (isactive, title, mbid, album, album_id, artist_id, artist, genre, track, filepath) VALUES({isactive}, '{title}', '{mbid}', '{album}', '{album_id}', '{artist_id}', '{artist}', '{genre}', {track}, '{filepath}');")
+			ret = addtodb('music', sql_string)
+			if conf['debug'] == True:
+				print (f"Add to db results: {ret}, filepath:{filepath}", 'info')
+			if ret is not True:
+				print (ret)
 
 if __name__ == "__main__":
 	ret = scan_music()

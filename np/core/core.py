@@ -357,23 +357,16 @@ def create_media(play_type=None, rows=None):
 	if play_type == 'music':
 		media_dict['music'] = {}
 		media_dict = media_dict['music']
-		rows = querydb(table = 'music', column='id,title,accoustic_id,album,album_id,artist_id,year,artist,track,track_ct,filepath', query='isactive = 1')
-		for _id, title, accoustic_id, album, album_id, artist_id, year, artist, track, track_ct, filepath in rows:
-			string = ("music:" + str(artist) + ":" + str(title) + ":" + str(album) + ":" + str(year) + ":" + str(track) + ":" + str(_id))
+		
+		rows = querydb(table = 'music', column='id,title,artist', query='isactive = 1')
+		for _id, title, artist in rows:
+			string = (f"music:{artist}:{title}:{_id}")
 			media['DBMGR_RESULTS'].append(string)
 			media_dict[_id] = {}
 			dic = media_dict[_id]
 			dic['type'] = 'music'
 			dic['title'] = title
-			dic['accoustic_id'] = None
-			dic['album'] = album
-			dic['album_id'] = album_id
-			dic['artist_id'] = artist_id
-			dic['year'] = year
 			dic['artist'] = artist
-			dic['track'] = track
-			dic['track_ct'] = track_ct
-			dic['filepath'] = filepath
 	return media
 
 
