@@ -365,14 +365,17 @@ class nplayer():
 
 	def skip_previous(self):
 		self.history['playing_from_history'] = True
-		np.log("old history pos:" + str(self.history['pos']) + ", " + str(len(self.history['history'])))
-		self.history['pos'] = self.history_prev_pos()
+		np.log(f"old history pos:Position={self.history['pos']}, Length={len(self.history['history'])}", 'info')
+		self.history['pos'] = self.history_prev_pos(self.history['pos'])
 		#self.history['pos'] = self.history['history'].index(self.next) - 1
-		np.log("new history pos:" + str(self.history['pos']) + ", " + str(len(self.history['history'])))
+		np.log(f"new history pos:Position={self.history['pos']}, Length={len(self.history['history'])}", 'info')
 		try:
 			self.next = self.history['history'][self.history['pos']]
-		except:
+			np.log(f"self.next set from history index({self.history['pos']}):{self.next}", 'info')
+		except Exception as e:
 			self.next = self.media['DBMGR_RESULTS'][self.history['pos']]
+			np.log(f"Error setting next from history: {e}, next='{self.next}'", 'error')
+		
 		if 'series:' in self.next:
 			_id = self.next.split(':')[5]
 			qstring = ("id = '" + _id + "'")
@@ -462,6 +465,8 @@ class nplayer():
 		if h == None:
 			h = self.conf['windows']['viewer'][screen]['h']
 		try:
+			if self.conf['debug'] == True:
+				np.log(f"snapshot valTypes: c={type(c)}, n={type(n)}, w={type(w)}, h={type(h)}")
 			ret = self.player.video_take_snapshot(c, n, w, h)
 			if ret:
 				np.log("nplayer snapshot return:" + str(ret))
@@ -505,6 +510,10 @@ class nplayer():
 	def play(self, _file=None):
 		if self.next is not None and self.play_mode == 'playlist':
 			self.playlist_last = self.next
+			l = len(list(self.history.values()))
+			self.history[l] = self.playlist_last
+			if self.conf['debug'] == True:
+				np.log(f"playlist last set in MP.play(): playlist_last:{self.playlist_last}, play_mode={self.play_mode}", 'info')
 		if self.play_mode == 'database':
 			if _file is None and self.conf['nowplaying']['filepath'] is None:
 				np.log("File and resume is None, getting next...")
@@ -722,6 +731,9 @@ class nplayer():
 	def load_directory(self, path):
 		try:
 			com = (f"mkmedialist '{path}'")
+			ret = subprocess.check_output(com, shell=True).decode().strip()
+			if ret:
+				print (ret)
 			playlist = (f"{path}{os.path.sep}medialist.txt")
 			items = self.load_playlist(playlist)
 			return items
@@ -735,8 +747,9 @@ class nplayer():
 		qstring = ("filepath = '" + filepath + "'")
 		try:
 			series_name, season, episode_number, episode_name, _id = np.querydb('series', 'series_name,season,episode_number,episode_name,id', qstring)[0]
-			sstring = ("series:" + series_name + ":" + str(season) + ":" + str(episode_number) + ":" + episode_name + ":" + str(_id))
-			np.log("Series string:" + sstring)
+			print (series_name, season, episode_number, episode_name, _id)
+			sstring = (f"series:{series_name}:{season}:{episode_number}:{episode_name}:{_id}")
+			np.log(f"Series string:{sstring}", 'info')
 		except:
 			sstring = None
 		try:
@@ -763,56 +776,61 @@ class nplayer():
 	def get_playlist_next(self):
 		self.play_mode = 'playlist'
 		items = self.media['DBMGR_RESULTS']
-		np.log("DBMGR_RESULTS/items:" + str(items))
+		np.log(f"DBMGR_RESULTS/items:{items}", 'info')
 		idx = None
 		if self.playlist_last is None:
 			try:
 				self.next = items[0]
+				np.log(f"Playlist next set to 0: {self.next}", 'info')
 			except Exception as e:
-				np.log("Playlist appears empty!" + str(e))
+				np.log(f"Playlist appears empty!{e}", 'error')
 				self.play_mode = 'database'
 				return None
 		else:
 			if self.playlist_loop_one == True:
 				self.next = self.playlist_last
+				if self.conf['debug'] == True:
+					np.log(f"Playlist next is playlist last, loop_one=True.", 'info')
 				return self.next
 			else:
 				self.playlist_last = self.next
-			#try:
-
-				if 'series:' in self.playlist_last or 'movies:' in self.playlist_last or 'music:' in self.playlist_last:
-					string = self.build_info_string_from_filepath(self.playlist_last)
+				print ("self.playlist_last", self.playlist_last)
+				string = self.build_info_string_from_filepath(self.playlist_last)
+				if self.conf['debug'] == True:
+					np.log(f"Built playlist parse string from filepath. string={string}, filepath='{self.playlist_last}'", 'info')
+				#if 'series:' in self.playlist_last or 'movies:' in self.playlist_last or 'music:' in self.playlist_last:
+				try:
 					idx = items.index(string)
-				else:
-					string = self.playlist_last
-					try:
-						idx = items.index(string) + 1
-					except:
-						query_string = ("filepath = '" + string + "'")
-						inseries, inmovies, inmusic = None, None, None
-						try:
-							inseries = np.querydb(table='series', column='filepath', query=query_string)[0]
-						except:
-							pass
-						try:
-							inmovies = np.querydb(table='movies', column='filepath', query=query_string)[0]
-						except:
-							pass
-						try:
-							inmusic = np.querydb(table='music', column='filepath', query=query_string)[0]
-						except:
-							pass
-						if inseries is not None:
-							series_name, season, episode_number, episode_name, _id = np.querydb(table='series', column='series_name,season,episode_number,episode_name,id', query=query_string)[0]
-							string = ('series:' + series_name + ":" + str(season) + ":" + str(episode_number) + ":" + str(episode_name) + ":" + str(_id))
-							idx = items.index(string)
-							#'series:Rick and Morty:5:1:Mort Dinner Rick Andre:1199'
-						elif inmovies is not None:
-							title, year, _id = np.querydb(table='movies', column='title,year,id', query=query_string)[0]
-							string = ("movies:" + title + ":" + str(year) + ":" + str(_id))
-							idx = items.index(string)
-						elif inmusic is not None:
-							table = 'music'
+					#idx += 1
+					np.log(f"Index set from string: {idx}, {string}", "info")
+				except Exception as e:
+					idx = 1
+					np.log(f"Exception setting index with string {string}:{e}", 'error')
+				query_string = ("filepath = '" + string + "'")
+				inseries, inmovies, inmusic = None, None, None
+				try:
+					inseries = np.querydb(table='series', column='filepath', query=query_string)[0]
+				except:
+					pass
+				try:
+					inmovies = np.querydb(table='movies', column='filepath', query=query_string)[0]
+				except:
+					pass
+				try:
+					inmusic = np.querydb(table='music', column='filepath', query=query_string)[0]
+				except:
+					pass
+				if inseries is not None:
+					series_name, season, episode_number, episode_name, _id = np.querydb(table='series', column='series_name,season,episode_number,episode_name,id', query=query_string)[0]
+					string = ('series:' + series_name + ":" + str(season) + ":" + str(episode_number) + ":" + str(episode_name) + ":" + str(_id))
+					idx = items.index(string)
+					#'series:Rick and Morty:5:1:Mort Dinner Rick Andre:1199'
+				elif inmovies is not None:
+					title, year, _id = np.querydb(table='movies', column='title,year,id', query=query_string)[0]
+					string = ("movies:" + title + ":" + str(year) + ":" + str(_id))
+					idx = items.index(string)
+				elif inmusic is not None:
+					table = 'music'
 
 
 				try:
