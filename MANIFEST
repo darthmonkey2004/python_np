@@ -20,6 +20,7 @@ np/core/wsserver.py
 np/core/xrandr.py
 np/scripts/mkmedialist
 np/scripts/np.remote
+np/scripts/write_client_html
 np/utils/__init__.py
 np/utils/cleandb.py
 np/utils/functions.py

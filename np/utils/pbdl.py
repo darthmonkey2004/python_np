@@ -579,7 +579,7 @@ class pbdl():
 			self.columns_list = list(np.get_columns('series').keys())
 		elif self.play_type == 'music':
 			self.columns_list = list(np.get_columns('music').keys())
-		poster_path = (np.npdir + os.path.sep + 'poster.png')
+		#poster_path = (np.npdir + os.path.sep + 'poster.png')
 
 		self.pbdl_layout = [
 		[sg.Listbox(self.active_torrents, expand_x=True, enable_events=True, size=(50,10), key='-TORRENT_SELECT-')],
@@ -597,15 +597,15 @@ class pbdl():
 	]
 		self.title_bar_layout = [sg.MenubarCustom(self.menu_def, tearoff=False, key='-menubar_key-'), sg.Combo(['series', 'movies', 'music'], self.conf['play_type'] , enable_events=True,key='-MEDIA_TYPE-'), sg.Button("Quit!", key='-Close PBDL-')],
 		self.title_bar_frame = sg.Frame(title='', layout = self.title_bar_layout, key='title_bar_frame', expand_x=True, grab=True, element_justification="center", vertical_alignment="top")
-		self.poster_url = 'http://192.168.2.2/NicoleLogo.png'
-		response = requests.get(self.poster_url, stream=True)
-		response.raw.decode_content = True
-		img = response.raw.read()
-		self.imgfile = 'poster.png'
-		with open(self.imgfile, 'wb') as f:
-			f.write(img)
-		self.resize_img(self.imgfile)
-		self.poster_layout = [[sg.Image(self.imgfile, key='-POSTER_PNG-')]]
+		#self.poster_url = 'http://192.168.2.2/NicoleLogo.png'
+		#response = requests.get(self.poster_url, stream=True)
+		#response.raw.decode_content = True
+		#img = response.raw.read()
+		#self.imgfile = 'poster.png'
+		#with open(self.imgfile, 'wb') as f:
+		#	f.write(img)
+		#self.resize_img(self.imgfile)
+		#self.poster_layout = [[sg.Image(self.imgfile, key='-POSTER_PNG-')]]
 		self.media_info_layout = []
 		is_active_ckbox = [sg.Checkbox(text='Is Active:', auto_size_text=True, change_submits=True, enable_events=True, key='-SET_ACTIVE-'), sg.Checkbox(text='Auto Remove Torrents:', auto_size_text=True, change_submits=True, enable_events=True, key='-AUTO_REMOVE-')]
 		self.media_info_layout.append(is_active_ckbox)
@@ -621,9 +621,9 @@ class pbdl():
 		
 		# build frames
 		info_frame = sg.Frame(title='Torrent Data', layout=self.pbdl_layout, key='info_frame', expand_x=True, grab=True, element_justification="left", vertical_alignment="top")
-		poster_frame = sg.Frame(title='Poster Data', layout=self.poster_layout, key='poster_frame', expand_x=True, grab=True, element_justification="center", vertical_alignment="center")
+		#poster_frame = sg.Frame(title='Poster Data', layout=self.poster_layout, key='poster_frame', expand_x=True, grab=True, element_justification="center", vertical_alignment="center")
 		media_info_frame = sg.Frame(title='Media Info', layout=self.media_info_layout, key='media_info_frame', expand_x=True, grab=True, element_justification="right", vertical_alignment="top")
-		self.layout = [[self.title_bar_frame], [info_frame, poster_frame, [media_info_frame, sg.Sizegrip(key='-gui_size-')]]]
+		self.layout = [[self.title_bar_frame], [info_frame, [media_info_frame, sg.Sizegrip(key='-gui_size-')]]]
 		
 		#get sizes
 		try:

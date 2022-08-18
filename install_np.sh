@@ -43,7 +43,7 @@ np_setup() {
 	if [ ! -f "$dbfile" ]; then
 		cd "$HOME/.local/lib/python3.8/site-packages/np"
 		echo "Starting setup.."
-		python3 -c "import np; np.set_media_paths()"
+		python3 -c "import np; np.run_setup()"
 		echo "Creating sql database..."
 		python3 -c "import np; np.sqldb.create_db()"
 		music_dir=$(python3 -c "import np; print(np.MUSIC_DIR)")
@@ -66,6 +66,9 @@ np_setup() {
 	if [ ! -f "$logfile" ]; then
 		touch "$logfile"
 	fi
+	host=$(python3 -c "import np; conf = np.readConf(); print(conf['remote']['server']['host'])")
+	port=$(python3 -c "import np; conf = np.readConf(); print(conf['remote']['server']['port'])")
+	write_client_html
 }
 
 

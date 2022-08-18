@@ -794,7 +794,7 @@ class nplayer():
 				return self.next
 			else:
 				self.playlist_last = self.next
-				print ("self.playlist_last", self.playlist_last)
+				np.log(f"self.playlist_last:{self.playlist_last}", 'debug')
 				string = self.build_info_string_from_filepath(self.playlist_last)
 				if self.conf['debug'] == True:
 					np.log(f"Built playlist parse string from filepath. string={string}, filepath='{self.playlist_last}'", 'info')
@@ -806,7 +806,8 @@ class nplayer():
 				except Exception as e:
 					idx = 1
 					np.log(f"Exception setting index with string {string}:{e}", 'error')
-				query_string = ("filepath = '" + string + "'")
+				query_string = (f"filepath = '{string}'")
+				np.log(f"Query string:{query_string}", 'debug')
 				inseries, inmovies, inmusic = None, None, None
 				try:
 					inseries = np.querydb(table='series', column='filepath', query=query_string)[0]

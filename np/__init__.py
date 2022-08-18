@@ -43,13 +43,14 @@ from np.utils.scan_movies import scan_movies
 from np.utils.scan_all import scan_all
 from np.utils.scan_all import scan_all as mediascan
 #from np.utils.ytdl import ytdl
-from np.utils.init_conf import run_setup
+from np.core.conf import run_setup
 from np.utils.pbdl_add_to_series import add_series
 from np.utils.set_media_paths import set_media_paths
 from np.utils.id3 import tag
-import np.core.wsreceiver as receiver
-import np.core.wsserver as server
-import np.core.wssender as sender
+from np.ws import websocket_server
+from np.ws import server
+from np.ws import client
+from np.ws import thread
 home = os.path.expanduser("~")
 try:
 	conf = readConf()
@@ -80,12 +81,17 @@ except Exception as e:
 	MUSIC_DIR = conf['media_directories']['music']
 	MOVIES_DIR = conf['media_directories']['movies']
 	SERIES_DIR = conf['media_directories']['series']
+	COMFILE = conf['COMFILE']
 	log(f"__init__.py:Unable to read directory data from conf: {e}. Defaults used.", 'error')
 
 
 if not os.path.exists(conf['CONFFILE']):
 	log(f"conf file doesn't exist, creating...", 'warning')
 	com = (f"touch '{CONFFILE}'")
+	subprocess.check_output(com, shell=True)
+if not os.path.exists(COMFILE):
+	log(f"command file doesn't exist, creating...", 'warning')
+	com = (f"touch '{COMFILE}'")
 	subprocess.check_output(com, shell=True)
 
 try:
