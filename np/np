@@ -425,10 +425,10 @@ def btn_handler(btn):
 
 
 def remote_handler(com, arg):
-	remote_commands = ['help', 'commands', 'play', 'create_gui', 'close_gui', 'close_viewer', 'pause', 'stop', 'skip_next', 'skip_prev', 'vol_set', 'vol_up', 'vol_down', 'mute', 'unmute', 'quit', 'load', 'play_mode', 'play_type', 'seek', 'move_gui', 'move_player', 'get_pos', 'get_window_location', 'media_pick', 'media_get', 'debug']
-	if com not in remote_commands:
-		np.log(f"REMOTE: ERROR: Command not found ({com})", 'error')
-		return False
+	#remote_commands = ['create_viewer', 'help', 'commands', 'play', 'create_gui', 'close_gui', 'close_viewer', 'pause', 'stop', 'skip_next', 'skip_prev', 'vol_set', 'vol_up', 'vol_down', 'mute', 'unmute', 'quit', 'load', 'play_mode', 'play_type', 'seek', 'move_gui', 'move_player', 'get_pos', 'get_window_location', 'media_pick', 'media_get', 'debug']
+	#if com not in remote_commands:
+	#	np.log(f"REMOTE: ERROR: Command not found ({com})", 'error')
+	#	return False
 	global P, MP, UI
 	log(f"Command: '{com}', Argument: '{arg}'", 'info')
 	if com == 'play':					
@@ -447,6 +447,9 @@ def remote_handler(com, arg):
 	elif com == 'close_viewer':
 		UI.WINDOW2.close()
 		log("REMOTE:Viewer Window closed.", 'info')
+	elif com == 'create_viewer':
+		UI.create_viewer_window()
+		log("REMOTE:Viewer Window created.", 'info')
 	elif com == 'pause':
 		P.pause()
 		log("REMOTE: Paused", 'info')
@@ -527,7 +530,7 @@ def remote_handler(com, arg):
 			pos += 1
 			string = f"{pos}:{filepath}"
 			l.append(string)
-		j = "\n"
+		j = "|"
 		l = j.join(l)
 		log(f"REMOTE: MEDIA_FILES={l}", 'info')
 		MP.remote_media = l
@@ -683,6 +686,18 @@ def start():
 				elif event == 'Exit' or event == 'Close':
 					update_resume()
 					MP.exit = True
+					com = (f"kill {MP.conf['remote']['server']['pid']}")
+					try:
+						ret = subprocess.check_output(com, shell=True).decode().strip()
+						log(f"Remote server killed sucessfully!", 'info')
+					except Exception as e:
+						log(f"Killing remote server failed: {e}. Killing all python...", 'error')
+						com = (f"kill $(pgrep python3)")
+						ret = subprocess.check_output(com, shell=True).decode().strip()							
+					if ret != '':
+						log(f"Killing remote server returned response: {ret}", 'warning')
+					MP.conf['remote']['server']['pid'] = None
+					np.writeConf(MP.conf)
 					log(f"Exit set to true {event}", 'info')
 				elif event == 'store window location':
 					store_window_location()

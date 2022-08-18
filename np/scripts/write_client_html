@@ -11,52 +11,183 @@ else
 	read -p "Enter player ip:" host
 fi
 data="
+
 <html>
 <head>
 	<title>Simple client</title>
 	<script type=\"text/javascript\">
 		var ws;
 		function init() {
-			ws = new WebSocket(\"ws://$host:$port/\");
+			ws = new WebSocket(\"ws://192.168.2.4:8000/\");
 			ws.onopen = function() {
-				output(\"onopen\");
+				output(\"Connected.\");
 			};
 			ws.onmessage = function(e) {
-				output(\"onmessage: \" + e.data);
+				output(e.data);
 			};
 			ws.onclose = function() {
-				output(\"onclose\");
+				output(\"Disconnected.\");
 			};
 			ws.onerror = function(e) {
-				output(\"onerror\");
-				console.log(e)
+				output(\"Whoop, unable to connect! Is server running?\" + e.data);
+				console.log(e);
 			};
 		}
-		function onSubmit() {
+		function on_submit() {
 			var input = document.getElementById(\"input\");
 			ws.send(input.value);
 			output(\"send: \" + input.value);
 			input.value = \"\";
 			input.focus();
 		}
-		function onCloseClick() {
+		function click_connect() {
+			ws.close();
+			ws = new WebSocket(\"ws://192.168.2.4:8000/\");
+			ws.onopen = function() {
+				output(\"Connected.\");
+			};
+			ws.onmessage = function(e) {
+				output(e.data);
+			};
+			ws.onclose = function() {
+				output(\"Disconnected.\");
+			};
+			ws.onerror = function(e) {
+				output(\"Whoop, unable to connect! Is server running?\" + e.data);
+				console.log(e)
+			};
+		}
+		function click_help() {
+			ws.send(\"help\");
+		}
+		function click_stop() {
+			ws.send(\"stop\");
+		}
+		function click_pause() {
+			ws.send(\"pause\");
+		}
+		function click_play() {
+			ws.send(\"play\");
+		}
+		function click_skip_next() {
+			ws.send(\"skip_next\");
+		}
+		function click_skip_prev() {
+			ws.send(\"skip_prev\");
+		}
+		function click_vol_up() {
+			ws.send(\"vol_up\");
+		}
+		function click_vol_down() {
+			ws.send(\"vol_down\");
+		}
+		function click_mute() {
+			ws.send(\"mute\");
+		}
+		function click_unmute() {
+			ws.send(\"unmute\");
+		}
+		function click_create_gui() {
+			ws.send(\"create_gui\");
+		}
+		function click_close_gui() {
+			ws.send(\"close_gui\");
+		}
+		function click_close_viewer() {
+			ws.send(\"close_viewer\");
+		}
+		function click_create_viewer() {
+			ws.send(\"create_viewer\");
+		}
+		function click_list_media() {
+			ws.send(\"media_get\");
+		}
+		function click_close() {
 			ws.close();
 		}
+		function clear_output() {
+			var log = document.getElementById(\"log\");
+			log.innerHTML = '';
+		}
+
 		function output(str) {
 			var log = document.getElementById(\"log\");
 			var escaped = str.replace(/&/, \"&amp;\").replace(/</, \"&lt;\").
-				replace(/>/, \"&gt;\").replace(/\"/, \"&quot;\"); // \"
+				replace(/>/, \"&gt;\").replace(/\"/, \"&quot;\").replaceAll('|', \"<br>\"); // \"
 			log.innerHTML = escaped + \"<br>\" + log.innerHTML;
 		}
 	</script>
 </head>
 <body onload=\"init();\">
-	<form onsubmit=\"onSubmit(); return false;\">
-		<input type=\"text\" id=\"input\">
-		<input type=\"submit\" value=\"Send\">
-		<button onclick=\"onCloseClick(); return false;\">close</button>
+	<h1>NP Remote Player Interface</h1>
+	<form onsubmit=\"on_submit(); return false;\">
+		<fieldset>
+			<legend>Player Controls</legend>
+				<div id=\"pc_1\" class=\"slidecontainer\">
+					<label for=\"seek_pos\">Seek Bar:</label>
+					<br>
+					<input type=\"range\" min=\"1\" max=\"100\" value=\"1\" class=\"slider\" id=\"seek_pos\">
+					<script>
+						var slider = document.getElementById(\"seek_pos\");
+						slider.oninput = function() {
+							var seek_pos = slider.value;
+							output(\"Seek to postion: \" + seek_pos);
+							ws.send(\"seek=\" + seek_pos);
+						}
+					</script>
+				</div>
+			
+				<button onclick=\"click_play(); return false;\">Play</button>
+				<button onclick=\"click_pause(); return false;\">Pause</button>
+				<button onclick=\"click_stop(); return false;\">Stop</button>
+				<button onclick=\"click_skip_next(); return false;\">Next</button>
+				<button onclick=\"click_skip_prev(); return false;\">Previous</button>
+			<div id=\"pc_2\">
+				<button onclick=\"click_vol_up(); return false;\">Vol: Up</button>
+				<button onclick=\"click_vol_down(); return false;\">Vol: Down</button>
+				<button onclick=\"click_mute(); return false;\">Mute</button>
+				<button onclick=\"click_unmute(); return false;\">Unmute</button>
+			</div>
+		</fieldset>
+		<fieldset>
+			<label for=\"play_type\">Playback Type:</label>
+			<select name=\"play_type\" id=\"play_type\">
+				<option value=\"music\">Music</option>
+				<option value=\"movies\">Movies</option>
+				<option value=\"series\">Series</option>
+			</select>
+		</fieldset>
+		<fieldset>
+			<legend>Connection Controls</legend>
+			<button onclick=\"click_connect(); return false;\">Connect...</button>
+			<button onclick=\"click_close(); return false;\">Disconnect!</button>
+			<button onclick=\"click_help(); return false;\">Help</buton>
+			<button onclick=\"clear_output(); return false;\">Clear</buton>
+		</fieldset>
+
+		<fieldset>
+			<legend>UI Controls</legend>
+			<button onclick=\"click_create_gui(); return false;\">Open GUI</button>
+			<button onclick=\"click_close_gui(); return false;\">Close GUI</button>
+			<button onclick=\"click_close_viewer(); return false;\">Close Viewer Window</button>
+			<button onclick=\"click_create_viewer(); return false;\">Open Viewer Window</button>
+		</fieldset>
+		<fieldset>
+			<legend>Manual Input</legend>
+			<label for=\"input\">Command:</label>
+			<input type=\"text\" id=\"input\">
+			<input type=\"submit\" value=\"Send\">
+		</fieldset>
+		<fieldset>
+			<legent>Media List</legend>
+			<button onclick=\"click_list_media(); return false;\">List Media Files</button>
+			<br>
+		</fieldset>
+
 	</form>
+	<label for=\"log\">Response:</label>
 	<div id=\"log\"></div>
 </body>
-</html>"
+</html>
+"
 echo "$data" > "$HOME/.np/client.html"
