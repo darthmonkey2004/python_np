@@ -16,6 +16,32 @@ import time
 from np.core.log import np_logger
 log = np_logger().log_msg
 update_ct = 5
+
+def run_server():
+	try:
+		com = "pgrep python3"
+		pids = subprocess.check_output(com, shell=True).decode().strip().split("\n")
+	except:
+		pids = []
+	try:
+		com = (f"python3 -c \"from np import server; server.start();\"&")
+		subprocess.call(com, shell=True)
+	except Exception as e:
+		log(f"Exception trying to run remote server: {e}", 'error')
+		return False
+	try:
+		com = "pgrep python3"
+		newpids = subprocess.check_output(com, shell=True).decode().strip().split("\n")
+		for p in newpids:
+			if p not in pids:
+				pid = str(p)
+				MP.conf['remote']['server']['pid'] = pid
+				np.writeConf(MP.conf)
+		log(f"Remote server running as background process. PID={pid}", 'info')
+	except Exception as e:
+		log(f"Unable to get current pid of server! Error data: {e}", 'error')
+		return False
+
 def sqlite3(query):
 	dbfile = (f"{np.DATA_DIR}{os.path.sep}nplayer.db")
 	com = (f"sqlite3 '{dbfile}' \"{query}\"")
@@ -569,7 +595,8 @@ def start():
 	btn = None
 	evque = []
 	recenter_ui()
-	
+	if MP.conf['remote']['server']['state'] == 1:
+		run_server()
 	while True:
 		start_timer = timeit.default_timer()
 		data = None

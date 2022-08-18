@@ -156,6 +156,7 @@ def run_setup():
 	conf['network_mode']['control_port'] = 4444
 	conf['remote']['server'] = {}
 	conf['remote']['states'] = [0, 1]
+	conf['remote']['server']['pid'] = None
 	pick = None
 	pick = input("Enable remote control server? (y/n)")
 	if pick == 'n' or pick is None:
