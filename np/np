@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 
+#import imwatchingyou
 import timeit
 import pafy
 import urllib.parse
@@ -51,6 +52,11 @@ def sqlite3(query):
 		log(f"SQLITE3 Results: {out}", 'info')
 	return out
 
+def lookup_series(series_name, season, episode_number):
+	return np.rt_series_query(series_name, season, episode_number)
+
+def lookup_movies(title):
+	return np.rt_movies_query(title)
 
 def folder_browse_window():
 	x = MP.conf['windows']['browser']['x']
@@ -434,6 +440,17 @@ def remote_handler(com, arg):
 	if com == 'play':					
 		MP.play()
 		log("REMOTE: Playing!", 'info')
+	if com == 'lookup_movies':
+		ret = lookup_movies(arg)
+		log(f"REMOTE:MovieLookup={ret}", 'info')
+	if com == 'lookup_series':
+		try:
+			sn, s, e = arg.split(',')
+		except Exception as e:
+			log(f"REMOTE:Error: Need Name, season and episode. Got {arg}. Errmsg = {e}", 'info')
+			return None
+		ret = lookup_series(sn, s, e)
+		log(f"REMOTE:SeriesLookup={ret}", 'info')
 	elif com == 'help' or com == 'commands':
 		j = ", "
 		ret = j.join(remote_commands)
@@ -555,6 +572,8 @@ def start():
 	media = np.create_media()
 	tab = '-player_control_layout-'
 	MP.conf = np.readConf()
+	#if MP.conf['debug'] == True:
+	#	imwatchingyou.show_debugger_window()
 	try:
 		DEBUG = MP.conf['debug']
 	except:
@@ -598,9 +617,14 @@ def start():
 	btn = None
 	evque = []
 	recenter_ui()
+	readct = 0
+	readmax = 100
 	if MP.conf['remote']['server']['state'] == 1:
 		run_server()
 	while True:
+		readct += 1
+		#if MP.conf['debug'] == True:
+		#	imwatchingyou.refresh_debugger()
 		start_timer = timeit.default_timer()
 		data = None
 		update = update + 1
@@ -1167,6 +1191,7 @@ def start():
 				#np.writeConf(MP.conf)
 				MP.conf['GUI_RESET'] = False
 				log(f"Reset finished!:{MP.conf['GUI_RESET']}", 'info')
+				recenter_ui()
 			elif MP.play_needed == 1:
 				log("Playing from 'play needed'", 'info')
 				filepath = MP.conf['nowplaying']['filepath']
@@ -1231,6 +1256,13 @@ def start():
 				log(f"Loop took long! {loop_time}. DATA: {UI.event, UI.values}", 'warning')
 			#if MP.conf['debug'] == True:
 			#	log(f"Main loop cycle timer: {loop_time}", 'debug')
+		if readct > readmax:
+			with open(np.LOGFILE, 'r') as f:
+				log_data = f.read()
+			f.close()
+			if log_data is not None:
+				UI.WINDOW['-DEBUGGER-'].update(log_data)
+			readct = 0
 	
 	UI.WINDOW.close()
 	

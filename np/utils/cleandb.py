@@ -113,7 +113,6 @@ def clean_series():
 			trash.append(_id)
 			print (f"Duplicate:{string}")
 	print (f"Found {len(trash)} duplicate entries.")
-	input()
 	remove_items(trash, 'series')
 	print ("Done!")
 

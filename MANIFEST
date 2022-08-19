@@ -38,6 +38,7 @@ np/utils/pbdl_dl.py
 np/utils/pbdl_se_isin.py
 np/utils/query_movies.py
 np/utils/query_series.py
+np/utils/rotten_tomatoes_query.py
 np/utils/scan_all.py
 np/utils/scan_movies.py
 np/utils/scan_music.py

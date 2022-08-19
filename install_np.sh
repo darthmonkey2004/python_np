@@ -21,6 +21,40 @@ unmount_gdrive() {
 	fusermount -u ~/google-drive
 }
 
+add_to_favorites() {
+	data=$(gsettings get org.gnome.shell favorite-apps)
+	echo "_list = $data" > temp.py
+	echo "if 'np.desktop' not in _list:" >> temp.py
+	echo "	_list.append('np.desktop')" >> temp.py
+	echo "print(_list)" >> temp.py
+	newlist=$(python3 temp.py)
+	gsettings set org.gnome.shell favorite-apps "$newlist"
+	rm temp.py
+}
+write_desktop() {
+	echo "[Desktop Entry]" > np.desktop
+	echo "Version=1.0" >> np.desktop
+	echo "Name=NPlayer" >> np.desktop
+	echo "Comment=Media player and databasing package." >> np.desktop
+	echo "Exec='$HOME/.local/bin/np'" >> np.desktop
+	echo "Path='$HOME/.local'" >> np.desktop
+	echo "Icon='$HOME/.local/share/applications/poster.png'" >> np.desktop
+	echo "Terminal=false" >> np.desktop
+	echo "Type=Application" >> np.desktop
+	echo "Categories=Utility;Application;AudioVideo;Audio;Video;Player" >> np.desktop
+	echo "StartupWMClass=GUI" >> np.desktop
+	mv np.desktop "$HOME/.local/share/applications/np.desktop"
+	cp poster.png "$HOME/.local/share/applications/poster.png"
+	data=$(gsettings get org.gnome.shell favorite-apps)
+	echo "_list = $data" > temp.py
+	echo "if 'np.desktop' not in _list:" >> temp.py
+	echo "	_list.append('np.desktop')" >> temp.py
+	echo "print(_list)" >> temp.py
+	newlist=$(python3 temp.py)
+	gsettings set org.gnome.shell favorite-apps "$newlist"
+	add_to_favorites;
+}
+
 np_setup() {
 	dir=$(pwd)
 	dname=$(basename "$dir")
@@ -68,7 +102,8 @@ np_setup() {
 	fi
 	host=$(python3 -c "import np; conf = np.readConf(); print(conf['remote']['server']['host'])")
 	port=$(python3 -c "import np; conf = np.readConf(); print(conf['remote']['server']['port'])")
-	write_client_html
+	write_client_html;
+	write_desktop;
 }
 
 

@@ -11,32 +11,32 @@ def sqlite3(com):
 
 
 def get_series_list():
-	com = (f"select distinct series_name from series;")
+	com = (f"select distinct series_name from series order by series_name;")
 	_list = sqlite3(com).split('\n')
 	return _list
 
 def get_movies_list():
-	com = (f"select distinct title from movies;")
+	com = (f"select distinct title from movies order by title;")
 	_list = sqlite3(com).split('\n')
 	return _list
 
 def get_music_list():
-	com = (f"select distinct artist,title from music;")
+	com = (f"select distinct artist,title from music order by artist, title;")
 	_list = sqlite3(com).split('\n')
 	return _list
 
 def get_details_movies(title):
-	com = (f"select * from movies where title like '%{title}%';")
+	com = (f"select * from movies where title like '%{title}%' order by title;")
 	_list = sqlite3(com).split('|')
 	return _list
 
 def get_seasons(series_name):
-	com = (f"select distinct season from series where series_name like \"%{series_name}%\";")
+	com = (f"select distinct season from series where series_name like \"%{series_name}%\" order by season;")
 	_list = sqlite3(com).split('\n')
 	return _list
 
 def get_episodes(series_name, season):
-	com = (f"select distinct episode_number,episode_name from series where series_name like \"%{series_name}%\" and season = {season};")
+	com = (f"select distinct episode_number,episode_name from series where series_name like \"%{series_name}%\" and season = {season} order by episode_number;")
 	_list = sqlite3(com).split('\n')
 	return _list
 
@@ -80,17 +80,7 @@ def edit_details(table, _id):
 	btns = [[sg.Button('-update-'), sg.Button('-cancel-')]]
 	layout.append(btns)
 	WINDOW2 = sg.Window('Edit details', layout, location=(ew,eh), size=(640, 400), keep_on_top=False, grab_anywhere=True, element_justification='center', finalize=True, resizable=True).Finalize()
-	while True:
-		tevent, tvalues = WINDOW2.read(timeout=10)
-		if tevent is not None and tevent != '__TIMEOUT__':
-			if tevent ==  sg.WIN_CLOSED:
-				break
-			if tevent == '-cancel-':
-				WINDOW2.close()
-				break
-			else:
-				print (tevent, tvalues)
-	return True
+	return WINDOW2
 
 
 def set_active_series(isactive = None, series_name=None, season=None, episode_number=None):
@@ -103,14 +93,14 @@ def set_active_series(isactive = None, series_name=None, season=None, episode_nu
 		ret = sqlite3(com)
 		return ret
 	elif episode_number is None and season is not None and series_name is not None:
-		com = (f"select id from series where series_name like \"%{series_name}%\" and season = {season};")
+		com = (f"select id from series where series_name like \"%{series_name}%\" and season = {season} order by series_name, season;")
 		items = sqlite3(com).split('\n')
 		for _id in items:
 			com = (f"update series set isactive = {isactive} where id = {_id};")
 			ret = sqlite3(com)
 		return ret
 	elif episode_number is None and season is None and series_name is not None:
-		com = (f"select id,isactive from series where series_name like \"%{series_name}%\";")
+		com = (f"select id,isactive from series where series_name like \"%{series_name}%\" order by series_name;")
 		items = sqlite3(com).split('\n')
 		for _id in items:
 			com = (f"update series set isactive = {isactive} where id = {_id};")
@@ -154,8 +144,10 @@ def run():
 	season = None
 	episode_number = None
 	episode_name = None
-	global WINDOW
+	global WINDOW, WINDOW2, WINDOWS
 	WINDOW = show_editor()
+	WINDOWS = []
+	WINDOWS.append(WINDOW)
 	while True:
 		try:
 			window, event, values = sg.read_all_windows(timeout=10)
@@ -169,9 +161,12 @@ def run():
 		if event is not None and event != '__TIMEOUT__':
 			if event ==  sg.WIN_CLOSED:
 				break
-			if event == '-quit-':
-				WINDOW.close()
+			elif event == '-quit-':
+				for win in WINDOWS:
+					win.close()
 				break
+			elif event == '-cancel-':
+				WINDOW2.close()
 			elif event == '-table_movies-' or event == '-table_music-' or event == '-table_series-':
 				print (event)
 				table = get_table(values)
@@ -255,25 +250,26 @@ def run():
 			elif event == '-open_editor-':
 				if table == 'series':
 					if series_name is not None and season is not None and episode_number is not None:	
-						com = (f"select id from series where series_name like \"%{series_name}%\" and season = {season} and episode_number = {episode_number};")
+						com = (f"select id from series where series_name like \"%{series_name}%\" and season = {season} and episode_number = {episode_number} order by series_name, season, episode_number;")
 						_id = sqlite3(com)
 						print (f"ID: {_id}")
-						edit_details(table, _id)
+						WINDOW2 = edit_details(table, _id)
 					else:
 						print (f"Please set all fields first: series_name='{series_name}', season={season}, episode_number={episode_number}")
 				elif table == 'music':
 					artist = values['-db_items_0-'][0].split('|')[0]
 					title = values['-db_items_0-'][0].split('|')[1]
-					com = (f"select id from music where artist like \"%{artist}%\" and title = \"{title}\";")
+					com = (f"select id from music where artist like \"%{artist}%\" and title = \"{title}\" order by artist, title;")
 					_id = sqlite3(com)[0]
 					print (f"ID: {_id}")
-					edit_details(table, _id)
+					WINDOW2 = edit_details(table, _id)
 				elif table == 'movies':
 					title = values['-db_items_0-'][0]
-					com = (f"select id from movies where title like \"%{title}%\";")
+					com = (f"select id from movies where title like \"%{title}%\" order by title;")
 					_id = sqlite3(com)[0]
 					print (f"ID: {_id}")
-					edit_details(table, _id)
+					WINDOW2 = edit_details(table, _id)
+				WINDOWS.append(WINDOW2)
 			elif event == '-set_active-':
 				print (f"Setting active: Table='{table}', Series: '{series_name}', Season: {season}, Episode Number: {episode_number}")
 				if table == 'series':
@@ -359,5 +355,36 @@ def run():
 				season = None
 				episode_number = None
 				episode_name = None
+			elif event == '-update-':
+				pragma = np.get_columns(table)
+				columns = list(pragma.keys())
+				pos = -1
+				query = None
+				for column in columns:
+					pos += 1
+					dtype = pragma[column]['data_type']
+					print (dtype)
+					_id = values['-id-']
+					if column != 'id':
+						key = (f"-{column}-")
+						val = values[key]
+						if val is not None:
+							if "'" in val:
+								chunks = val.split("'")
+								j = ''
+								val = j.join(chunks)
+							if '"' in val:
+								chunks = val.split('"')
+								j = ''
+								val = j.join(chunks)
+							if dtype == 'TEXT':
+								query = (f"update {table} set {column} = \"{val}\" where id = {_id}")
+							elif dtype == 'INTEGER' or dtype == 'BOOL':
+								query = (f"update {table} set {column} = {val} where id = {_id}")
+							ret = sqlite3(query)
+							if ret:
+								np.log(f"Error in update items: {ret}", 'error')
+							else:
+								np.log(f"Item updated! key={key}, val={val}", 'info')
 			else:
 				print (window, event, values)

@@ -1,3 +1,4 @@
+import subprocess
 import os
 import np
 import PySimpleGUI as sg
@@ -65,11 +66,13 @@ class gui():
 
 	def create_gui_window(self):
 		line = []
+		log_data = 'Nyuh-uh!'
 		scale = float(int(self.conf['scale']) * 10)
 		control_modes = self.conf['network_modes']['control_modes']
 		media_modes = self.conf['network_modes']['media_modes']
 		search_line = [self.create_old('dropdown_menu', [self.tables, self.conf['play_type'], '-PLAY_TYPE-']), self.create_old('dropdown_menu', [list(self.conf['screens'].keys()), self.conf['screen'], '-SET_SCREEN-']), self.create_old('dropdown_menu', [['database', 'playlist'], 'database', '-PLAY_MODE-']), self.create_old('dropdown_menu', [control_modes, self.conf['network_mode']['control_mode'], '-CONTROL_MODE-']), self.create_old('dropdown_menu', [media_modes, self.conf['network_mode']['media_mode'], '-MEDIA_MODE-']), self.create_old('textbox', ['Search', '-SEARCH-']), self.create_old('text_input', ['Enter search query:', '-SEARCH_QUERY-']), self.create_old('btn', ['Search', 'Search'])]
-		elem_media_list = [self.create_old('listbox', [self.media['DBMGR_RESULTS'], '-CURRENT_PLAYLIST-'])]
+		debug_element = sg.Multiline(default_text=log_data, enter_submits=True, autoscroll=True, auto_size_text=True, horizontal_scroll=True, change_submits=True, enable_events=True, key='-DEBUGGER-', auto_refresh=True, reroute_stdout=False, reroute_stderr=False, reroute_cprint=False, echo_stdout_stderr=False, focus=False, expand_x=True, expand_y=True, rstrip=True)
+		elem_media_list = [self.create_old('listbox', [self.media['DBMGR_RESULTS'], '-CURRENT_PLAYLIST-']), debug_element]
 		update_line = [self.create_old('btn', ['Refresh from Database'])]
 		player_controls1 = [self.create_old('btn', ['Volume Up']), self.create_old('btn', ['previous']), self.create_old('btn', ['play']), self.create_old('btn', ['next']), self.create_old('btn', ['pause']), self.create_old('btn', ['stop'])]
 		player_controls2 = [self.create_old('btn', ['Volume Down']), self.create_old('btn', ['seek fwd']), self.create_old('btn', ['seek rev']), self.create_old('btn', ['Exit']), self.create_old('btn', ['Screenshot'])]
@@ -103,41 +106,7 @@ class gui():
 			[]
 		]
 		dbitems = []
-		#listbox_dbitems = [[sg.Listbox(columns_list, size=(20, 10), select_mode='multiple', change_submits=True, auto_size_text=True, enable_events=True, key='-DBMGR_PICKED_COLUMNS-'), sg.Listbox(dbitems, size=(70, 10), select_mode='multiple', change_submits=True, auto_size_text=True, expand_x=True, enable_events=True, key='-DBMGR_RESULTS-'), sg.Listbox(self.dbmgr_picked_items, size=(20, 10), select_mode='multiple', change_submits=True, auto_size_text=True, enable_events=True, key='-DBMGR_SELECTED_ROWS-')]]
-		#listbox_dbitems = sg.Frame(title='', layout=listbox_dbitems, key='listbox_dbitems', expand_x=True, grab=True, element_justification="left", vertical_alignment="top")
-		#btn_update_info = [self.create_old('btn', ['Query TMDB', '-Query TMDB-']), self.create_old('btn', ['Read Info', '-Read Info-']), self.create_old('btn', ['Update Info', '-Update Info-']), self.create_old('btn', ['Set Active', '-Set Active-']), self.create_old('btn', ['Set Inactive', '-Set Inactive-']), self.create_old('btn', ['Remove Selected', '-Remove Selected-'])]
-		#textinput_query_string = [[sg.Checkbox(text='Active Only', auto_size_text=True, change_submits=True, enable_events=True, key='-QUERY_ACTIVE-'), sg.Input(size=(30, 1), expand_x=True, enable_events=True, key='-DBMGR_QUERY_STRING-'), self.create_old('btn', ['SQL Search'])]]
-		#textinput_query_string = sg.Frame(title='', layout=textinput_query_string, key='textinput_query_string', expand_x=True, grab=True, element_justification="left", vertical_alignment="top")
-		#self.poster_img = [sg.Image(np.DEFAULT_POSTER, subsample=4, key='-poster_img-')]
-		#self.db_mgr_layout = [
-		#	[radio_frame],
-		#	[listbox_dbitems],
-		#	[sg.Text()],
-		#	[textinput_query_string],
-		#	[sg.Text()],
-		#]
-		#cct = len(columns_list)
-		#cct = cct - 1
-		#pos = -1
-		#while pos != cct:
-		#	pos = pos + 1
-		#	column = columns_list[pos]
-		#	pos = pos + 1
-		#	column2 = columns_list[pos]
-		#	text = (column + ":")
-		#	key=("-" + column + "-")
-		#	text2 = (column2 + ":")
-		#	key2=("-" + column2 + "-")
-		#	field = sg.Input(size=(30, 1), default_text=text, enable_events=True, expand_x=True, key=key), sg.Text(), sg.Input(size=(30,1), enable_events=True, default_text=text2, expand_x=True, key=key2)
-		#	self.db_mgr_layout.append(field)
-		#	text = None
-		#	text2 = None
-		#	key = None
-		#	key2 = None
-		#self.db_mgr_layout.append(btn_update_info)
-		#self.db_mgr_layout.append(self.poster_img)
-		#self.db_mgr_layout.append([sg.Sizegrip(key='-gui_size-')])
-		
+
 		self.menu_def = [['&File', ['-&Load Directory-', '-&Load Playlist-', '-&Save Playlist-', 'E&xit']], ['&Tools', ['&Pirate Bay Downloader', '-&Database Editor-', '&Torrent Manager', '&Video Filters', [np.VLC_VIDEO_FILTERS], '&Audio Filters', [np.VLC_AUDIO_FILTERS]]], ['&Help', '&About...'], ['&Media', ['-Scan Movies-', '-Scan Series-', '-Scan Music-', '-Scan All-']]]
 		#self.layout = [[sg.MenubarCustom(self.menu_def, tearoff=True, key='-menubar_key-'), sg.Button("Close")], [sg.TabGroup([[sg.Tab('MP Controls', self.player_control_layout, key='-player_control_layout-')], [sg.Tab('DB Manager', self.db_mgr_layout, key='-db_mgr_layout-')]], 	expand_x=True, expand_y=True, enable_events=True)]]
 		self.layout = [[sg.MenubarCustom(self.menu_def, tearoff=True, key='-menubar_key-'), sg.Button("Close")], [sg.TabGroup([[sg.Tab('MP Controls', self.player_control_layout, key='-player_control_layout-')], line_window_ctl], expand_x=True, expand_y=True, enable_events=True)]]
@@ -172,9 +141,8 @@ class gui():
 		return coords
 
 	def db_editor(self):
-		from np.core import db_editor
-		#WINDOW_EDITOR = db_editor.show_editor()
-		db_editor.run()
+		com = (f"python3 -c \"import np; np.db_editor()\"&")
+		subprocess.call(com, shell=True)
 		
 	
 

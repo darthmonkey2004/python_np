@@ -19,6 +19,7 @@ from np.core.nplayer_db import create_table_movies
 from np.core.nplayer_db import create_table_music
 from np.core.nplayer_db import test_db
 from np.utils import cleandb
+from np.core.db_editor import run as db_editor
 from np.core.conf import initConf, readConf, writeConf
 from np.utils.music_mgr import music_mgr
 #from np.utils import torrent_mgr as pbdl_mgr
@@ -51,6 +52,8 @@ from np.ws import websocket_server
 from np.ws import server
 from np.ws import client
 from np.ws import thread
+from np.utils.rotten_tomatoes_query import get_episode_data as rt_series_query
+from np.utils.rotten_tomatoes_query import get_movie_data as rt_movies_query
 home = os.path.expanduser("~")
 try:
 	conf = readConf()
