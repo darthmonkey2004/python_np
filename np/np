@@ -618,7 +618,7 @@ def start():
 	evque = []
 	recenter_ui()
 	readct = 0
-	readmax = 100
+	readmax = 300
 	if MP.conf['remote']['server']['state'] == 1:
 		run_server()
 	while True:
@@ -1059,7 +1059,7 @@ def start():
 					log(f"Remove selected:{MP.dbmgr_picked_items}", 'info')
 					UI.window['-DBMGR_RESULTS-'].update(MP.media['DBMGR_RESULTS'])
 				elif event == 'Torrent Manager':
-					pbdl.create_window()
+					pbdl.create_torrent_mgr()
 					pbdl.get_torrents()
 					pbdl.run()
 				elif event == 'Pirate Bay Downloader':
@@ -1257,10 +1257,19 @@ def start():
 			#if MP.conf['debug'] == True:
 			#	log(f"Main loop cycle timer: {loop_time}", 'debug')
 		if readct > readmax:
+			log_data = []
 			with open(np.LOGFILE, 'r') as f:
-				log_data = f.read()
+				data = f.read().split("\n")
 			f.close()
-			if log_data is not None:
+			if data is not None:
+				for line in data:
+					try:
+						add = line.split('--')[1]
+					except:
+						add = line
+					log_data.append(add)
+				j = "\n"
+				log_data = j.join(log_data)
 				UI.WINDOW['-DEBUGGER-'].update(log_data)
 			readct = 0
 	

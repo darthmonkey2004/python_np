@@ -54,6 +54,9 @@ from np.ws import client
 from np.ws import thread
 from np.utils.rotten_tomatoes_query import get_episode_data as rt_series_query
 from np.utils.rotten_tomatoes_query import get_movie_data as rt_movies_query
+from np.utils.pbdl import build_torrents
+from np.utils.pbdl import test_media_type
+from np.utils.pbdl import get_user_input
 home = os.path.expanduser("~")
 try:
 	conf = readConf()

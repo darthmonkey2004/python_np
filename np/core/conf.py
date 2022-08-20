@@ -182,6 +182,11 @@ def run_setup():
 	conf['SFTP_DIR'] = (f"{home}{os.path.sep}.np{os.path.sep}sftp")
 	conf['DEFAULT_POSTER'] = (f"{home}{os.path.sep}.local{os.path.sep}poster.png")
 	conf['COMFILE'] = (f"{conf['DATA_DIR']}{os.path.sep}nplayer.com")
+	conf['ssh'] = {}
+	conf['ssh']['connection_string'] = input("Please enter ssh connection string i.e. user@host: (blank for None):")
+	
+	
+	
 	ret = writeConf(conf)
 	return conf
 if __name__ == "__main__":
