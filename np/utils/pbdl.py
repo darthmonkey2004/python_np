@@ -1020,15 +1020,17 @@ class pbdl():
 						self.results = self.search_pb(self.pbdl_query, self.category)
 						self.pbdl_dl_win['-PBDL_RESULTS-'].update(self.results)
 					elif self.event == '-PBDL_RESULTS-':
-						try:
-							picked = self.values[self.event][0]
-							np.log(f"Downloading:{picked}", 'info')
-							magnet = self.results[picked]
-							#self.enable_vpn()
-							com = (f"transmission-remote {self.conf['pbdl_url']} -a \"{magnet}\"")
-							r = send_command(com)
-						except:
-							np.log("list empty!", 'warning')
+						#try:
+						picked = self.values[self.event][0]
+						np.log(f"Downloading:{picked}", 'info')
+						magnet = self.results[picked]
+						#self.enable_vpn()
+						com = (f"transmission-remote {self.conf['pbdl_url']} -a \"{magnet}\"")
+						r = send_command(com)
+						print (r)
+						#except Exception as e:
+						#	print (e)
+						#	np.log("list empty!", 'warning')
 					elif self.event == '-0-' or self.event == '-1-' or self.event == '-2-' or self.event == '-3-' or self.event == '-4-' or self.event == '-5-' or self.event == '-6-' or self.event == '-7-' or self.event == '-8-' or self.event == '-9-' or self.event == '-10-':
 						val = self.values[self.event]
 						ret = self.update_info(self._id, self.event, val)
