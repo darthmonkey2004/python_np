@@ -122,19 +122,19 @@ def disable_debug():
 	log("Debug disabled!", 'info') 
 
 
-def updateConf(conf, key, val):
-	log('core.py.updateConf running from somewhere...', 'debug')
-	conf = readConf()
-	key = str(key)
-	keys = list(conf.keys())
-	if key in keys:
-		conf[key] = val
-		writeConf(conf)
-		log("Conf updated!", 'info')
-		return True
-	else:
-		log(f"key not found: {key}", 'error')
-		return False
+#def updateConf(conf, key, val):
+#	log('core.py.updateConf running from somewhere...', 'debug')
+#	conf = readConf()
+#	key = str(key)
+#	keys = list(conf.keys())
+#	if key in keys:
+#		conf[key] = val
+#		writeConf(conf)
+#		log("Conf updated!", 'info')
+#		return True
+#	else:
+#		log(f"key not found: {key}", 'error')
+#		return False
 
 
 def read_history():
@@ -295,7 +295,7 @@ def init_window_position():
 
 def create_media(play_type=None, rows=None):
 	media = {}
-	media['DBMGR_RESULTS'] = []
+	media['PLAYLIST_ITEMS'] = []
 	if play_type == None:
 		try:
 			conf = readConf()
@@ -308,7 +308,6 @@ def create_media(play_type=None, rows=None):
 	media['now_playing'] = {}
 	media['current_vlc_media_object'] = None
 	media['continuous'] = 1
-	media['items'] = {}
 	media['vlc'] = {}
 	media['vlc']['events'] = ['2:EventType.MediaDurationChanged', '5:EventType.MediaStateChanged', '256:EventType.MediaMPMediaChanged', '260:EventType.MediaMPPlaying', '261:EventType.MediaMPPaused', '262:EventType.MediaMPStopped', '263:EventType.MediaMPForward', '264:EventType.MediaMPBackward', '265:EventType.MediaMPEndReached', '266:EventType.MediaMPEncounteredError', '267:EventType.MediaMPTimeChanged', '268:EventType.MediaMPPositionChanged', '269:EventType.MediaMPSeekableChanged', '270:EventType.MediaMPPausableChanged', '271:EventType.MediaMPTitleChanged', '272:EventType.MediaMPSnapshotTaken', '273:EventType.MediaMPLengthChanged', '274:EventType.MediaMPVout', '275:EventType.MediaMPScrambledChanged', '281:EventType.MediaMPMuted', '282:EventType.MediaMPUnmuted', '283:EventType.MediaMPAudioVolume', '284:EventType.MediaMPAudioDevice', '285:EventType.MediaMPChapterChanged', '1536:EventType.VlmMediaAdded', '1537:EventType.VlmMediaRemoved', '1538:EventType.VlmMediaChanged']
 	media['items'] = {}
@@ -324,7 +323,7 @@ def create_media(play_type=None, rows=None):
 				j = '|'
 				episode_name = j.join(chunks)
 			string = ("series:" + series_name + ":" + str(season) + ":" + str(episode_number) + ":" + episode_name + ":" + str(_id))
-			media['DBMGR_RESULTS'].append(string)
+			media['PLAYLIST_ITEMS'].append(string)
 			media_dict[_id] = {}
 			dic = media_dict[_id]
 			dic['type'] = 'series'
@@ -343,7 +342,7 @@ def create_media(play_type=None, rows=None):
 		rows = querydb(table='movies', column='id,tmdbid,title,year,release_date,description,poster,filepath', query='isactive = 1')
 		for _id, tmdbid, title, year, release_date, description, poster, filepath in rows:
 			string = ("movies:" + title + ":" + str(year) + ":" + str(_id))
-			media['DBMGR_RESULTS'].append(string)
+			media['PLAYLIST_ITEMS'].append(string)
 			media_dict[_id] = {}
 			dic = media_dict[_id]
 			dic['type'] = 'movies'
@@ -361,7 +360,7 @@ def create_media(play_type=None, rows=None):
 		rows = querydb(table = 'music', column='id,title,artist', query='isactive = 1')
 		for _id, title, artist in rows:
 			string = (f"music:{artist}:{title}:{_id}")
-			media['DBMGR_RESULTS'].append(string)
+			media['PLAYLIST_ITEMS'].append(string)
 			media_dict[_id] = {}
 			dic = media_dict[_id]
 			dic['type'] = 'music'

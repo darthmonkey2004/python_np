@@ -4,8 +4,8 @@ import subprocess
 global WINDOW, WINDOW2
 def sqlite3(com):
 	path = (f"{np.DATA_DIR}/nplayer.db")
-	com = (f"sqlite3 '{path}' '{com}'")
-	print (f"Query: '{com}'")
+	com = (f"sqlite3 \"{path}\" \"{com}\"")
+	print (f"Query: \"{com}\"")
 	ret = subprocess.check_output(com, shell=True).decode().strip()
 	return (ret)
 
@@ -31,12 +31,12 @@ def get_details_movies(title):
 	return _list
 
 def get_seasons(series_name):
-	com = (f"select distinct season from series where series_name like \"%{series_name}%\" order by season;")
+	com = (f"select distinct season from series where series_name like \'%{series_name}%\' order by season;")
 	_list = sqlite3(com).split('\n')
 	return _list
 
 def get_episodes(series_name, season):
-	com = (f"select distinct episode_number,episode_name from series where series_name like \"%{series_name}%\" and season = {season} order by episode_number;")
+	com = (f"select distinct episode_number,episode_name from series where series_name like \'%{series_name}%\' and season = {season} order by episode_number;")
 	_list = sqlite3(com).split('\n')
 	return _list
 
@@ -50,16 +50,16 @@ def get_table(values):
 		return 'movies'
 
 def edit_details(table, _id):
+	menu_def = [['&Tools', ['&Rotten Tomatoes Query']]]
 	global h
 	ew, eh = WINDOW.CurrentLocation()
 	eh = eh + h
-	print (f"Coords: ({ew}, {eh})")
 	schema = np.get_columns(table)
 	columns = list(schema.keys())
 	com = (f"select * from {table} where id = {_id};")
 	info = sqlite3(com).split('|')
 	pos = -1
-	layout = []
+	layout = [[sg.MenubarCustom(menu_def, tearoff=True, key='-editor_menubar_key-')]]
 	for column in columns:
 		pos += 1
 		try:
@@ -89,18 +89,18 @@ def set_active_series(isactive = None, series_name=None, season=None, episode_nu
 		isactive = 1
 	print (f"Setting Active = {isactive}...")
 	if episode_number is not None and season is not None and series_name is not None:
-		com = (f"update series set isactive = {isactive} where series_name like \"%{series_name}%\" and season = {season} and episode_number = {episode_number};")
+		com = (f"update series set isactive = {isactive} where series_name like \'%{series_name}%\' and season = {season} and episode_number = {episode_number};")
 		ret = sqlite3(com)
 		return ret
 	elif episode_number is None and season is not None and series_name is not None:
-		com = (f"select id from series where series_name like \"%{series_name}%\" and season = {season} order by series_name, season;")
+		com = (f"select id from series where series_name like \'%{series_name}%\' and season = {season} order by series_name, season;")
 		items = sqlite3(com).split('\n')
 		for _id in items:
 			com = (f"update series set isactive = {isactive} where id = {_id};")
 			ret = sqlite3(com)
 		return ret
 	elif episode_number is None and season is None and series_name is not None:
-		com = (f"select id,isactive from series where series_name like \"%{series_name}%\" order by series_name;")
+		com = (f"select id,isactive from series where series_name like \'%{series_name}%\' order by series_name;")
 		items = sqlite3(com).split('\n')
 		for _id in items:
 			com = (f"update series set isactive = {isactive} where id = {_id};")
@@ -167,6 +167,14 @@ def run():
 				break
 			elif event == '-cancel-':
 				WINDOW2.close()
+			elif event == 'Rotten Tomatoes Query':
+				if table == 'series':
+					info = np.utils.rotten_tomatoes_query.get_episode_data(series_name, season, episode_number)
+					if info is not None:
+						for key in list(info.keys()):
+							val = info[key]
+							k = (f"-{key}-")
+							WINDOW2[k].update(val)
 			elif event == '-table_movies-' or event == '-table_music-' or event == '-table_series-':
 				print (event)
 				table = get_table(values)
@@ -250,7 +258,7 @@ def run():
 			elif event == '-open_editor-':
 				if table == 'series':
 					if series_name is not None and season is not None and episode_number is not None:	
-						com = (f"select id from series where series_name like \"%{series_name}%\" and season = {season} and episode_number = {episode_number} order by series_name, season, episode_number;")
+						com = (f"select id from series where series_name like \'%{series_name}%\' and season = {season} and episode_number = {episode_number} order by series_name, season, episode_number;")
 						_id = sqlite3(com)
 						print (f"ID: {_id}")
 						WINDOW2 = edit_details(table, _id)
@@ -368,17 +376,16 @@ def run():
 					if column != 'id':
 						key = (f"-{column}-")
 						val = values[key]
+						print ("value:{val}")
 						if val is not None:
-							if "'" in val:
-								chunks = val.split("'")
-								j = ''
-								val = j.join(chunks)
-							if '"' in val:
-								chunks = val.split('"')
-								j = ''
-								val = j.join(chunks)
+							if val == '':
+								if dtype == 'INTEGER' or dtype == 'BOOL':
+									val = 0
+								else:
+									val = 'Unknown'
 							if dtype == 'TEXT':
-								query = (f"update {table} set {column} = \"{val}\" where id = {_id}")
+								val = val.replace("'", "").replace('"', "")
+								query = (f"update {table} set {column} = '{val}' where id = {_id}")
 							elif dtype == 'INTEGER' or dtype == 'BOOL':
 								query = (f"update {table} set {column} = {val} where id = {_id}")
 							ret = sqlite3(query)

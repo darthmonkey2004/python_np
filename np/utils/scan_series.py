@@ -8,6 +8,7 @@ import json
 
 conf = np.readConf()
 def sqlite3(query):
+	query = (query.replace("'", "\'").replace('"', '\"'))
 	dbfile = (f"{np.DATA_DIR}{os.path.sep}nplayer.db")
 	com = (f"sqlite3 '{dbfile}' \"{query}\"")
 	out = subprocess.check_output(com, shell=True).decode().strip().split("\n")[0]
@@ -79,24 +80,15 @@ def query_series(filepath, series_name, season, episode_number):
 		info['md5'] = 'null'
 		info['isactive'] = 1
 		info['url'] = url
-	if "'" in info['description']:
-		chunks = info['description'].split("'")
-		d=''
-		info['description'] = d.join(chunks)
-	if "'" in info['series_name']:
-		chunks = info['series_name'].split("'")
-		d=''
-		info['series_name'] = d.join(chunks)
-	if "'" in info['episode_name']:
-		chunks = info['episode_name'].split("'")
-		d=''
-		info['episode_name'] = d.join(chunks)
+	info['description'] = info['description'].replace("'", "").replace('"', "")
+	info['series_name'] = info['series_name'].replace("'", "").replace('"', "")
+	info['episode_name'] = info['episode_name'].replace("'", "").replace('"', "")
 
 	return info
 
 def scan_series(target_dir=None):
 	type = 'series'
-	exts = ['mp4', 'mov', 'avi', 'flv']
+	exts = ['mp4', 'mov', 'avi', 'flv', 'mkv']
 	np.test_db()
 	if target_dir == None:
 		target_dir = conf['media_directories']['series']
@@ -109,7 +101,8 @@ def scan_series(target_dir=None):
 			series_name = None
 			season = None
 			episode_number = None
-			com = (f"select filepath from series where filepath = '{filepath}';")
+			fname = os.path.basename(filepath)
+			com = (f"select filepath from series where filepath like '%{fname}%';")
 			exists = sqlite3(com)
 			if conf['debug'] == True:
 				np.log(f"Exists: {exists}", 'info')
@@ -118,9 +111,10 @@ def scan_series(target_dir=None):
 					go = True
 				else:
 					go = False
-					np.log(f"filepath not set!", 'waring')
+					np.log(f"filepath not set!", 'warning')
 			else:
 				np.log(f"File already in database: '{filepath}'", 'info')
+				go = False
 			if go == True:
 				try:
 					fname = basename(filepath)
@@ -165,7 +159,8 @@ def scan_series(target_dir=None):
 					np.log(f"Error:{ret}, Data:{info}", 'error')
 					input("Press a key...")
 
-
+	np.log(f"Running cleandb: 'series'...", 'info')
+	np.cleandb('series')
 if __name__ == "__main__":
 	import sys
 	target_dir = sys.argv[1]

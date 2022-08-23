@@ -1,6 +1,6 @@
 import subprocess
 import os
-from np import readConf, test_db, addtodb, log, DATA_DIR
+from np import readConf, test_db, addtodb, log, DATA_DIR, cleandb
 from np.utils.tadb_search import lookup
 from np.utils.id3 import tag
 id3 = tag()
@@ -115,6 +115,8 @@ def scan_music(target_dir=None):
 				print (f"Add to db results: {ret}, filepath:{filepath}", 'info')
 			if ret is not True:
 				print (ret)
+	log(f"Running cleandb: 'music'...", 'info')
+	cleandb('music')
 
 if __name__ == "__main__":
 	ret = scan_music()

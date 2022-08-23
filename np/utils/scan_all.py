@@ -48,6 +48,8 @@ def scan_all(dir=None):
 	else:
 		print ("Exiting...")
 		exit()
+	np.log(f"Running cleandb: All...", 'info')
+	np.cleandb()
 
 
 if __name__ == "__main__":

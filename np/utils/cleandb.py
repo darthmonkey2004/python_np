@@ -9,67 +9,63 @@ DATA_DIR = (home + os.path.sep + ".np")
 def run_shell(com):
 	out = subprocess.check_output(com, shell=True).decode()
 	if out:
-		print(out)
 		return out
 	else:
 		return True
 
 def backup_db():
-	print ("Backing up...")
+	log("Backing up...", 'info')
 	ts = datetime.datetime.now().timestamp()
 	movies_sql = (f"{DATA_DIR}{os.path.sep}movies.sql")
 	series_sql = (f"{DATA_DIR}{os.path.sep}series.sql")
 	music_sql = (f"{DATA_DIR}{os.path.sep}music.sql")
 	if os.path.exists(movies_sql):
-		print ("Movies.sql")
 		new_sql = (f"{movies_sql}.{ts}.backup.sql")
 		com = (f"mv '{movies_sql}' '{new_sql}'")
 		ret = run_shell(com)
 		if ret is not True:
-			print (f"Error: {ret}")
+			log(f"Error: {ret}", 'error')
 			input()
 	if os.path.exists(series_sql):
-		print ("Series.sql")
 		new_sql = (f"{series_sql}.{ts}.backup.sql")
 		com = (f"mv '{series_sql}' '{new_sql}'")
 		ret = run_shell(com)
 		if ret is not True:
-			print (f"Error: {ret}")
+			log(f"Error: {ret}", 'error')
 			input()
 	if os.path.exists(music_sql):
-		print ("Music.sql")
 		new_sql = (f"{music_sql}.{ts}.backup.sql")
 		com = (f"mv '{music_sql}' '{new_sql}'")
 		ret = run_shell(com)
 		if ret is not True:
-			print (f"Error: {ret}")
+			log(f"Error: {ret}", 'error')
 			input()
-	print ("dumping movies..")
+	log("dumping movies..", 'info')
 	com = (f"cd '{DATA_DIR}'; sqlite3 nplayer.db '.dump movies' > movies.sql")
 	ret = run_shell(com)
 	if ret is not True:
-		print (f"Error: {ret}")
+		log(f"Error: {ret}", 'error')
 		input()
-	print ("dumping series...")
+	log("dumping series...", 'info')
 	com = (f"cd '{DATA_DIR}'; sqlite3 nplayer.db '.dump series' > series.sql")
 	ret = run_shell(com)
 	if ret is not True:
-		print (f"Error: {ret}")
+		log(f"Error: {ret}", 'error')
 		input()
-	print ("dumping music...")
+	log("dumping music...", 'info')
 	com = (f"cd '{DATA_DIR}'; sqlite3 nplayer.db '.dump music' > music.sql")
 	ret = run_shell(com)
 	if ret is not True:
-		print (f"Error: {ret}")
+		log(f"Error: {ret}", 'error')
 		input()
 
 def remove_items(_list, table):
-	print (f"removing from {table}...")
+	log(f"removing from {table}...", 'info')
 	pos = 0
 	dbfile = (f"{DATA_DIR}{os.path.sep}nplayer.db")
 	for _id in _list:
 		pos += 1
-		print (f"Removing id: {_id}. Progress: {pos}/{len(_list)}")
+		log(f"Removing id: {_id}. Progress: {pos}/{len(_list)}", 'info')
 		com = (f"sqlite3 '{dbfile}' 'delete from {table} where id = {_id};'")
 		ret = subprocess.check_output(com, shell=True).decode()
 		if ret is not True and ret != '':
@@ -77,7 +73,7 @@ def remove_items(_list, table):
 	return True
 
 def clean_movies():
-	print ("Scanning movies for duplicates..")
+	log("Scanning movies for duplicates..", 'info')
 	com = (f"cd '/home/monkey/.np'; sqlite3 nplayer.db 'select title,id from movies order by title;'")
 	_list = subprocess.check_output(com, shell=True).decode().strip().split('\n')
 	keep = []
@@ -90,12 +86,13 @@ def clean_movies():
 			keep.append(title)
 		elif title in keep:
 			trash.append(_id)
-	print (f"Found {len(trash)} duplicate entries.")
+			log(f"Duplicate:{title}", 'info')
+	log(f"Found {len(trash)} duplicate entries.", 'info')
 	remove_items(trash, 'movies')
-	print ("Done!")
+	log("Done!", 'info')
 
 def clean_series():
-	print ("Scanning series for duplicates..")
+	log("Scanning series for duplicates..", 'info')
 	com = (f"cd '/home/monkey/.np'; sqlite3 nplayer.db 'select series_name,season,episode_number,id from series order by series_name,season,episode_number;'")
 	_list = subprocess.check_output(com, shell=True).decode().strip().split('\n')
 	keep = []
@@ -111,13 +108,13 @@ def clean_series():
 			keep.append(string)
 		elif string in keep:
 			trash.append(_id)
-			print (f"Duplicate:{string}")
-	print (f"Found {len(trash)} duplicate entries.")
+			log(f"Duplicate:{string}:{series_name}:{season}:{episode_number}", 'info')
+	log(f"Found {len(trash)} duplicate entries.", 'info')
 	remove_items(trash, 'series')
-	print ("Done!")
+	log("Done!", 'info')
 
 def clean_music():
-	print ("Scanning music for duplicates..")
+	log("Scanning music for duplicates..", 'info')
 	com = (f"cd '/home/monkey/.np'; sqlite3 nplayer.db 'select artist,title,id from music order by artist,title;'")
 	_list = subprocess.check_output(com, shell=True).decode().strip().split('\n')
 	keep = []
@@ -132,32 +129,33 @@ def clean_music():
 			keep.append(string)
 		elif string in keep:
 			trash.append(_id)
-	print (f"Found {len(trash)} duplicate entries (out of {len(_list)})...")
+			log(f"Duplicate:{string}", 'info')
+	log(f"Found {len(trash)} duplicate entries (out of {len(_list)})...", 'info')
 	remove_items(trash, 'music')
-	print ("Done!")
+	log("Done!", 'info')
 
 def run(opt="all"):
 	backup_db()
 	if opt == "all":
-		print("Checking entire database for duplicates...")
+		log("Checking entire database for duplicates...", 'info')
 		clean_movies()
 		clean_series()
 		clean_music()
 		return True
 	elif opt == 'music':
-		print("Checking music database for duplicates...")
+		log("Checking music database for duplicates...", 'info')
 		clean_music()
 		return True
 	elif opt == 'series':
-		print("Checking series database for duplicates...")
+		log("Checking series database for duplicates...", 'info')
 		clean_series()
 		return True
 	elif opt == 'movies':
-		print("Checking movies database for duplicates...")
+		log("Checking movies database for duplicates...", 'info')
 		clean_movies()
 		return True
 	else:
-		print ("Unrecognized option! Whoopsie doodles...")
+		log("Unrecognized option! Whoopsie doodles...", 'error')
 		return False
 
 

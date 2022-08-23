@@ -39,7 +39,7 @@ class tag(id3):
 		com = (f"id3 -t \"{self.title}\" -a \"{self.artist}\" -A \"{self.album}\" -y \"{self.year}\" -T \"{self.track}\" \"{self.filepath}\"")
 		ret = subprocess.check_output(com, shell=True)
 		if ret:
-			np.log(ret, 'info')
+			log(ret, 'info')
 		return True
 	
 	#returns a dictionary of all class attributes
@@ -104,7 +104,7 @@ class tag(id3):
 			return self
 			
 		except Exception as e:
-			np.log(f"Exception in id3.read: {e}", 'error')
+			log(f"Exception in id3.read: {e}", 'error')
 			return None
 	def clear(self, filepath=None):
 		if filepath == None:
@@ -125,9 +125,9 @@ class tag(id3):
 			com = (f"id3 -d '{self.filepath}'")
 			ret = subprocess.check_output(com, shell=True).decode().strip().split("\n")
 			if ret:
-				np.log(ret, 'info')
+				log(ret, 'info')
 			return True
 		except Exception as e:
-			np.log(f"Unable to clear tag in '{self.filepath}': {e}", 'error')
+			log(f"Unable to clear tag in '{self.filepath}': {e}", 'error')
 			return False
 		

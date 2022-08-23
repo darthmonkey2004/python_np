@@ -72,17 +72,17 @@ class gui():
 		media_modes = self.conf['network_modes']['media_modes']
 		search_line = [self.create_old('dropdown_menu', [self.tables, self.conf['play_type'], '-PLAY_TYPE-']), self.create_old('dropdown_menu', [list(self.conf['screens'].keys()), self.conf['screen'], '-SET_SCREEN-']), self.create_old('dropdown_menu', [['database', 'playlist'], 'database', '-PLAY_MODE-']), self.create_old('dropdown_menu', [control_modes, self.conf['network_mode']['control_mode'], '-CONTROL_MODE-']), self.create_old('dropdown_menu', [media_modes, self.conf['network_mode']['media_mode'], '-MEDIA_MODE-']), self.create_old('textbox', ['Search', '-SEARCH-']), self.create_old('text_input', ['Enter search query:', '-SEARCH_QUERY-']), self.create_old('btn', ['Search', 'Search'])]
 		debug_element = sg.Multiline(default_text=log_data, enter_submits=True, autoscroll=True, auto_size_text=True, horizontal_scroll=True, change_submits=True, enable_events=True, key='-DEBUGGER-', auto_refresh=True, reroute_stdout=False, reroute_stderr=False, reroute_cprint=False, echo_stdout_stderr=False, focus=False, expand_x=True, expand_y=True, rstrip=True)
-		elem_media_list = [self.create_old('listbox', [self.media['DBMGR_RESULTS'], '-CURRENT_PLAYLIST-']), debug_element]
-		update_line = [self.create_old('btn', ['Refresh from Database'])]
+		elem_media_list = [self.create_old('listbox', [self.media['PLAYLIST_ITEMS'], '-CURRENT_PLAYLIST-']), debug_element]
+		update_line = [self.create_old('btn', ['Refresh from Database']), self.create_old('btn', ['Refresh Log Data'])]
 		player_controls1 = [self.create_old('btn', ['Volume Up']), self.create_old('btn', ['previous']), self.create_old('btn', ['play']), self.create_old('btn', ['next']), self.create_old('btn', ['pause']), self.create_old('btn', ['stop'])]
-		player_controls2 = [self.create_old('btn', ['Volume Down']), self.create_old('btn', ['seek fwd']), self.create_old('btn', ['seek rev']), self.create_old('btn', ['Exit']), self.create_old('btn', ['Screenshot'])]
+		player_controls2 = [self.create_old('btn', ['Volume Down']), self.create_old('btn', ['seek fwd']), self.create_old('btn', ['seek rev']), self.create_old('btn', ['Exit']), self.create_old('btn', ['Screenshot']), self.create_old('btn', ['Mark Intro: Start']), self.create_old('btn', ['Mark Intro: End'])]
 		try:
 			play_pos = float(self.conf['nowplaying']['play_pos'])
 		except:
 			play_pos = 0
 			self.conf['nowplaying']['play_pos'] = play_pos
 		slider_scale = [sg.Slider(range=(0,1), resolution=0.01, default_value=play_pos, orientation='h', expand_x = True, enable_events = True, change_submits = True, key='-PLAY_POS-')]
-		line_window_ctl = [self.create_old('btn', ['store window location']), self.create_old('btn', ['Hide UI']), self.create_old('btn', ['Recenter UI']), self.create_old('btn', ['Fix Focus'])]
+		line_window_ctl = [self.create_old('btn', ['store window location']), self.create_old('btn', ['Hide UI']), self.create_old('btn', ['Recenter UI']), self.create_old('btn', ['Fix Focus']), self.create_old('btn', ['Fix Scaling'])]
 		self.video_temp_img = self.create_old('image', [np.DEFAULT_POSTER, '-VID_OUT-'])
 		
 		line.append(self.video_temp_img)
@@ -119,6 +119,14 @@ class gui():
 		self.conf['windows'] = np.init_window_position()
 		np.writeConf(self.conf)
 		return self.conf['windows']
+
+	def fix_focus(self):
+		try:
+			self.WINDOW.TKroot.focus_force()
+			self.WINDOW.Element('-SEARCH_QUERY-').SetFocus()
+			np.log(f"Fixed focus!", 'info')
+		except Exception as e:
+			np.log(f"Unable to set focus: {e}. Is GUI window open?", 'error')
 
 
 	def get_window_location(self, window=None):
@@ -227,6 +235,25 @@ class gui():
 				input_window.close()
 			elif event == '-USER_INPUT-':
 				self.user_input = values[event]
+		return self.user_input
+
+
+	def get_user_yn(self, window_title='Yes/No'):
+		yes_btn = sg.Button(button_text='Yes', auto_size_button=True, pad=(1, 1), key='-YES-')
+		no_btn = sg.Button(button_text='No', auto_size_button=True, pad=(1, 1), key='-NO-')
+		layout = [[yes_btn], [no_btn]]
+		input_window = sg.Window(window_title, layout, size=(300, 100), keep_on_top=False, element_justification='center', finalize=True)
+		while True:
+			event, values = input_window.read()
+			if event == sg.WIN_CLOSED:
+				break
+			elif event == '-YES-':
+				user_input = True
+				input_window.close()
+			elif event == '-NO-':
+				user_input = False
+			self.user_input = user_input
+			break
 		return self.user_input
 
 

@@ -29,6 +29,7 @@ np/utils/gui_create.py
 np/utils/id3.py
 np/utils/init_conf.py
 np/utils/input_handler.py
+np/utils/insert_intro.py
 np/utils/migrate_series.py
 np/utils/music_mgr.py
 np/utils/nplayer_db.py

@@ -5,6 +5,14 @@ import subprocess
 
 #TODO: add manual entry section if lookup fails to retreive movie data.
 
+
+def clean_string(string):
+	chars = ['!', '@', '"', "'", ':', '^', '$']
+	for char in chars:
+		string = string.replace(char, '_')
+	return string
+
+
 conf = np.readConf()
 def sqlite3(query):
 	dbfile = (f"{np.DATA_DIR}{os.path.sep}nplayer.db")
@@ -42,7 +50,7 @@ def scan_movies(target_dir=None):
 						np.log(f"scan_movies.py:Error on lookup, need to add manually. File: {filepath}", 'error')
 						data = {}
 						data['tmdbid'] = 'null'
-						data['title'] = title
+						data['title'] = clean_string(title)
 						data['year'] = 'null'
 						data['release_date'] = 'null'
 						data['duration'] = 'null'
@@ -50,21 +58,11 @@ def scan_movies(target_dir=None):
 						data['poster'] = 'null'
 					else:
 						try:
-							if "'" in data['description']:
-								chunks = data['description'].split("'")
-								out = ''
-								for chunk in chunks:
-									out = (f"{out}{chunk}")
-								data['description'] = out
-							if "'" in data['title']:
-								chunks = title.split("'")
-								out = ''
-								for chunk in chunks:
-									out = (f"{out}{chunk}")
-								data['title'] = out
+							data['description'] = clean_string(data['description'])
+							data['title'] = clean_string(data['title'])
 						except Exception as e:
 							data['tmdbid'] = 'null'
-							data['title'] = title
+							data['title'] = clean_string(title)
 							data['year'] = 'null'
 							data['release_date'] = 'null'
 							data['duration'] = 'null'
@@ -80,6 +78,8 @@ def scan_movies(target_dir=None):
 						input()
 				else:
 					np.log(f"File already in database! ({filepath}, Skipping..", 'info')
+	np.log(f"Running cleandb: 'movies'...", 'info')
+	np.cleandb('movies')
 
 if __name__ == "__main__":
 	import sys

@@ -1,0 +1,138 @@
+import os
+import subprocess
+import json
+from np import log
+
+def extract_metadata(filepath):
+	com = (f"ffmpeg -y -i '{filepath}' -f ffmetadata FFMETADATAFILE.txt")
+	log(f"Extract metadata: com='{com}'", 'info')
+	ret = subprocess.call(com, shell=True)
+	with open ("FFMETADATAFILE.txt", "r") as f:
+		metadata = f.read().strip()
+	f.close()
+	return metadata
+
+
+def insert_metadata(filepath, metadata):
+	l = len(filepath) - 4
+	ext = filepath[l:]
+	fname = filepath[0:l]
+	newname = (f"{fname}.with_chapters{ext}")
+	with open("FFMETADATAFILE.txt", "w") as f:
+		f.write(metadata)
+	f.close()
+	com = (f"ffmpeg -y -i \"{filepath}\" -i FFMETADATAFILE.txt -map_metadata 1 -codec copy \"{newname}\"&")
+	log(f"Insert metadata: com='{com}'", 'info')
+	ret = subprocess.call(com, shell=True).decode()
+	if ret == '':
+		return newname
+	else:
+		return ret
+
+
+def get_duration(filepath):
+	com = (f"ffprobe -v quiet -print_format json -show_format -show_streams \"{filepath}\"")
+	data = subprocess.check_output(com, shell=True).decode().strip()
+	json_data = json.loads(data)
+	duration = float(json_data['format']['duration'])
+	return duration
+
+def test_for_chapters(filepath):
+	com = (f"ffprobe -i '{filepath}' -print_format json -show_chapters -loglevel error")
+	data = subprocess.check_output(com, shell=True).decode().strip()
+	json_data = json.loads(data)
+	if json_data['chapters'] == []:
+		return False
+	else:
+		return json_data['chapters']
+
+def insert_intro(filepath, start_time, end_time):
+#	end_pos = int(end_pos)
+	chapters = test_for_chapters(filepath)
+	if chapters:
+		print (chapters)
+		#yn = input("File already has chapters. overwrite?")
+		yn = 'y'
+		if yn == 'y':
+			log(f"Overwriting chapters in file '{filepath}'...", 'info')
+			duration = get_duration(filepath) * 1000
+			start = start_time * 1000
+			end = end_time * 1000
+			log(f"Duration:{duration}, Start:{start}, End:{end}", 'info')
+		
+			if chapters:
+				log(f"chapters = {chapters}", 'info')
+				lines = []
+				#set first chapters start to the  end of intro insert
+				c0 = chapters[0]
+				c0['start'] = round(end)
+				#insert new first item in list
+				lines.append('[CHAPTER]')
+				#set timebase to same as first chapter
+				lines.append(f"TIMEBASE={chapters[0]['time_base']}")
+				lines.append(f"START={start}")
+				lines.append(f"END={end}")
+				lines.append("title=Intro")
+				for chapter in chapters:
+					log(f"Replacing chapter {chapter['id']}")
+					_id = int(chapter['id'])
+					s = chapter['start']
+					e = chapter['end']
+					title = chapter['tags']['title']
+					time_base = chapter['time_base']
+					lines.append('[CHAPTER]')
+					lines.append(f"TIMEBASE={time_base}")
+					lines.append(f"START={s}")
+					lines.append(f"END={e}")
+					lines.append("title={title}")
+			else:
+				log(f"Creating new chapter list...")	
+				lines = extract_metadata(filepath).split("\n")
+				lines.append('[CHAPTER]')
+				lines.append('TIMEBASE=1/1000')
+				lines.append(f"START={start}")
+				lines.append(f"END={end}")
+				lines.append("title=Intro")
+			j = "\n"
+			data = j.join(lines)
+			print (f"new lines = {data}")
+			newname = insert_metadata(filepath, data)
+			if os.path.exists(newname):
+				haschapters = test_for_chapters(newname)
+				if haschapters:
+					log("Intro chapter added succesfully! Check file, then press 'y' to remove.")
+					remove = input("Remove file? (y/n):")
+					if remove == 'y':
+						com=(f"rm \"{filepath}\"")
+						ret = subprocess.check_output(com, shell=True).decode().strip()
+						if ret:
+							log(f"Error: removal returned result: {ret}", 'error')
+							return False
+						com=(f"mv \"{newname}\" \"{filepath}\"")
+						ret = subprocess.check_output(com, shell=True).decode().strip()
+						if ret:
+							log(f"Error: removal returned result: {ret}", 'error')
+							return False
+		else:
+			log(f"Aborting chapter insertion...", 'info')
+			return None
+		return True
+
+if __name__ == "__main__":
+	import sys
+	try:
+		filepath = sys.argv[1]
+	except:
+		filepath = input("Enter filepath: ")
+	try:
+		start = float(sys.argv[2])
+	except:
+		start = float(input("Enter Start position (%): "))
+	try:
+		end = float(sys.argv[3])
+	except:
+		end = float(input("Enter End position (%): "))
+	#start = 0.0
+	#end = 0.0348384864628315
+	newpath = insert_intro(filepath, start, end)
+	print (newpath)

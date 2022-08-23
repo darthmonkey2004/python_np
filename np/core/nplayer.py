@@ -8,7 +8,6 @@ import subprocess
 import eyed3
 from urllib.parse import quote, unquote
 import np
-#input_handler = np.dev.input_handler
 import vlc
 import random
 import time
@@ -45,7 +44,7 @@ class nplayer():
 		self.events_conf = 'events.conf'
 		self.play_needed = 1
 		self.scale_needed = 0
-		self.DBMGR_RESULTS = self.media['DBMGR_RESULTS']
+		self.PLAYLIST_ITEMS = self.media['PLAYLIST_ITEMS']
 		self.dbmgr_picked_items = []
 		self.target = {}
 		self.target['file'] = None
@@ -67,7 +66,11 @@ class nplayer():
 		self.playlist_loop_all = True
 		self.remote_media = []
 		self.exit = False
-
+		self.conf['intro'] = {}
+		self.conf['intro']['start'] = None
+		self.conf['intro']['end'] = None
+		self.intro_start = None
+		self.intro_end = None
 		try:
 			self.main_keyboard = self.conf['main_keyboard']['path']
 		except:
@@ -129,13 +132,6 @@ class nplayer():
 		self.player.audio_set_mute(self.conf['mute'])
 		if self.conf['mute'] == False:
 			self.player.audio_set_volume(self.conf['volume'])
-		scale = self.conf['scale']
-		if scale >= 10:
-			self.conf['scale'] = float(scale / 100)#Convert to 1-10 float value if in percentage
-		else:
-			self.conf['scale'] = float(scale)#force to float if already in 1-10 scale
-		time.sleep(0.5)
-		self.player.video_set_scale(scale)
 		for evt in self.media['vlc']['events']:
 			evid = int(evt.split(':')[0])
 			event = vlc.EventType(evid)
@@ -154,7 +150,7 @@ class nplayer():
 		self.nowplaying['state'] = self.player.get_state()
 		self.nowplaying['xwindow'] = self.player.get_xwindow()
 		self.conf['nowplaying']['play_pos'] = self.player.get_position()
-		#np.log(f"nplayer.py, set_now_playing: play_pos set={self.conf['nowplaying']['filepath']}", 'info')
+		np.log(f"nplayer.py, set_now_playing: play_pos set={self.conf['nowplaying']['filepath']}", 'info')
 		return self.nowplaying
 		
 	def vlc_event(self, event):
@@ -229,7 +225,6 @@ class nplayer():
 		return string
 			
 	def get_next(self):
-		#self.next = None
 		if self.conf['play_type'] == 'series':
 			np.log("get next: series started!")
 			_list = np.querydb(table='series', column='distinct series_name', query='isactive = 1')
@@ -241,7 +236,6 @@ class nplayer():
 			_list=[]
 			for item in items:
 				_list.append(item[0])
-			#try:
 			self.series_history = np.read_history()
 			try:
 				self.last = self.series_history[series_name]
@@ -354,7 +348,6 @@ class nplayer():
 		self.player.stop()
 		np.log("Playback stopped!")
 		self.vlcInstance.release()
-		#self.vlcInstance = None
 		np.log("VLC Instance released!")
 		self.media['is_playing'] = 0
 		self.media['continuous'] = 0
@@ -373,7 +366,7 @@ class nplayer():
 			self.next = self.history['history'][self.history['pos']]
 			np.log(f"self.next set from history index({self.history['pos']}):{self.next}", 'info')
 		except Exception as e:
-			self.next = self.media['DBMGR_RESULTS'][self.history['pos']]
+			self.next = self.media['PLAYLIST_ITEMS'][self.history['pos']]
 			np.log(f"Error setting next from history: {e}, next='{self.next}'", 'error')
 		
 		if 'series:' in self.next:
@@ -506,6 +499,65 @@ class nplayer():
 				np.log(txt, 'error')
 				return False
 
+	def constrain_scale(self, scale):
+		if scale >= 10:
+			return float(scale / 100)#Convert to 1-10 float value if in percentage
+		else:
+			return float(scale)#force to float if already in 1-10 scale
+
+	def set_scale(self, filepath=None):
+		if filepath == None:
+			filepath = self.next
+			np.log(f"set_scale: Filepath not provided, using self.next ({self.next}).", 'info')
+		else:
+			np.log(f"set scale: Filepath provided: {filepath}", 'info')
+		scale = np.calculate_scale(filepath)
+		scale = self.constrain_scale(scale)
+		if scale == None:
+			self.scale = None
+			self.scale_needed = 0
+			np.log (f"Scale is None, setting scale_needed = 0", 'info')
+			return self.scale
+		elif scale == 0.0:
+			self.log(f"Scale returned 0.0, retrying..", 'warning')
+			scale = np.calculate_scale(filepath)
+			scale = self.constrain_scale(scale)
+			if scale == None:
+				self.scale = None
+				self.scale_needed = 0
+				np.log (f"Scale is None, setting scale_needed = 0", 'info')
+				return self.scale
+			elif scale == 0.0:
+				self.log(f"Second scale attempt returned 0.0. Assuming it's correct and continuing..", 'info')
+				self.scale = scale
+				self.conf['scale'] = self.scale	
+				self.scale_needed = 0
+				self.player.video_set_scale(self.scale)
+				return self.scale
+			else:
+				self.scale = scale
+				self.conf['scale'] = self.scale
+				self.player.video_set_scale(self.scale)
+				test_scale = self.player.video_get_scale()
+				if test_scale:
+					#self.scale_needed = 1
+					np.log (f"set_scale(), test_scale={test_scale}: Scale is {self.scale}, omitting scale_needed.", 'info')
+				else:
+					np.log(f"Scale set. Test result: {test_scale}", 'info')
+						
+				
+		else:
+			self.scale = scale
+			self.conf['scale'] = self.scale		
+			self.player.video_set_scale(self.scale)
+			test_scale = self.player.video_get_scale()
+			if test_scale:
+				#self.scale_needed = 1
+				np.log (f"set_scale(), test_scale={test_scale}: Scale is {self.scale}, omitting scale needed", 'info')
+			else:
+				np.log(f"Scale set. Test result: {test_scale}", 'info')
+						
+
 	
 	def play(self, _file=None):
 		if self.next is not None and self.play_mode == 'playlist':
@@ -581,6 +633,19 @@ class nplayer():
 				self.conf['nowplaying']['filepath'] = self.next
 				self.conf['nowplaying']['play_pos'] = self.play_pos
 				np.writeConf(self.conf)
+		if self.next == None:
+			self.next = self.get_next()
+		intro = np.guess_intro(self.next)
+		if intro is not None:
+			self.conf['intro'] = {}
+			self.conf['intro']['start'] = intro[0]
+			self.conf['intro']['end'] = intro[1]
+			np.log(f"Intro detected! Start={intro[0]}, End={intro[1]}", 'info')
+		else:
+			self.conf['intro'] = {}
+			self.conf['intro']['start'] = None
+			self.conf['intro']['end'] = None
+			np.log("No intro found for '{self.next}'", 'info')
 		if self.vlcInstance is None:
 			try:
 				opts = self.conf['vlc']['opts']
@@ -618,32 +683,12 @@ class nplayer():
 		self.media['continuous'] = 1
 		if self.conf['play_type'] == 'series' or  self.conf['play_type'] == 'movies':
 			if self.is_url == False:
-				time.sleep(0.5)
 				if self.next is not None:
-					self.scale = np.calculate_scale(self.next)
-					if self.scale == None:
-						self.scale_needed = 0
-						np.log (f"Scale is None, setting scale_needed = 0", 'info')
-					else:
-						self.player.video_set_scale(self.scale)
-						test_scale = self.player.video_get_scale()
-						if test_scale:
-							self.scale_needed = 1
-							np.log (f"Scale is {self.scale}, setting scale needed = 1", 'info')
+					self.set_scale(self.next)
 				else:
 					np.log(f"WARNING:next not set! {self.next}. Retrying...", 'warning')
 					self.next == self.get_next()
-					self.scale = np.calculate_scale(self.next)
-					if self.scale == None:
-						self.scale_needed = 0
-						np.log (f"Scale is None, setting scale_needed = 0", 'info')
-					else:
-						self.player.video_set_scale(self.scale)
-						test_scale = self.player.video_get_scale()
-						if test_scale:
-							self.scale_needed = 1
-							np.log (f"Scale is {self.scale}, setting scale needed = 1", 'info')
-
+					ret = self.scale(self.next)
 		self.volume = self.player.audio_get_volume()
 		self.media['is_playing'] = self.player.is_playing()
 		if self.media['is_playing'] == 1 or self.media['is_playing'] == True:
@@ -775,8 +820,8 @@ class nplayer():
 
 	def get_playlist_next(self):
 		self.play_mode = 'playlist'
-		items = self.media['DBMGR_RESULTS']
-		np.log(f"DBMGR_RESULTS/items:{items}", 'info')
+		items = self.media['PLAYLIST_ITEMS']
+		np.log(f"PLAYLIST_ITEMS/items:{items}", 'info')
 		idx = None
 		if self.playlist_last is None:
 			try:
@@ -798,10 +843,8 @@ class nplayer():
 				string = self.build_info_string_from_filepath(self.playlist_last)
 				if self.conf['debug'] == True:
 					np.log(f"Built playlist parse string from filepath. string={string}, filepath='{self.playlist_last}'", 'info')
-				#if 'series:' in self.playlist_last or 'movies:' in self.playlist_last or 'music:' in self.playlist_last:
 				try:
 					idx = items.index(string)
-					#idx += 1
 					np.log(f"Index set from string: {idx}, {string}", "info")
 				except Exception as e:
 					idx = 1
@@ -825,7 +868,6 @@ class nplayer():
 					series_name, season, episode_number, episode_name, _id = np.querydb(table='series', column='series_name,season,episode_number,episode_name,id', query=query_string)[0]
 					string = ('series:' + series_name + ":" + str(season) + ":" + str(episode_number) + ":" + str(episode_name) + ":" + str(_id))
 					idx = items.index(string)
-					#'series:Rick and Morty:5:1:Mort Dinner Rick Andre:1199'
 				elif inmovies is not None:
 					title, year, _id = np.querydb(table='movies', column='title,year,id', query=query_string)[0]
 					string = ("movies:" + title + ":" + str(year) + ":" + str(_id))
@@ -848,10 +890,6 @@ class nplayer():
 						self.playlist_mode = 'database'
 						self.next = None
 						return False
-			#except Exception as e:
-			#	np.log("Unable to get next:" + str(idx) + ", " + str(e))
-			#	self.play_mode = 'database'
-			#	return None
 		if 'series:' in self.next:
 			_id = self.next.split(':')[5]
 			qstring = ("id = '" + _id + "'")
