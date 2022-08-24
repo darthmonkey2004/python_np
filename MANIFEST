@@ -37,6 +37,7 @@ np/utils/pbdl.py
 np/utils/pbdl_add_to_series.py
 np/utils/pbdl_dl.py
 np/utils/pbdl_getTorrents.py
+np/utils/pbdl_new_working.py
 np/utils/pbdl_se_isin.py
 np/utils/query_movies.py
 np/utils/query_series.py

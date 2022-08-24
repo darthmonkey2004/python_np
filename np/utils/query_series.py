@@ -77,7 +77,10 @@ def tmdb_query_series(filepath, series_name, season, episode_number):
 		still_path = json_data['results'][0]['backdrop_path']
 	except Exception as e:
 		print ("Still path was error:", e)
-		still_path = json_data['results'][0]['poster_path']
+		try:
+			still_path = json_data['results'][0]['poster_path']
+		except:
+			still_path = 'No image found'
 	if "'" in json_data['results'][0]['name']:
 		temp = json_data['results'][0]['name']
 		temp = temp.split("'")

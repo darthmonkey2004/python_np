@@ -6,7 +6,10 @@ from np import log
 def guess_intro(_file):
 	log(f"Guessing intro for file: '{_file}'...", 'info')
 	com = (f"ffprobe -v quiet -print_format json -show_format -show_streams \"{_file}\"")
-	data = subprocess.check_output(com, shell=True).decode().strip()
+	try:
+		data = subprocess.check_output(com, shell=True).decode().strip()
+	except:
+		return None
 	json_data = json.loads(data)
 	duration = float(json_data['format']['duration'])
 	com = (f"ffprobe -i '{_file}' -print_format json -show_chapters -loglevel error")

@@ -433,7 +433,7 @@ def btn_handler(btn):
 
 
 def remote_handler(com, arg):
-	#remote_commands = ['create_viewer', 'help', 'commands', 'play', 'create_gui', 'close_gui', 'close_viewer', 'pause', 'stop', 'skip_next', 'skip_prev', 'vol_set', 'vol_up', 'vol_down', 'mute', 'unmute', 'quit', 'load', 'play_mode', 'play_type', 'seek', 'move_gui', 'move_player', 'get_pos', 'get_window_location', 'media_pick', 'media_get', 'debug']
+	remote_commands = ['create_viewer', 'help', 'commands', 'play', 'create_gui', 'close_gui', 'close_viewer', 'pause', 'stop', 'skip_next', 'skip_prev', 'vol_set', 'vol_up', 'vol_down', 'mute', 'unmute', 'quit', 'load', 'play_mode', 'play_type', 'seek', 'move_gui', 'move_player', 'get_pos', 'get_window_location', 'media_pick', 'media_get', 'debug']
 	#if com not in remote_commands:
 	#	np.log(f"REMOTE: ERROR: Command not found ({com})", 'error')
 	#	return False
@@ -512,6 +512,7 @@ def remote_handler(com, arg):
 		np.writeConf(MP.conf)
 		MP.play_type = arg
 		log(f"REMOTE: Play type set:{arg}", 'info')
+		gui_reset()
 	elif com == 'seek':
 		pos = float(float(arg) / 100)
 		P.set_position(pos)
@@ -532,6 +533,8 @@ def remote_handler(com, arg):
 		log(f"REMOTE: GUI Window Location={loc}", 'info')
 	elif com == 'media_pick':
 		try:
+			if ':' in arg:
+				arg = arg.split(':')[1]
 			MP.next = arg
 			MP.play(MP.next)
 			log(f"REMOTE: Playback started. File='{MP.next}'", 'info')
@@ -553,6 +556,9 @@ def remote_handler(com, arg):
 		l = j.join(l)
 		log(f"REMOTE: MEDIA_FILES={l}", 'info')
 		MP.remote_media = l
+	elif com == 'fix_scaling':
+		MP.set_scale(MP.conf['nowplaying']['filepath'])
+		log("REMOTE: Fix Scaling command received, scale set ({MP.scale})", 'info')
 	elif com == 'debug':
 		try:
 			debug = bool(arg)
@@ -580,7 +586,11 @@ def refresh_log_data():
 		log_data = j.join(log_data)
 	else:
 		log_data.append('Log is empty!')
-	UI.WINDOW['-DEBUGGER-'].update(log_data)
+	try:
+		UI.WINDOW['-DEBUGGER-'].update(log_data)
+	except:
+		np.log(f"Can't update log in GUI (window closed?)", 'info')
+		pass
 
 
 def start():

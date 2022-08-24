@@ -76,19 +76,20 @@ def rt_series(series_name=None, season=None, episode_number=None):
 #	return info
 
 def get_episode_data(series_name, season, episode_number, filepath=None):
-	if filepath is None:
-		com = (f"sqlite3 \"{DATA_DIR}/nplayer.db\" \"select filepath from series where series_name like \'%{series_name}%\' and season = {season} and episode_number = {episode_number};\"")
-		filepath = subprocess.check_output(com, shell=True).decode().strip()
-		if filepath == '':
-			conf = readConf()
-			_dir = conf['media_directories']['main']
-			listfile = (f"{_dir}/medialist.txt")
-			string = (f"Series/{series_name}/S{season}")
-			com = (f"cat \"{listfile}\" | grep \"{string}\" | grep \"S{season}E{episode_number}\"")
-			filepath = subprocess.check_output(com, shell=True).decode().strip()
-			if filepath == '':
-				log(f"Unable to get filepath with given details.")
-				filepath = 'Unknown'
+	#if filepath is None:
+		#com = (f"sqlite3 \"{DATA_DIR}/nplayer.db\" \"select filepath from series where series_name like \'%{series_name}%\' and season = {season} and episode_number = {episode_number};\"")
+		#filepath = subprocess.check_output(com, shell=True).decode().strip()
+		#if filepath == '':
+		#	conf = readConf()
+		#	_dir = conf['media_directories']['main']
+		#	listfile = (f"{_dir}/medialist.txt")
+		#	string = (f"Series/{series_name}/S{season}")
+		#	com = (f"cat \"{listfile}\" | grep \"{string}\" | grep \"S{season}E{episode_number}\"")
+		#	filepath = subprocess.check_output(com, shell=True).decode().strip()
+		#	if filepath == '':
+		#		log(f"Unable to get filepath with given details.")
+		#		filepath = 'Unknown'
+	print (f"Series:{series_name}, season:{season}, episode_number:{episode_number}, filepath:{filepath}")
 	episodes_split = '<script type="application/ld+json" id="jsonLdSchema">'
 	data = rt_series(series_name, season, episode_number).split(episodes_split)[1].split('</script>')[0]
 	json_data = json.loads(data)
@@ -101,7 +102,11 @@ def get_episode_data(series_name, season, episode_number, filepath=None):
 	info['air_date'] = json_data['partOfSeries']['startDate']
 	info['isactive'] = 1
 	info['filepath'] = filepath
-	info['still_path'] = json_data['image'][0]['url']
+	try:
+		info['still_path'] = json_data['image'][0]['url']
+	except:
+		info['still_path'] = 'No image data available.'
+		
 	info['url'] = json_data['url']
 	return info
 	

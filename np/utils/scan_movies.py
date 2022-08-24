@@ -43,8 +43,7 @@ def scan_movies(target_dir=None):
 					title = os.path.basename(par).split('(')[0].strip()
 					if title == '':
 						np.log(f"scan_movies.py:Title not set (trimmed from filepath): {filepath}", 'error')
-						input("Press enter to continue...")
-						return False
+						title = input("Enter title: ")
 					data = np.lookup_movies(title)
 					if data is None:
 						np.log(f"scan_movies.py:Error on lookup, need to add manually. File: {filepath}", 'error')
@@ -75,7 +74,6 @@ def scan_movies(target_dir=None):
 						print ("Ok!")
 					else:
 						print (ret)
-						input()
 				else:
 					np.log(f"File already in database! ({filepath}, Skipping..", 'info')
 	np.log(f"Running cleandb: 'movies'...", 'info')
