@@ -89,12 +89,13 @@ def search_pb(query, cat=200):
 
 def save_torrent_log(torrents):
 	log(f"Saving current data!", 'info')
+	savefile = (f"{DATA_DIR}/pbdl.dat")
 	try:
-		with open("torrents.log", "wb") as f:
+		with open(savefile, "wb") as f:
 			pickle.dump(torrents, f)
 		f.close()
 		if conf['debug'] == True:
-			log(f"Torrent log updated: {torrents.keys()}", 'info')
+			log(f"Torrent log updated.", 'info')
 		return True
 	except Exception as e:
 		log(f"Error: Unable to write torrent log {e}: data: {torrents}", 'error')
@@ -189,10 +190,11 @@ def select_torrent(tid=None):
 
 
 def load_saved_data():
+	savefile = (f"{DATA_DIR}/pbdl.dat")
 	bakdata = {}
 	log("Restoring backup...")
-	if os.path.exists("torrents.log"):
-		with open("torrents.log", "rb") as f:
+	if os.path.exists(savefile):
+		with open(savefile, "rb") as f:
 			bakdata = pickle.load(f)
 		f.close()
 	log("Backup restored!", 'info')
@@ -369,7 +371,7 @@ def parse_further():
 				elif dtype == 'TEXT':
 					torrents[tid][key] = f("\'{val}\'")
 
-def default_info(tid):
+def default_info(tid, torrents, filepath):
 		
 	global values
 	info = {}
@@ -387,7 +389,7 @@ def default_info(tid):
 			except:
 				val = torrents[tid][key]
 				info[key] = val
-	
+	info['filepath'] = filepath
 	return info
 
 
@@ -637,6 +639,8 @@ def migrate_series():
 	results = subprocess.check_output(com, shell=True).decode().strip().split("\n")
 	for item in results:
 		_id, series_name, season, episode_number, episode_name, filepath = item.split('|')
+		if '%27' in filepath:
+			filepath = filepath.replace("%27", "'")
 		l = len(filepath) - 4
 		ext = filepath[l:]
 		newdir = (f"{media_dir}/{series_name}/S{season}")
@@ -645,7 +649,7 @@ def migrate_series():
 		if ret:
 			log(f"Error creating directory: {newdir}. ({ret})", 'error')
 			break
-		newpath = (f"{newdir}/{series_name}.S{season}E{episode_number}.{episode_name}{ext}")
+		newpath = (f"{newdir}/{series_name}.S{season}E{episode_number}.{episode_name}{ext}").replace("'", "")
 		log(f"Migrating file '{filepath}' to '{newpath}'..", 'info')
 		com = (f"cp \"{filepath}\" \"{newpath}\"")
 		ret = subprocess.check_output(com, shell=True).decode().strip()
@@ -661,13 +665,20 @@ def migrate_series():
 			break
 
 def add_to_db(info):
-	print (info)
+	print (f"info: {info}")
+	filepath = info['filepath']
+	fname = os.path.basename(filepath).replace("'", "%27")
 	play_type = info['play_type']
+	exists = None
+	com = f"sqlite3 \"{DATA_DIR}/nplayer.db\" \"select id from {play_type} where filepath like \'%{fname}%\';\""
+	exists = subprocess.check_output(com, shell=True).decode().strip()
+	if exists is not None and exists != '':
+		log(f"File already exists with id {exists} ({filepath}). Aborting...", 'warning')
+		return False
 	fullpath = None
-	if play_type == 'series':
-		is_mounted = test_sftp_mount()
-		if is_mounted is False:
-			mount_sftp()
+	is_mounted = test_sftp_mount()
+	if is_mounted is False:
+		mount_sftp()
 		
 	elif play_type == 'movies':
 		info = query_movies(title)
@@ -681,7 +692,8 @@ def add_to_db(info):
 			if column == 'isactive':
 				vals.append("1")
 			elif column == 'filepath':
-				fullpath = get_fullpath(info['filepath'])
+				fullpath = get_fullpath(filepath)
+				fullpath = fullpath.replace("'", "%27")
 				vals.append(f"\'{fullpath}\'")
 			else:
 				try:
@@ -787,7 +799,9 @@ def run_mgr():
 						files = [files]
 					for _file in files:
 						torrents[tid]['info'][_file]['play_type'] = values['-MEDIA_TYPE-']
-						ret = add_to_db(torrents[tid]['info'][_file])
+						info = torrents[tid]['info'][_file]
+						info['filepath'] = _file
+						ret = add_to_db(info)
 						if ret:
 							log(f"Add to db returned results: {ret}", 'info')
 						else:
@@ -844,29 +858,48 @@ def run_mgr():
 							
 							fname.split(f"S{season}")
 							series_name = fname.split(sinfo)[0].strip()
-							
+							com = (f"sqlite3 \"{DATA_DIR}/nplayer.db\" \"select distinct series_name from series where upper(series_name) like upper('%{series_name}%');\"")
+							series_exists = None
+							series_exists = subprocess.check_output(com, shell=True).decode().strip()
+							if series_exists is not None and series_exists != '':
+								series_name = series_exists
 							print (f"Fname:{fname}, season:{season}, series_name:{series_name}, episode_number:{episode_number}")
-							info = torrents[tid]['info'][_file_path]
 							try:
+								info = torrents[tid]['info'][_file_path]
 								for key in columns:
+									info[key] = info[key].replace("'", "\'").replace('"', '\"')
+									info['series_name'] = series_name
 									if key != 'id':
 										if key == 'filepath':
 											pbdl_win[(f"-{columns.index(key)}-")].update(fullpath)
 										elif key == 'isactive':
 											pbdl_win[(f"-{columns.index(key)}-")].update("1")
+										elif key == 'series_name':
+											pbdl_win[(f"-{columns.index(key)}-")].update(series_name)
 										else:
 											pbdl_win[(f"-{columns.index(key)}-")].update(info[key])
 							except:
-								torrents[tid]['info'][_file_path] = tmdb_query_series(_file_path, series_name, season, episode_number)
-								info = torrents[tid]['info'][_file_path]
+								try:
+									torrents[tid]['info'][_file_path] = tmdb_query_series(_file_path, series_name, season, episode_number)
+									info = torrents[tid]['info'][_file_path]
+								except:
+									info = default_info(tid, torrents, _file_path)
+									info['series_name'] = series_name
 								for key in columns:
 									if key != 'id':
 										if key == 'filepath':
+											info[key] = info[key].replace("'", "\'").replace('"', '\"')
 											pbdl_win[(f"-{columns.index(key)}-")].update(fullpath)
 										elif key == 'isactive':
 											pbdl_win[(f"-{columns.index(key)}-")].update("1")
+										elif key == 'series_name':
+											pbdl_win[(f"-{columns.index(key)}-")].update(series_name)
 										else:
-											pbdl_win[(f"-{columns.index(key)}-")].update(info[key])
+											try:
+												info[key] = info[key].replace("'", "\'").replace('"', '\"')
+												pbdl_win[(f"-{columns.index(key)}-")].update(info[key])
+											except:
+												pbdl_win[(f"-{columns.index(key)}-")].update('Unknown')
 							save_torrent_log(torrents)
 
 
@@ -929,6 +962,8 @@ def run_mgr():
 						print ("Event", event)
 						info = lookup_movies(title)
 						if info:
+							for key in list(info.keys()):
+								info[key] = info[key].replace("'", "").replace('"', '')
 							idx = columns.index('title')
 							title_key = (f"-{idx}-")
 							torrents[tid]['title'] = info['title']
@@ -989,61 +1024,63 @@ def run_mgr():
 						for _file_path in values['-TORRENT_FILES-']:
 							print (f"Series:{series_name}, Season:{season}, Episode:{episode_number}, File:{_file_path}")
 							info = tmdb_query_series(_file_path, series_name, season, episode_number)
+							torrents[tid]['info'][_file_path] = info
 							if info:
-								print (info)
+								for key in list(info.keys()):
+									info[key] = info[key].replace("'", "").replace('"', '')
 								idx = columns.index('series_name')
 								series_name_key = (f"-{idx}-")
-								torrents[tid]['series_name'] = info['series_name']
+								#torrents[tid]['series_name'] = info['series_name']
 								pbdl_win[series_name_key].update(info['series_name'])
 						
 								idx = columns.index('tmdbid')
 								tmdbid_key = (f"-{idx}-")
-								torrents[tid]['tmdbid'] = info['tmdbid']
+								#torrents[tid]['tmdbid'] = info['tmdbid']
 								pbdl_win[tmdbid_key].update(info['tmdbid'])
 							
 								idx = columns.index('season')
 								season_key = (f"-{idx}-")
-								torrents[tid]['season'] = info['season']
+								#torrents[tid]['season'] = info['season']
 								pbdl_win[season_key].update(info['season'])
 								
 								idx = columns.index('episode_number')
 								episode_number_key = (f"-{idx}-")
-								torrents[tid]['episode_number'] = info['episode_number']
+								#torrents[tid]['episode_number'] = info['episode_number']
 								pbdl_win[episode_number_key].update(info['episode_number'])
 							
 								idx = columns.index('episode_name')
 								episode_name_key = (f"-{idx}-")
-								torrents[tid]['episode_name'] = info['episode_name']
+								#torrents[tid]['episode_name'] = info['episode_name']
 								pbdl_win[episode_name_key].update(info['episode_name'])
 							
 								idx = columns.index('description')
 								description_key = (f"-{idx}-")
-								torrents[tid]['description'] = info['description']
+								#torrents[tid]['description'] = info['description']
 								pbdl_win[description_key].update(info['description'])
 							
 								idx = columns.index('air_date')
 								air_date_key = (f"-{idx}-")
-								torrents[tid]['air_date'] = info['air_date']
+								#torrents[tid]['air_date'] = info['air_date']
 								pbdl_win[air_date_key].update(info['air_date'])
 								
 								idx = columns.index('still_path')
 								still_path_key = (f"-{idx}-")
-								torrents[tid]['still_path'] = info['still_path']
+								#torrents[tid]['still_path'] = info['still_path']
 								pbdl_win[still_path_key].update(info['still_path'])
 							
 								idx = columns.index('duration')
 								duration_key = (f"-{idx}-")
-								torrents[tid]['duration'] = info['duration']
+								#torrents[tid]['duration'] = info['duration']
 								pbdl_win[duration_key].update(info['duration'])
 							
 								idx = columns.index('md5')
 								md5_key = (f"-{idx}-")
-								torrents[tid]['md5'] = info['md5']
+								#torrents[tid]['md5'] = info['md5']
 								pbdl_win[md5_key].update(info['md5'])
 							
 								idx = columns.index('url')
 								url_key = (f"-{idx}-")
-								torrents[tid]['url'] = info['url']
+								#torrents[tid]['url'] = info['url']
 								pbdl_win[url_key].update(info['url'])
 						
 						
@@ -1098,8 +1135,13 @@ def run_mgr():
 						if tid is None:
 							val = values['-TORRENT_SELECT-'][0]
 							tid = int(val.split(':')[0])
-						ret = update_info(tid, torrents)
-						log("Update info fields result:{ret}", 'info')
+						_file = values['-TORRENT_FILES-'][0]
+						play_type = values['-MEDIA_TYPE-']
+						columns = list(get_columns(play_type))
+						idx = int(event.split('-')[1])
+						field = columns[idx]
+						torrents[tid]['info'][_file][field] = val
+						log(f"Update torrent info data: key={field}, val={val}.", 'info')
 					except Exception as e:
 						print (f"Event{event}: Not ready yet!,  sliding by crash... {e}")
 						pass

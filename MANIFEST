@@ -14,9 +14,6 @@ np/core/gui.py
 np/core/log.py
 np/core/nplayer.py
 np/core/nplayer_db.py
-np/core/wsreceiver.py
-np/core/wssender.py
-np/core/wsserver.py
 np/core/xrandr.py
 np/scripts/mkmedialist
 np/scripts/np.remote
@@ -27,17 +24,13 @@ np/utils/functions.py
 np/utils/guess_intro.py
 np/utils/gui_create.py
 np/utils/id3.py
-np/utils/init_conf.py
-np/utils/input_handler.py
 np/utils/insert_intro.py
 np/utils/migrate_series.py
 np/utils/music_mgr.py
 np/utils/nplayer_db.py
 np/utils/pbdl.py
 np/utils/pbdl_add_to_series.py
-np/utils/pbdl_dl.py
 np/utils/pbdl_getTorrents.py
-np/utils/pbdl_new_working.py
 np/utils/pbdl_old.py
 np/utils/pbdl_se_isin.py
 np/utils/query_movies.py
@@ -52,9 +45,7 @@ np/utils/tadb_search.py
 np/utils/test.pbdl.downloader.py
 np/utils/tmdb_query_series.py
 np/utils/torrent_mgr.py
-np/utils/torrentmgr.py
 np/utils/xrandr.py
-np/utils/ytdl.py
 np/ws/__init__.py
 np/ws/client.py
 np/ws/server.py
