@@ -55,3 +55,8 @@ np/utils/torrent_mgr.py
 np/utils/torrentmgr.py
 np/utils/xrandr.py
 np/utils/ytdl.py
+np/ws/__init__.py
+np/ws/client.py
+np/ws/server.py
+np/ws/thread.py
+np/ws/websocket_server.py
