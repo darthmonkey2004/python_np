@@ -1,0 +1,52 @@
+#!/bin/bash
+
+if [ -n "$1" ]; then
+	dir="$1"
+else
+	dir=$(python3 -c "import np; conf = np.readConf(); print(conf['media_directories']['main'])")
+fi
+has_series=$(ls -d "$dir" | grep "Series")
+has_movies=$(ls -d "$dir" | grep "Movies")
+has_music=$(ls -d "$dir" | grep "Music")
+if [ -z "$has_series" ] && [ -z "$has_movies" ] && [ -z "$has_music" ]; then
+	method="custom"
+else
+	method="normal"
+fi
+medialist="$dir/medialist.txt"
+if [ "$method" = "normal" ]; then
+	movies="$dir/Movies"
+	series="$dir/Series"
+	music="$dir/Music"
+	if [ -f "$medialist" ]; then
+		mv  "$medialist" "$medialist.bak"
+	fi
+	touch "$medialist"
+	find "$movies" -name "*.mp4" >> "$medialist"
+	find "$series" -name "*.mp4" >> "$medialist"
+	find "$movies" -name "*.mpg" >> "$medialist"
+	find "$series" -name "*.mpg" >> "$medialist"
+	find "$movies" -name "*.mpeg" >> "$medialist"
+	find "$series" -name "*.mpeg" >> "$medialist"
+	find "$movies" -name "*.mov" >> "$medialist"
+	find "$series" -name "*.mov" >> "$medialist"
+	find "$movies" -name "*.mkv" >> "$medialist"
+	find "$series" -name "*.mkv" >> "$medialist"
+	find "$movies" -name "*.wmv" >> "$medialist"
+	find "$series" -name "*.wmv" >> "$medialist"
+	find "$movies" -name "*.avi" >> "$medialist"
+	find "$series" -name "*.avi" >> "$medialist"
+	find "$movies" -name "*.flv" >> "$medialist"
+	find "$series" -name "*.flv" >> "$medialist"
+	find "$music" -name "*.mp3" >> "$medialist"
+else
+	find "$dir" -name "*.mp4" >> "$medialist"
+	find "$dir" -name "*.mpg" >> "$medialist"
+	find "$dir" -name "*.mpeg" >> "$medialist"
+	find "$dir" -name "*.mov" >> "$medialist"
+	find "$dir" -name "*.mkv" >> "$medialist"
+	find "$dir" -name "*.wmv" >> "$medialist"
+	find "$dir" -name "*.avi" >> "$medialist"
+	find "$dir" -name "*.flv" >> "$medialist"
+	find "$dir" -name "*.mp3" >> "$medialist"
+fi
