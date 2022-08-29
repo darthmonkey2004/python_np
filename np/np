@@ -442,10 +442,10 @@ def remote_handler(com, arg):
 	if com == 'play':					
 		MP.play()
 		log("REMOTE: Playing!", 'info')
-	if com == 'lookup_movies':
+	elif com == 'lookup_movies':
 		ret = lookup_movies(arg)
 		log(f"REMOTE:MovieLookup={ret}", 'info')
-	if com == 'lookup_series':
+	elif com == 'lookup_series':
 		try:
 			sn, s, e = arg.split(',')
 		except Exception as e:
@@ -453,6 +453,8 @@ def remote_handler(com, arg):
 			return None
 		ret = lookup_series(sn, s, e)
 		log(f"REMOTE:SeriesLookup={ret}", 'info')
+	elif com == 'recenter_ui':
+		recenter_ui()
 	elif com == 'help' or com == 'commands':
 		j = ", "
 		ret = j.join(remote_commands)
@@ -589,7 +591,7 @@ def refresh_log_data():
 	try:
 		UI.WINDOW['-DEBUGGER-'].update(log_data)
 	except:
-		np.log(f"Can't update log in GUI (window closed?)", 'info')
+		#np.log(f"Can't update log in GUI (window closed?)", 'info')
 		pass
 
 
@@ -641,9 +643,8 @@ def start():
 		#MP.conf['windows']['gui']['visible_status'] = 'visible'
 		np.writeConf(MP.conf)
 		ui_center()
-	pbdl = np.pbdl()
 	set_video_out()
-	media['continuous'] = 1
+	MP.continuous = 1
 	input_enabled = 0
 	btn = None
 	evque = []
@@ -894,15 +895,15 @@ def start():
 							MP.play(val)
 					elif MP.play_mode == 'database':
 						if MP.conf['play_type'] == 'series':
-							try:
-								val = values[event][0]
-								print (f"Playlist: {val}")
-								_id = val.split(':')[5]
-								table = val.split(':')[0]
-								print (f"table:{table}, id:{_id}, val:{val}")
-								playlist_click(_id, table)
-							except Exception as e:
-								log(f"Error: Series list is empty! Details:{e}, {val}, {_id}, {table}", 'error')
+							#try:
+							val = values[event][0]
+							print (f"Playlist: {val}")
+							_id = val.split(':')[5]
+							table = val.split(':')[0]
+							print (f"table:{table}, id:{_id}, val:{val}")
+							playlist_click(_id, table)
+							#except Exception as e:
+							#	log(f"Error: Series list is empty! Details:{e}, {val}, {_id}, {table}", 'error')
 						elif MP.conf['play_type'] == 'movies':
 							print (f"Playlist: {val}")
 							try:
@@ -1099,13 +1100,13 @@ def start():
 					log(f"Remove selected:{MP.dbmgr_picked_items}", 'info')
 					UI.window['-PLAYLIST_ITEMS-'].update(sorted(MP.media['PLAYLIST_ITEMS']))
 				elif event == 'Torrent Manager':
-					pbdl.create_torrent_mgr()
-					pbdl.get_torrents()
-					pbdl.run()
+					from np.utils.pbdl import run_mgr
+					run_mgr()
 				elif event == 'Pirate Bay Downloader':
-					UI.pbdl_dl_win = pbdl.create_downloader()
+					from np.utils.pbdl import create_downloader
+					create_downloader()
 					log(f"Loaded pirate bay downloader!", 'info')
-					pbdl.run()
+					#pbdl.run()
 				elif event == '-PBDL_SEARCH-':
 					pbdl.results = pbdl.get_magnet(pbdl.pbdl_query, pbdl.category)
 					UI.pbdl_dl_win['-PBDL_RESULTS-'].update(pbdl.results)
@@ -1180,7 +1181,7 @@ def start():
 					log(f"Changing filter:{f}", 'info')
 					ret = change_filter(f)
 					np.log(ret, 'info')
-				elif event == sg.WIN_CLOSED and media['continuous'] == 0 and MP.conf['GUI_RESET'] == False:
+				elif event == sg.WIN_CLOSED and MP.continuous == 0 and MP.conf['GUI_RESET'] == False:
 					log(f"Window closed (gui): continuout=0, reset=False", 'info')
 					np.writeConf(MP.conf)
 					MP.exit = True
@@ -1241,7 +1242,7 @@ def start():
 				media['series_history'] = np.read_history()
 				UI = np.gui()
 				set_video_out()
-				media['continuous'] = 1
+				MP.continuous = 1
 				UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.PLAYLIST_ITEMS)
 				UI.WINDOW['-PLAY_TYPE-'].update(MP.conf['play_type'])
 				log("np.py: Resuming from reset = True...", 'info')
@@ -1249,7 +1250,7 @@ def start():
 				time.sleep(0.5)
 				P.set_position(MP.conf['nowplaying']['play_pos'])
 				log(f"Skipped to {MP.conf['nowplaying']['play_pos']}", 'info')
-				media['continuous'] = 1
+				MP.continuous = 1
 				#np.writeConf(MP.conf)
 				MP.conf['GUI_RESET'] = False
 				log(f"Reset finished!:{MP.conf['GUI_RESET']}", 'info')

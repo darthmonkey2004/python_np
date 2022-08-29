@@ -23,6 +23,8 @@ def set_empty(title):
 	info['poster'] = 'Unknown'
 	return info
 
+
+
 def query_imdb(title):
 	attempts = 0
 	log (f"Looking up movie... Title: '{title}'", 'info')

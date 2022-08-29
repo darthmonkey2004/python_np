@@ -909,10 +909,7 @@ def run_mgr():
 				elif event == '-PBDL_SEARCH_QUERY-':
 					pbdl_query = values[event]
 				elif event == '-Migrate Files-':
-					if values['-MEDIA_TYPE-'] == 'series':
-						ret = migrate_series()
-					else:
-						ret = "TODO: Finish movie migration function"
+					ret = migrate_series()
 					if conf['debug'] == True:
 						log(f"Migration results:{ret}", 'info')
 				elif event == '-Query TMDB-':

@@ -31,10 +31,8 @@ def fix3d(filepath):
 	ext = fname[l:]
 	fname = fname.split(ext)[0]
 	newname = f"{fname}.fixed{ext}"
-	com = (f"ffmpeg -i \"{filepath}\" -strict unofficial -metadata:s:v stereo_mode=left_right -profile:v high -level:v 4.0 -vf scale={nw}:{nh} -r 30 \"{newname}\"&")
+	com = (f"ffmpeg -i \"{filepath}\" -strict unofficial -metadata:s:v stereo_mode=left_right -profile:v high -level:v 4.0 -vf scale={nw}:{nh} -r 30 \"{newname}\"")
 	ret = subprocess.call(com, shell=True).decode().strip()
-	return ret
-
 def insert_metadata(filepath, metadata):
 	l = len(filepath) - 4
 	ext = filepath[l:]

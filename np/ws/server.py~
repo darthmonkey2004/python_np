@@ -104,19 +104,16 @@ def update_client(client):
 
 def start():
 	global server
-	try:
-		server = WebsocketServer()
-		server.set_fn_new_client(new_client)
-		server.set_fn_client_left(client_left)
-		server.set_fn_message_received(message_received)
-		state = conf['remote']['server']['state']
-		if state == 0:
-			np.log(f"Server running at '127.0.0.1' (state={state}) on port {conf['remote']['server']['port']}", 'info')
-		elif state == 1:
-			np.log(f"Server running at {conf['remote']['server']['address']} (state={state}) on port {conf['remote']['server']['port']}", 'info')
-		server.run_forever()
-	except Exception as e:
-		np.log(f"Exception running server: {e}. (Already running?)", 'warning')
+	server = WebsocketServer()
+	server.set_fn_new_client(new_client)
+	server.set_fn_client_left(client_left)
+	server.set_fn_message_received(message_received)
+	state = conf['remote']['server']['state']
+	if state == 0:
+		np.log(f"Server running at '127.0.0.1' (state={state}) on port {conf['remote']['server']['port']}", 'info')
+	elif state == 1:
+		np.log(f"Server running at {conf['remote']['server']['address']} (state={state}) on port {conf['remote']['server']['port']}", 'info')
+	server.run_forever()
 
 if __name__ == "__main__":
 	start()

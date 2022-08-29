@@ -1,6 +1,6 @@
 from PySimpleGUI import *
 import inspect
-elements_list = ['Radio', 'Checkbox', 'Listbox', 'Input', 'Text', 'Image', 'Button', 'TabGroup', 'Slider', 'ButtonMenu', 'Window', 'Titlebar', 'one_line_progress_meter', 'Tab', 'Canvas', 'Column', 'Frame', 'Graph', 'HorizontalSeparator', 'Menu', 'MenubarCustom', 'Multiline', 'OptionMenu', 'Pane', 'ProgressBar', 'Sizer', 'Sizegrip', 'bind', 'Spin', 'StatusBar', 'Table', 'Titlebar', 'Tree', 'Node', 'insert', 'VerticalSeparator']
+elements_list = ['Radio', 'Checkbox', 'Listbox', 'Input', 'Text', 'Image', 'Button', 'TabGroup', 'Slider', 'ButtonMenu', 'Window', 'Titlebar', 'one_line_progress_meter', 'Tab', 'Canvas', 'Column', 'Frame', 'Graph', 'HorizontalSeparator', 'Menu', 'MenubarCustom', 'Multiline', 'OptionMenu', 'Pane', 'ProgressBar', 'Sizer', 'Sizegrip', 'bind', 'Spin', 'StatusBar', 'Table', 'Titlebar', 'Tree', 'Node', 'insert', 'VerticalSeparator', 'Window', 'Combo', ']
 
 class add_elem():
 	def __init__(self):
@@ -25,6 +25,15 @@ class add_elem():
 			raise Exception('get_element_args failed to return data, is specified element name misspelled (camel cased?)', 'error=' + e, 'element=' + elem, 'ret=' + self.elem_keys)
 
 
+	def test_required(self, elem):
+		pos = -1
+		sig = inspect.signature(globals()[elem])
+		sig_keys = list(sig.parameters.keys())
+		for param in sig.parameters.values():
+			key = sig_keys[pos]
+			if param.default is param.empty:
+				print(param)
+
 	def create_element(self, elem, args={}):
 		pos = -1
 		argdict = {}
@@ -34,7 +43,9 @@ class add_elem():
 			pos = pos + 1
 			key = sig_keys[pos]
 			if param.default is param.empty and key not in list(args.keys()):
-				raise Exception ('Required value not provided!', param, args, sig)
+				log(f"Exception: Rquired value not provided ({param})...", 'error')
+				
+				#raise Exception ('Required value not provided!', param, args, sig)
 			elif param.default is not param.empty and key not in list(args.keys()):
 				argdict[key] = param.default
 			elif key in list(args.keys()):
@@ -70,8 +81,29 @@ class add_elem():
 		return self.gui_data
 
 
+	def test_required(self, elem):
+		pos = -1
+		sig = inspect.signature(globals()[elem])
+		sig_keys = list(sig.parameters.keys())
+		for param in sig.parameters.values():
+			key = sig_keys[pos]
+			if param.default is param.empty:
+				return param
+
+
 	#def render(self, gui_data):
-		
+
+	#A generator that catches requirements and fills a default value.
+	#Guarantees a result is produced regardless of data given
+	def generate(self, element, args):
+		args = {}
+		reqs = self.                                                                              +
+		6/test_required(elem)
+		for req in reqs:
+			r = str(req)
+			globals()[r] = 'Unknown'
+			args[r] = globals()[r]
+		return create.create(element, args)
 		
 
 

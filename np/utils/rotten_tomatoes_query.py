@@ -88,20 +88,25 @@ def get_episode_data(series_name, season, episode_number, filepath=None):
 		#	filepath = subprocess.check_output(com, shell=True).decode().strip()
 		#	if filepath == '':
 		#		log(f"Unable to get filepath with given details.")
-		#		filepath = 'Unknown'
-	print (f"Series:{series_name}, season:{season}, episode_number:{episode_number}, filepath:{filepath}")
-	episodes_split = '<script type="application/ld+json" id="jsonLdSchema">'
-	data = rt_series(series_name, season, episode_number).split(episodes_split)[1].split('</script>')[0]
-	json_data = json.loads(data)
-	info = {}
-	info['series_name'] = series_name
-	info['season'] = season
-	info['episode_number'] = episode_number
-	info['episode_name'] = json_data['name']
-	info['description'] = json_data['description']
-	info['air_date'] = json_data['partOfSeries']['startDate']
-	info['isactive'] = 1
-	info['filepath'] = filepath
+		#
+	try:		
+		filepath = 'Unknown'
+		print (f"Series:{series_name}, season:{season}, episode_number:{episode_number}, filepath:{filepath}")
+		episodes_split = '<script type="application/ld+json" id="jsonLdSchema">'
+		data = rt_series(series_name, season, episode_number).split(episodes_split)[1].split('</script>')[0]
+		json_data = json.loads(data)
+		info = {}
+		info['series_name'] = series_name
+		info['season'] = season
+		info['episode_number'] = episode_number
+		info['episode_name'] = json_data['name']
+		info['description'] = json_data['description']
+		info['air_date'] = json_data['partOfSeries']['startDate']
+		info['isactive'] = 1
+		info['filepath'] = filepath
+	except Exception as e:
+		log(f"Unable to get data: {e}", 'error')
+		return None
 	try:
 		info['still_path'] = json_data['image'][0]['url']
 	except:

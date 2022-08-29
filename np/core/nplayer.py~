@@ -618,7 +618,7 @@ class nplayer():
 		elif self.play_mode == 'database':
 			if self.conf['play_type'] == 'series':
 				query_string = ("filepath like '%" + self.next + "%'")
-				np.log(f"Query string: {query_string}", 'info')
+				np.log("Query string: {query_string}", 'info')
 				series_name = np.querydb('series', 'series_name', query_string)[0][0]
 				self.series_history[series_name] = self.next
 				np.write_history(self.series_history)

@@ -38,6 +38,7 @@ np/utils/pbdl_add_to_series.py
 np/utils/pbdl_dl.py
 np/utils/pbdl_getTorrents.py
 np/utils/pbdl_new_working.py
+np/utils/pbdl_old.py
 np/utils/pbdl_se_isin.py
 np/utils/query_movies.py
 np/utils/query_series.py
@@ -51,5 +52,6 @@ np/utils/tadb_search.py
 np/utils/test.pbdl.downloader.py
 np/utils/tmdb_query_series.py
 np/utils/torrent_mgr.py
+np/utils/torrentmgr.py
 np/utils/xrandr.py
 np/utils/ytdl.py

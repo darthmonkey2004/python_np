@@ -6,12 +6,8 @@ def mk_list():
 		for e in range(0, 99):
 			if len(str(s)) == 1:
 				season = f"0{s}"
-			else:
-				season = str(s)
 			if len(str(e)) == 1:
 				ep = f"0{e}"
-			else:
-				ep = str(e)
 			_list.append(f"S{season}E{ep}")
 			_list.append(f"S{season}e{ep}")
 			_list.append(f"s{season}E{ep}")
