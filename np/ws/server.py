@@ -6,8 +6,7 @@
 import time
 import np
 import subprocess
-import websocket_server
-WebsocketServer = websocket_server.WebsocketServer
+from np.ws.websocket_server import WebsocketServer
 conf = np.readConf()
 
 # Called for every client connecting (after handshake)
