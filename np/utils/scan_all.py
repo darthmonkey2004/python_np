@@ -9,10 +9,8 @@ def backup_db():
 	com = f"cd '{DATA_DIR}'; mv nplayer.db {newname}"
 	ret = subprocess.check_output(com, shell=True)
 	if ret:
-		print (ret)
 		return ret
 	else:
-		print ("OK")
 		return True
 
 def scan_all(dir=None):
@@ -27,12 +25,12 @@ def scan_all(dir=None):
 		music_dir = (f"{dir}{os.path.sep}music")
 		movies_dir = (f"{dir}{os.path.sep}movies")
 	if os.path.exists(dbfile):
-		print ("Backing up database...")
+		np.log("Backing up database...", 'info')
 		result = backup_db()
 		if result is not True:
 			yn = input(f"Warning: database backup encountered an issue: {result}. Continue? (y/n)")
 			if yn != 'y':
-				print ("Aborting...")
+				np.log("Aborting...", 'error')
 				exit()
 	create_db()
 	print ("Scanning for Music...")

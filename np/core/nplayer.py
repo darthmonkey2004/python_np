@@ -74,6 +74,7 @@ class nplayer():
 		self.continuous = 1
 		self.is_playing = 0
 		self.series_history = np.read_history()
+		self.resume = None
 		self.play_pos = self.conf['nowplaying']['play_pos']
 		try:
 			self.main_keyboard = self.conf['main_keyboard']['path']
@@ -439,69 +440,21 @@ class nplayer():
 		self.player.set_position(pos)
 
 	
-	def screenshot(self, c=0, n=None, w=None, h=None):
-		if not os.path.exists(self.screencaps):
-			try:
-				pathlib.Path(self.screencaps).mkdir(parents=True, exist_ok=True)
-			except Exception as e:
-				np.log("Failed to create screencapture directory:" + str(e))
-				return False
-		screen = self.conf['screen']
-		if n == None:
-			jpgs = []
-			files = [f for f in os.listdir(self.screencaps) if os.path.isfile(os.path.join(self.screencaps, f))]
-			pos = -1
-			for _file in files:
-				if '.jpg' in _file:
-					jpgs.append(_file)
-			ct = (len(jpgs) + 1)
-			n = (self.screencaps + os.path.sep + "nplayer.snapshot." + str(ct) + ".jpg")
-			np.log("snapshot filename:" + str(n) + ", " + str(type(n)))
-		if w == None:
-			w = self.conf['windows']['viewer'][screen]['w']
-		if h == None:
-			h = self.conf['windows']['viewer'][screen]['h']
+	def screenshot(self, src=0, dest_dir=None, w=0, h=0):
+		ts = time.time()
+		if dest_dir == None:
+			dest_dir = f"{np.DATA_DIR}/cap.{ts}.png"
 		try:
 			if self.conf['debug'] == True:
-				np.log(f"snapshot valTypes: c={type(c)}, n={type(n)}, w={type(w)}, h={type(h)}")
-			ret = self.player.video_take_snapshot(c, n, w, h)
+				np.log(f"snapshot: out_dir:{dest_dir}, w:{w}, h:{h}", 'info')
+			ret = self.player.video_take_snapshot(src, dest_dir, w, h)
 			if ret:
-				np.log("nplayer snapshot return:" + str(ret))
+				np.log(f"nplayer snapshot return:{ret}", 'info')
 				return True
 		except Exception as e:
-			np.log("failed to take snapshot:" + str(e))
-			return ("failed to take snapshot:", e)
-
-
-	def test_sftp(self):
-		sftp_data_file = (np.SFTP_DIR + os.path.sep + 'info.txt')
-		if not os.path.exists(sftp_data_file):
+			np.log(f"failed to take snapshot:{e}", 'error')
 			return False
-		else:
-			return True
 
-
-	def mount_sftp(self):
-		user = self.conf['network_mode']['media_user']
-		host = self.conf['network_mode']['media_host']
-		sftp_data_file = (np.SFTP_DIR + os.path.sep + 'info.txt')
-		if not os.path.exists(sftp_data_file):
-			try:
-				com = (f"sshfs {user}@{host}:/media/monkey/usbhdbackup/storage {np.SFTP_DIR}")
-				ret = subprocess.check_output(com, shell=True).decode()
-				if ret != '':
-					np.log (("sftp mount returned value:" + ret), 'error')
-				line=(user + '@' + host)
-				with open(sftp_data_file, 'w') as f:
-					f.write(line)
-					f.close()
-				with open(sftp_data_file, 'r') as f:
-					user_host = f.read().strip()
-				return True
-			except Exception as e:
-				txt = ("Unable to mount sftp:" + str(e))
-				np.log(txt, 'error')
-				return False
 
 	def constrain_scale(self, scale):
 		if scale >= 10:
@@ -515,54 +468,23 @@ class nplayer():
 			np.log(f"set_scale: Filepath not provided, using self.next ({self.next}).", 'info')
 		else:
 			np.log(f"set scale: Filepath provided: {filepath}", 'info')
+		prescale = self.player.video_get_scale()
 		scale = np.calculate_scale(filepath)
 		scale = self.constrain_scale(scale)
-		if scale == None:
-			self.scale = None
+		self.player.video_set_scale(scale)
+		if prescale != scale:
+			self.scale_needed = 1
+			np.log(f"Calculated scale != set scale, setting scale_needed=1.  Previous:{prescale}, Set:{scale}", 'info')
+		elif prescale == scale:
+			np.log(f"Scales match, skipping scale_needed. Previous:{prescale}, New:{scale}", 'info')
 			self.scale_needed = 0
-			np.log (f"Scale is None, setting scale_needed = 0", 'info')
-			return self.scale
-		elif scale == 0.0:
-			self.log(f"Scale returned 0.0, retrying..", 'warning')
-			scale = np.calculate_scale(filepath)
-			scale = self.constrain_scale(scale)
-			if scale == None:
-				self.scale = None
-				self.scale_needed = 0
-				np.log (f"Scale is None, setting scale_needed = 0", 'info')
-				return self.scale
-			elif scale == 0.0:
-				self.log(f"Second scale attempt returned 0.0. Assuming it's correct and continuing..", 'info')
-				self.scale = scale
-				self.conf['scale'] = self.scale	
-				self.scale_needed = 0
-				self.player.video_set_scale(self.scale)
-				return self.scale
-			else:
-				self.scale = scale
-				self.conf['scale'] = self.scale
-				self.player.video_set_scale(self.scale)
-				test_scale = self.player.video_get_scale()
-				if test_scale:
-					#self.scale_needed = 1
-					np.log (f"set_scale(), test_scale={test_scale}: Scale is {self.scale}, omitting scale_needed.", 'info')
-				else:
-					np.log(f"Scale set. Test result: {test_scale}", 'info')
-						
-				
-		else:
-			self.scale = scale
-			self.conf['scale'] = self.scale		
-			self.player.video_set_scale(self.scale)
-			test_scale = self.player.video_get_scale()
-			if test_scale:
-				#self.scale_needed = 1
-				np.log (f"set_scale(), test_scale={test_scale}: Scale is {self.scale}, omitting scale needed", 'info')
-			else:
-				np.log(f"Scale set. Test result: {test_scale}", 'info')
+		self.scale = scale
+
 						
 
 	def play(self, _file=None):
+		#init resume to None
+		self.resume = None
 		self.series_history = np.read_history()
 		#init next to None
 		self.next = None
@@ -590,8 +512,14 @@ class nplayer():
 				self.next = np.querydb(table='movies', column='filepath', query=qstring)[0][0]
 			elif 'music:' in self.next:
 				np.log("TODO: check playlist item string and parse out filepath!")
+			#test type vs file string
+			play_type = self.conf['play_type']
+			if play_type == 'series' or play_type == 'movies':
+				if self.conf['media_directories']['music'] in self.next:
+					self.next = None
+					np.log("Stale type found as filepath. Setting as None...", 'info')
 		# if next is not set...
-		elif self.next is None:
+		if self.next is None:
 			#if mode is  playlist
 			if self.play_mode == 'playlist':
 				self.next = self.get_playlist_next()
@@ -655,7 +583,7 @@ class nplayer():
 			if '/.np/sftp' not in self.next:
 				fpath = self.next.split(np.MEDIA_DIR)[1]
 				self.next = (np.SFTP_DIR + os.path.sep + fpath)
-				print (f"Network uri set:{self.next}", 'info')
+				np.log(f"Network uri set:{self.next}", 'info')
 		# attempt to set media path.
 		try:
 			self.media['current_vlc_media_object'] = self.vlcInstance.media_new_path(self.next)
@@ -673,6 +601,8 @@ class nplayer():
 		# set play position if greater than 0
 		if self.play_pos >= 0:
 			self.player.set_position(self.play_pos)
+			self.play_pos = 0
+			self.conf['nowplaying']['play_pos'] = 0
 		self.continuous = 1
 		if self.conf['play_type'] == 'series' or  self.conf['play_type'] == 'movies':
 			if self.is_url == False:
@@ -767,7 +697,7 @@ class nplayer():
 			com = (f"mkmedialist '{path}'")
 			ret = subprocess.check_output(com, shell=True).decode().strip()
 			if ret:
-				print (ret)
+				np.log(f"Error: {ret}", 'error')
 			playlist = (f"{path}{os.path.sep}medialist.txt")
 			items = self.load_playlist(playlist)
 			return items
@@ -781,7 +711,6 @@ class nplayer():
 		qstring = ("filepath = '" + filepath + "'")
 		try:
 			series_name, season, episode_number, episode_name, _id = np.querydb('series', 'series_name,season,episode_number,episode_name,id', qstring)[0]
-			print (series_name, season, episode_number, episode_name, _id)
 			sstring = (f"series:{series_name}:{season}:{episode_number}:{episode_name}:{_id}")
 			np.log(f"Series string:{sstring}", 'info')
 		except:

@@ -30,4 +30,3 @@ def xrandr():
 	return out
 if __name__ == "__main__":
 	ret = xrandr()
-	print (ret)

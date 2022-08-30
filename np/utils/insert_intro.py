@@ -72,7 +72,6 @@ def insert_intro(filepath, start_time, end_time):
 #	end_pos = int(end_pos)
 	chapters = test_for_chapters(filepath)
 	if chapters:
-		print (chapters)
 		#yn = input("File already has chapters. overwrite?")
 		yn = 'y'
 		if yn == 'y':
@@ -117,7 +116,6 @@ def insert_intro(filepath, start_time, end_time):
 				lines.append("title=Intro")
 			j = "\n"
 			data = j.join(lines)
-			print (f"new lines = {data}")
 			newname = insert_metadata(filepath, data)
 			if os.path.exists(newname):
 				haschapters = test_for_chapters(newname)
@@ -157,4 +155,3 @@ if __name__ == "__main__":
 	#start = 0.0
 	#end = 0.0348384864628315
 	newpath = insert_intro(filepath, start, end)
-	print (newpath)

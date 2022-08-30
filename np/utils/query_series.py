@@ -81,28 +81,46 @@ def tmdb_query_series(filepath, series_name, season, episode_number):
 			still_path = json_data['results'][0]['poster_path']
 		except:
 			still_path = 'No image found'
-	if "'" in json_data['results'][0]['name']:
-		temp = json_data['results'][0]['name']
-		temp = temp.split("'")
-		j = "_"
-		json_data['results'][0]['name'] = j.join(temp)
-	url = "https://api.themoviedb.org/3/tv/" + str(tmdbid) + "/season/" + str(season) + "/episode/" + str(episode_number) + "?api_key=" + str(API_KEY) + "&language=en-US"
-	r = requests.get(url)
-	if r.status_code != 200:
-		out = ("Error:", r.status_code, "URL:", url)
+	try:
+		if "'" in json_data['results'][0]['name']:
+			temp = json_data['results'][0]['name']
+			temp = temp.split("'")
+			j = "_"
+			json_data['results'][0]['name'] = j.join(temp)
+		url = "https://api.themoviedb.org/3/tv/" + str(tmdbid) + "/season/" + str(season) + "/episode/" + str(episode_number) + "?api_key=" + str(API_KEY) + "&language=en-US"
+		r = requests.get(url)
+		if r.status_code != 200:
+			out = ("Error:", r.status_code, "URL:", url)
+			info['error'] = True
+			info['response'] = out
+			info['filepath'] = filepath
+			info['tmdbid'] = tmdbid
+			info['series_name'] = series_name
+			info['season'] = season
+			info['episode_number'] = episode_number
+			info['episode_name'] = 'Unknown'
+			info['description'] = 'Unknown'
+			info['air_date'] = 'Unknown'
+			info['still_path'] = 'Unknown'
+			info['duration'] = 'Unknown'
+			info['md5'] = 'Unknown'
+			info['url'] = url
+			return info
+	except Exception as e:
+		out = ("Error:{e}", 'error')
 		info['error'] = True
 		info['response'] = out
 		info['filepath'] = filepath
-		info['tmdbid'] = tmdbid
+		info['tmdbid'] = 'Unknown'
 		info['series_name'] = series_name
 		info['season'] = season
 		info['episode_number'] = episode_number
-		info['episode_name'] = 'null'
-		info['description'] = 'null'
-		info['air_date'] = 'null'
-		info['still_path'] = 'null'
-		info['duration'] = 'null'
-		info['md5'] = 'null'
+		info['episode_name'] = 'Unknown'
+		info['description'] = 'Unknown'
+		info['air_date'] = 'Unknown'
+		info['still_path'] = 'Unknown'
+		info['duration'] = 'Unknown'
+		info['md5'] = 'Unknown'
 		info['url'] = url
 		return info
 	else:

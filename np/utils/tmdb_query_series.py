@@ -71,11 +71,9 @@ def tmdb_query_series(series_name, season, episode_number):
 	try:
 		tmdbid = json_data['results'][0]['id']
 	except Exception as e:
-		print ("Error getting tmdbid:", e)
 	try:
 		still_path = json_data['results'][0]['backdrop_path']
 	except Exception as e:
-		print ("Still path was error:", e)
 		still_path = json_data['results'][0]['poster_path']
 	if "'" in json_data['results'][0]['name']:
 		temp = json_data['results'][0]['name']
@@ -83,7 +81,6 @@ def tmdb_query_series(series_name, season, episode_number):
 		j = "_"
 		json_data['results'][0]['name'] = j.join(temp)
 	url = "https://api.themoviedb.org/3/tv/" + str(tmdbid) + "/season/" + str(season) + "/episode/" + str(episode_number) + "?api_key=" + str(API_KEY) + "&language=en-US"
-	print ("URL:", url)
 	r = requests.get(url)
 	if r.status_code != 200:
 		out = ("Error:", r.status_code, "URL:", url)
@@ -192,11 +189,9 @@ def lookup_series_google(series_name, season):
 			try:
 				item['still_path'] = images[0]
 			except Exception as e:
-				print ("Unable to get still shot url:", e, images)
 	out['images'] = images
 	out['season'] = season
 	out['series_name'] = series_name
-	print (out['images'])
 	return out
 	
 	
@@ -236,5 +231,4 @@ if __name__ == "__main__":
 	import sys
 	filepath = str(sys.argv[1])
 	data = lookup(filepath)
-	print (data)
 	exit()

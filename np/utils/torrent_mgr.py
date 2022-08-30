@@ -175,10 +175,8 @@ class torrent_mgr():
 				if percent == '100%':
 					pos += 1
 			if ct == pos:
-				print (f"Done! ({pos} of {ct})")
 				break
 			else:
-				print (f"Progress: {pos} of {ct}")
 				status = self.vpn_status()
 				if status == False:
 					log(f"VPN not active! Restarting...", 'warning')

@@ -307,9 +307,7 @@ def update_resume():
 
 def playlist_click(_id, table):
 	query_string = ("id = " + str(_id))
-	print (f"Query string:{query_string}")
 	_file = np.querydb(table, 'filepath', query_string)[0][0]
-	print (f"File: {_file}")
 	if MP.conf['debug'] == True:
 		np.log(f"{MP.history['history']}", 'info')
 	MP.play(_file)
@@ -874,7 +872,6 @@ def start():
 					table = None
 					if MP.play_mode == 'playlist':
 						val = values[event][0]
-						print (f"Playlist: {val}")
 						if 'series:' in val or 'movies:' in val or 'music:' in val:
 							if 'series:' in val:
 								_id = val.split(':')[5]
@@ -897,15 +894,12 @@ def start():
 						if MP.conf['play_type'] == 'series':
 							#try:
 							val = values[event][0]
-							print (f"Playlist: {val}")
 							_id = val.split(':')[5]
 							table = val.split(':')[0]
-							print (f"table:{table}, id:{_id}, val:{val}")
 							playlist_click(_id, table)
 							#except Exception as e:
 							#	log(f"Error: Series list is empty! Details:{e}, {val}, {_id}, {table}", 'error')
 						elif MP.conf['play_type'] == 'movies':
-							print (f"Playlist: {val}")
 							try:
 								np.log(f"Playlist clicked: {val}")
 								val = values[event][0]
@@ -1171,8 +1165,11 @@ def start():
 					UI.WINDOW.Element('-SEARCH_QUERY-').SetFocus()
 					log(f"Set focus on search query input!", 'info')
 				elif event == 'Fix Scaling':
-					MP.set_scale(MP.conf['nowplaying']['filepath'])
-					log("EVENT: Fix Scaling button clicked, scale set ({self.scale})", 'info')
+					calculated_scale = np.calculate_scale(MP.conf['nowplaying']['filepath'])
+					current_scale = P.video_get_scale()
+					#MP.set_scale(MP.conf['nowplaying']['filepath'])
+					log(f"EVENT: Fix Scaling button: Previous:{current_scale}, New:{calculated_scale}", 'info')
+					P.video_set_scale(calculated_scale)
 				elif event == 'Screenshot':
 					ret = MP.screenshot()
 					np.log(ret, 'info')
@@ -1185,9 +1182,6 @@ def start():
 					log(f"Window closed (gui): continuout=0, reset=False", 'info')
 					np.writeConf(MP.conf)
 					MP.exit = True
-					if MP.scale_needed == 1:
-						MP.conf['scale'] = np.calculate_scale(MP.next)
-						P.video_set_scale(MP.conf['scale'])
 				elif event == '-Scan Music-':
 					np.log(f"Scanning music dir: {MP.conf['media_directories']['music']}")
 					np.scan_music()
@@ -1215,16 +1209,9 @@ def start():
 					if MP.intro_start is None:
 						MP.intro_start = 0.0
 					np.log(f"Intro marked: start={MP.intro_start}, end={MP.intro_end}, duration={duration}", 'info')
-					#pick = UI.get_user_yn("Insert chapters now?")
-					#print (pick)
-					#if pick == True:
+
 					com = (f"python3 \"{np.HOME}/.local/lib/python3.8/site-packages/np/utils/insert_intro.py\" \"{MP.conf['nowplaying']['filepath']}\" {MP.intro_start} {MP.intro_end}&")
 					subprocess.call(com, shell=True)
-					#np.insert_intro(MP.conf['nowplaying']['filepath'], MP.intro_start, MP.intro_end)
-				#	if MP.intro_start is not None and MP.intro_end is not None:
-				#		ret = np.insert_intro(filepath, MP.intro_start, MP.intro_end)
-				#		if ret:
-				#			np.log(f"Insert intro results: {ret}", 'info')
 					np.log("TODO: Finish np.insert_intro(filepath, start, end)")
 				else:
 					if event is not None:
@@ -1251,7 +1238,6 @@ def start():
 				P.set_position(MP.conf['nowplaying']['play_pos'])
 				log(f"Skipped to {MP.conf['nowplaying']['play_pos']}", 'info')
 				MP.continuous = 1
-				#np.writeConf(MP.conf)
 				MP.conf['GUI_RESET'] = False
 				log(f"Reset finished!:{MP.conf['GUI_RESET']}", 'info')
 				recenter_ui()
@@ -1290,6 +1276,13 @@ def start():
 				MP.ART_UPDATE_NEEDED = False
 			# update elapsed time if there is a video loaded and the media is playing
 			if P.is_playing() and MP.is_url == False:
+				if MP.scale_needed == 1:
+					#MP.conf['scale'] = np.calculate_scale(MP.next)
+					calculated_scale = np.calculate_scale(MP.conf['nowplaying']['filepath'])
+					current_scale = P.video_get_scale()
+					P.video_set_scale(calculated_scale)
+					log(f"Set scale by scale_needed flag: Previous:{current_scale}, New:{calculated_scale}", 'info')
+					MP.scale_needed = 0
 				if update >= update_ct:
 					update = 0
 					s='%20'
@@ -1307,7 +1300,7 @@ def start():
 							end = MP.conf['intro']['end'] / 100
 							if old_pos <= end:
 								pos = (MP.conf['intro']['end'] + 0.05) / 100
-								MP.player.set_position(pos)
+								P.set_position(pos)
 								np.log(f"Skipped intro: old={old_pos}, start={start}, end={end}", 'info')
 								MP.conf['nowplaying']['play_pos'] = pos
 								MP.conf['intro']['start'] = None

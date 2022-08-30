@@ -5,7 +5,6 @@ def create_connection(database=None):
 	if database == None:
 		database = "/home/monkey/.np/nplayer.db"
 	cur = None
-	#print ("Using database:", database)
 	conn = sqlite3.connect(database)
 	return conn
 
@@ -28,7 +27,6 @@ def updatedb(table, update_string, query):
 
 
 def addtodb(table, sql_data):
-	print ("adding to db:", sql_data)
 	try:
 		conn = create_connection()
 		cur = conn.cursor()
@@ -36,7 +34,6 @@ def addtodb(table, sql_data):
 		conn.commit()
 		return True
 	except Exception as e:
-		print (e)
 		return False
 
 
@@ -45,10 +42,8 @@ def addtodb_new(table=None, data={}):
 		conn = create_connection()
 		cur = conn.cursor()
 	except Exception as e:
-		print ("Unable to create connection or cursor:", e)
 		return False
 	if table == None:
-		print ("No table name provided.")
 		return False
 	pragma = get_columns(table)
 	columns = list(pragma.keys())
@@ -70,12 +65,8 @@ def addtodb_new(table=None, data={}):
 		val = items[key]
 		if val is None or val == 'None':
 			val = 'Null'
-		#print ("key, dtype, val", key, dtype, val)
-		#print (type(key), type(dtype), type(val))
 		if val != 'Null':
 			if dtype == 'INT':
-				#try:
-				print ("integer conv:", val, type(val))
 				if type(val) == tuple:
 					if val != (None, None):
 						val = int(str(val[0]))
@@ -85,9 +76,6 @@ def addtodb_new(table=None, data={}):
 					val = int(str(val))
 				query_vars.append(key)
 				query_vals.append(str(val))
-				#except:
-				#	print ("Error: not an integer", vals[pos])
-				#	return False
 			if dtype == 'TEXT':
 				val = ("'" + str(val) + "'")
 				query_vals.append(val)
@@ -102,7 +90,6 @@ def addtodb_new(table=None, data={}):
 					query_vals.append(val)
 					query_vars.append(key)
 				except:
-					print ("Unable to convert to boolean:", val)
 					return False
 		else:
 			query_vals.append(val)
@@ -121,7 +108,6 @@ def addtodb_new(table=None, data={}):
 
 
 def removefromdb(table, sql_query):
-	print ("Removing from db:", table, sql_query)
 	try:
 		conn = create_connection()
 		cur = conn.cursor()
@@ -129,12 +115,10 @@ def removefromdb(table, sql_query):
 		cur.execute(query_string)
 		ret = conn.commit()
 		if ret:
-			print (ret)
 			return False
 		else:
 			return True
 	except Exception as e:
-		print (e)
 		return False
 
 def querydb(table, column='*', query=None):
@@ -149,7 +133,6 @@ def querydb(table, column='*', query=None):
 		elif table == 'music':
 			query_string = ("SELECT " + column + " from " + str(table) + " order by artist,track;")
 		else:
-			print ("Unknown table:", table)
 			rows = []
 	else:
 		if table == 'series':
@@ -159,13 +142,11 @@ def querydb(table, column='*', query=None):
 		elif table == 'music':
 			query_string = ("SELECT " + column + " from " + str(table) + " WHERE " + str(query) + " order by artist,track;")
 		else:
-			print ("Unknown table:", table)
 			rows = []
 	try:
 		cur.execute(query_string)
 		rows = cur.fetchall()
 	except Exception as e:
-		print (e)
 		rows = []
 	return rows
 
@@ -211,10 +192,8 @@ def create_db(table=None):
 			create_table_music()
 			return True
 		else:
-			print ("Unknown table:", table)
 			return False
 	except Exception as e:
-		print (e)
 		return False
 
 def get_columns(table):

@@ -27,7 +27,6 @@ class music_mgr():
 
 	def get_info(self, search_text, artist):
 		arid = self.get_arid(artist)
-		#print ("Artist id:", arid)
 		query_text = urllib.parse.quote(search_text)
 		url = (self.api_url + "/recording?fmt=json&query=" + query_text + self.query_joiner + "arid:" + str(arid))
 		r = requests.get(url)
@@ -52,7 +51,6 @@ class music_mgr():
 			if releases is not None and release_date is not None:
 				for release in releases:
 					if release['title'] in albums:
-						print ("Title in albums:", release['title'])
 						#string = (str(release['id']) + ", " + str(release['title']))
 						try:
 							status = release['status']
@@ -68,13 +66,9 @@ class music_mgr():
 								else:
 									stype = None
 							except Exception as e:
-								print ("secondary type error:", e)
 								stype = None
 							track = release['media'][0]['track'][0]['number']
-							#print ("group, type, track:", group, _type, track)
-							#track_ct = release['media'][0]['track'][0]['track-count']
 							if _type == 'EP' or _type == 'Album' and stype is None:
-								print ("Is preferred type", _type, stype)
 								self.data = {}
 								self.data['title'] = title
 								matches_names.append(title)
@@ -90,7 +84,6 @@ class music_mgr():
 								#self.data['album_art'] = self.get_album_art_url(alid)
 								return self.data
 							else:
-								print ("not preferred type:", _type, stype)
 								temp = {}
 								temp['title'] = release['title']
 								matches_names.append(release['title'])
@@ -137,15 +130,11 @@ class music_mgr():
 
 
 	def get_album_art_url(self, album_id):
-		print ("album id:", album_id)
 		url = ("https://musicbrainz.org/ws/2/release/" + str(album_id) + "?fmt=json")
-		print ("URL:", url)
 		r = requests.get(url)
 		json_data = json.loads(r.text)
-		#print ("cover art response:", json_data)
 		rid = json_data['id']
 		has_art = json_data['cover-art-archive']['artwork']
-		print ("Has art:", json_data['cover-art-archive'])
 		if has_art:
 			url = ("https://coverartarchive.org/release/" + str(rid))
 			r = requests.get(url)
@@ -193,11 +182,9 @@ class music_mgr():
 		description = (self.data['artist'] + ":" + self.data['title'] + ":" + self.data['album'])
 		self.a.tag.images.set(type_=3, img_data=None, mime_type=None, description=description, img_url=self.data['album_art'])
 		self.a.tag.save()
-		print ("wrote image to tag: filepath =", filepath, "data = ", tag_data)
 		return True
 		
 		#except Exception as e:
-		print ("Tag write failed:", e)
 		return False
 			
 
@@ -267,7 +254,6 @@ class music_mgr():
 			self.window, self.event, self.values = sg.read_all_windows(timeout=10)
 			return (self.window, self.event, self.values)
 		except Exception as e:
-			print ("Error in get_events, line 189", e)
 			return (None, None, None)
 
 
@@ -292,7 +278,6 @@ class music_mgr():
 		self.data['title'] = self.a.tag.title
 		self.data['year'] = self.a.tag.release_date
 		self.data['filepath'] = filepath
-		#print (self.data)
 		self.win['-TITLE-'].update(self.data['title'])
 		self.win['-ALBUM-'].update(self.data['album'])
 		self.win['-YEAR-'].update(self.data['year'])
@@ -308,7 +293,6 @@ class music_mgr():
 		url = self.get_album_art_url(self.data['album_id'])
 		if url is None:
 			url = self.get_art_gimages(self.data['artist'], self.data['album'])
-		print (url)
 		self.dl_album_art(url)
 		#self.win['-ALBUM_ART-'].update('poster.jpg')
 		self.win['-ALBUM_ART_URL-'].update(url)
@@ -345,7 +329,6 @@ if __name__ == "__main__":
 			if e == '-PICK_FILE-':
 				mgr.found_mp3_files = [mgr.file_browse_window()]
 				mgr.win['-FOUND_MP3_FILES-'].update(mgr.found_mp3_files)
-				#print ("Found files:", mgr.found_mp3_files)
 			elif e == '-PICK_DIRECTORY-':
 				target_dir = mgr.folder_browse_window()
 				search_directory(target_dir)
@@ -354,7 +337,6 @@ if __name__ == "__main__":
 			elif e == '-FOUND_MP3_FILES-':
 				filepath = v[e][0]
 				info = mgr.read_tag(filepath)
-				print (info)
 			elif e == '-SAVE_TAG-':
 				data = {}
 				filepath = v['-FOUND_MP3_FILES-'][0]
@@ -363,9 +345,7 @@ if __name__ == "__main__":
 				data = mgr.get_info(title, artist)
 				data['album_art'] = v['-ALBUM_ART_URL-']
 				ret = mgr.write_tag(filepath, data)
-				print ("Write tag results:", ret)
 			elif e == '-READ_TAG-':
-				print (e, v)
 				filepath = v['-FOUND_MP3_FILES-'][0]
 				mgr.data = mgr.read_tag(filepath)
 	for w in mgr.windows:

@@ -41,7 +41,6 @@ def rt_series(series_name=None, season=None, episode_number=None):
 		json_string = data.split(s)[1].split('</script>')[0]
 		json_data = json.loads(json_string)
 		info['poster'] = json_data['image']
-		print (info['poster'])
 	except:
 		pass
 	return data
@@ -91,7 +90,6 @@ def get_episode_data(series_name, season, episode_number, filepath=None):
 		#
 	try:		
 		filepath = 'Unknown'
-		print (f"Series:{series_name}, season:{season}, episode_number:{episode_number}, filepath:{filepath}")
 		episodes_split = '<script type="application/ld+json" id="jsonLdSchema">'
 		data = rt_series(series_name, season, episode_number).split(episodes_split)[1].split('</script>')[0]
 		json_data = json.loads(data)

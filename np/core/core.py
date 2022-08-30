@@ -13,7 +13,7 @@ log = np_logger().log_msg
 
 from np.utils.xrandr import xrandr
 import pickle
-from videoprops import get_video_properties
+#from videoprops import get_video_properties
 from np.core.nplayer_db import querydb
 import os
 home = os.path.expanduser("~")
@@ -31,9 +31,6 @@ if os.path.exists(todo):
 	with open(todo, 'r') as f:
 		lines = f.read()
 	f.close()
-	print (lines)
-	#for line in lines:
-		#print (line)
 DISPLAY_INFO = xrandr()
 KEY_EVENTS = {}
 KEY_EVENTS['SEEK_FWD'] = 208
@@ -97,13 +94,12 @@ if not os.path.exists(npdir):
 
 def get_res(filepath):
 	try:
-		props = get_video_properties(filepath)
-		w = props['width']
-		h = props['height']
-		out = (w, h)
+		com = f"ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=s=x:p=0 \"{filepath}\""
+		w, h = subprocess.check_output(com, shell=True).decode().strip().split('x')
+		out = (int(w), int(h))
 		return out
 	except Exception as e:
-		print ("Get res failed!:", e)
+		log(f"Get res failed!:{e}", 'error')
 		return None
 
 
@@ -144,7 +140,7 @@ def read_history():
 			history_dict = pickle.load(f)
 		f.close()			
 	except Exception as e:
-		print ("Exception in core.py, read_history, line 223:", e)
+		log(f"Exception in core.py, read_history, line 223:{e}", 'error')
 	return history_dict
 
 
@@ -155,7 +151,7 @@ def write_history(history_dict):
 		f.close()
 		return True
 	except Exception as e:
-		print ("Exception in core.py, write_history, line 234:", e)
+		log(f"Exception in core.py, write_history, line 234:{e}", 'error')
 		return False
 
 
@@ -171,12 +167,12 @@ def calculate_scale(_file, conf=None, _type='file'):
 		return 0
 	log(f"ACTION:calculate_scale, file='{_file}', type='{type(_file)}'", 'info')
 	if _type != 'file':
-		print ("type is not file, cannot calculate scale:", _type)
+		log(f"type is not file, cannot calculate scale:{_type}", 'error')
 		return False
 	if conf == None:
 		conf = readConf()
 	if not os.path.exists(_file):
-		print ("File not found:,", _file)
+		log(f"File not found:{_file}", 'error')
 		return False
 	try:
 		vw, vh = get_res(_file)
@@ -386,7 +382,6 @@ def file_browse_window():
 			filepath = file_browser_values["-IN-"]
 			file_browser_window.close()
 			break
-	#print ("filepath (gui):", filepath)
 	return filepath
 
 
