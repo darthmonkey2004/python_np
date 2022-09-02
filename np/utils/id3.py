@@ -1,5 +1,6 @@
 import os
 import subprocess
+
 from np import log
 
 class id3():
@@ -22,17 +23,12 @@ class id3():
 class tag(id3):
 	#updates an id3 tag in 'filepath'
 	def save(self, filepath=None):
-		if filepath == None:
-			pass
-		else:
-			if self.filepath is not None:
-				filepath = self.filepath
-			else:
-				log(f"Whoops! you must specify a file path at least once!", 'error')
-				return False
-		if os.path.exists(filepath):
+		if filepath is not None:
 			self.filepath = filepath
-		else:
+		if self.filepath is None:
+			log(f"Whoops! you must specify a file path at least once!", 'error')
+			return False
+		if not os.path.exists(self.filepath):
 			log(f"File not found: {filepath}", 'error')
 			self.filepath = None
 			return False
@@ -46,19 +42,22 @@ class tag(id3):
 	def get_info(self):
 		if self.filepath is not None:
 			self.read(self.filepath)
-		self.info = {}
-		self.info['isactive'] = 1
-		self.info['title'] = self.title
-		self.info['album'] = self.album
-		self.info['results'] = False
-		self.info['album_id'] = 'Unknown'
-		self.info['artist_id'] = 'Unknown'
-		self.info['artist'] = self.artist
-		self.info['genre'] = self.genre
-		self.info['track'] = self.track
-		self.info['mbid'] = 'Unknown'
-		self.info['filepath'] = self.filepath
-		return self.info
+			self.info = {}
+			self.info['isactive'] = 1
+			self.info['title'] = self.title
+			self.info['album'] = self.album
+			self.info['results'] = False
+			self.info['album_id'] = 'Unknown'
+			self.info['artist_id'] = 'Unknown'
+			self.info['artist'] = self.artist
+			self.info['genre'] = self.genre
+			self.info['track'] = self.track
+			self.info['mbid'] = 'Unknown'
+			self.info['filepath'] = self.filepath
+			return self.info
+		else:
+			log(f"Error: Unable to read id3  tag. Details:No filepath set!", 'error')
+			return None
 
 	#reads tag data
 	def read(self, filepath=None):
@@ -96,7 +95,7 @@ class tag(id3):
 				elif key == 'Year':
 					self.year = val
 				elif key == 'Genre':
-					self.year = val
+					self.genre = val
 				elif key == 'Track':
 					self.track = val
 				elif key == 'Comment':

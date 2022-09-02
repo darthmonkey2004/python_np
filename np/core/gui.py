@@ -3,6 +3,86 @@ import os
 import np
 import PySimpleGUI as sg
 #-----------main gui creation class------------#
+
+def db_editor():
+	com = (f"python3 -c \"import np; np.db_editor()\"&")
+	subprocess.call(com, shell=True)
+	return True
+
+def tag_editor():
+	com = (f"python3 -c \"import np; np.tag_editor()\"&")
+	subprocess.call(com, shell=True)
+	return True
+
+def bring_to_front(win):
+	win.bring_to_front()
+	np.log(f"Window ({win.Title}) on the front lines!", 'info')
+	return True
+
+def send_to_back(win):
+	win.send_to_back()
+	np.log(f"Window ({win.Title}) in the rear with the gear!", 'info')
+	return True
+
+
+def run_long_operation(func, end_key):
+	return perform_long_operation(func, end_key)
+
+
+def write_event(event, value, win):
+	return win.write_event_value(event, value)
+
+
+def restore(win):
+	win.normal()
+	np.log(f"Window ({win.Title}) restored!", 'info')
+
+
+def maximize(win):
+	win.maximize()
+	np.log(f"Window ({win.Title}) maximized!", 'info')
+
+
+def hide(win):
+	win.hide()
+	np.log(f"Window ({win.Title}) hidden!", 'info')
+
+
+def un_hide(win):
+	win.un_hide()
+	np.log(f"Window ({win.Title}) un-hidden!", 'info')
+
+
+def reappear(win):
+	win.reappear()
+	np.log(f"Window ({win.Title}) revealed!", 'info')
+
+
+def dissapear(win):
+	win.dissapear()
+	np.log(f"Window ({win.Title}) dissapeared!", 'info')
+
+
+def get_pointer(win):
+	return win.mouse_location()
+
+
+def minimize(win):
+	win.minimize()
+	np.log(f"Window ({win.Title}) minimized!", 'info')
+
+
+def start_thread(function, key, win):
+	try:
+		ret = win.start_thread(function, key)
+		if ret is not None:
+			np.log(f"Thread start returned data: {ret}", 'info')
+		return True
+	except Exception as e:
+		np.log(f"Exception in start_thread: {e}", 'error')
+		return False
+
+
 class gui():
 	def __init__(self):
 		self.TAB = '-player_control_layout-'
@@ -43,13 +123,13 @@ class gui():
 		self.viewer_win_w = self.conf['windows']['viewer'][viewer_screen]['w']
 		self.viewer_win_h = self.conf['windows']['viewer'][viewer_screen]['h']
 		np.log(f"Viewer window set: {self.viewer_win_x}, {self.viewer_win_y}, {self.viewer_win_w}, {self.viewer_win_h}", 'info')
-		self.window = None
+		#self.window = None
 		self.event = None
 		self.values = None
 		self.player_window_layout = []
 		self.uievent = None
 		self.uivalues = {}
-		self.window = None
+		#self.window = None
 		self.table = self.conf['play_type']
 		self.isactive = True
 		self.dbmgr_picked_items = []
@@ -57,11 +137,14 @@ class gui():
 		if self.conf['play_type'] == 'videos':
 			self.table = 'series'
 		sg.theme(self.theme)
+		self.windows = {}
 		self.WINDOW = self.create_gui_window()
 		if self.win_type == 'internal':
 			self.WINDOW2 = sg.Window('Viewer', self.player_window_layout, no_titlebar=True, location=(int(self.viewer_win_x), int(self.viewer_win_y)), size=(int(self.viewer_win_w), int(self.viewer_win_h)), grab_anywhere=True, keep_on_top=False, element_justification='center', finalize=True, resizable=True).Finalize()
 			self.WINDOW2['-VID_OUT-'].expand(True, True)
 		self.RESET = False
+		self.icon_path = f"{np.HOME}/.local/poster.png"
+		sg.set_global_icon(self.icon_path)
 
 
 	def create_gui_window(self):
@@ -107,11 +190,15 @@ class gui():
 		]
 		dbitems = []
 
-		self.menu_def = [['&File', ['-&Load Directory-', '-&Load Playlist-', '-&Save Playlist-', 'E&xit']], ['&Tools', ['&Pirate Bay Downloader', '-&Database Editor-', '&Torrent Manager', '&Video Filters', [np.VLC_VIDEO_FILTERS], '&Audio Filters', [np.VLC_AUDIO_FILTERS]]], ['&Help', '&About...'], ['&Media', ['-Scan Movies-', '-Scan Series-', '-Scan Music-', '-Scan All-']]]
+		self.menu_def = [['&File', ['-&Load Directory-', '-&Load Playlist-', '-&Save Playlist-', 'E&xit']], ['&Tools', ['&Pirate Bay Downloader', '-&Database Editor-', '-ID3 Tag Editor-', '&Torrent Manager', '&Video Filters', [np.VLC_VIDEO_FILTERS], '&Audio Filters', [np.VLC_AUDIO_FILTERS]]], ['&Help', '&About...'], ['&Media', ['-Scan Movies-', '-Scan Series-', '-Scan Music-', '-Scan All-']]]
 		#self.layout = [[sg.MenubarCustom(self.menu_def, tearoff=True, key='-menubar_key-'), sg.Button("Close")], [sg.TabGroup([[sg.Tab('MP Controls', self.player_control_layout, key='-player_control_layout-')], [sg.Tab('DB Manager', self.db_mgr_layout, key='-db_mgr_layout-')]], 	expand_x=True, expand_y=True, enable_events=True)]]
 		self.layout = [[sg.MenubarCustom(self.menu_def, tearoff=True, key='-menubar_key-'), sg.Button("Close")], [sg.TabGroup([[sg.Tab('MP Controls', self.player_control_layout, key='-player_control_layout-')], line_window_ctl], expand_x=True, expand_y=True, enable_events=True)]]
-		self.WINDOW = sg.Window('GUI', self.layout, no_titlebar=True, location=(int(self.gui_win_x),int(self.gui_win_y)), size=(self.gui_win_w,self.gui_win_h), keep_on_top=False, grab_anywhere=True, element_justification='center', finalize=True, resizable=True).Finalize()
-		return self.WINDOW
+		win = sg.Window('GUI', self.layout, no_titlebar=True, location=(int(self.gui_win_x),int(self.gui_win_y)), size=(self.gui_win_w,self.gui_win_h), keep_on_top=False, grab_anywhere=True, element_justification='center', finalize=False, resizable=True)
+		title = win.Title
+		self.windows[title] = win
+		return win
+
+
 
 
 	def init_window_position(self):
@@ -149,10 +236,10 @@ class gui():
 		return coords
 
 	def db_editor(self):
-		com = (f"python3 -c \"import np; np.db_editor()\"&")
-		subprocess.call(com, shell=True)
+		db_editor()
 		
-	
+	def tag_editor(self):
+		tag_editor()
 
 
 	def move_window(self, window, x=None, y=None):
@@ -333,6 +420,19 @@ class gui():
 			return (None, None, None)
 
 
+	def toggle_on_top(self, win):
+		state = win.KeepOnTop
+		if state:
+			ret = False
+			win.keep_on_top_clear()
+			np.log(f"Window '{win.Title}': keep_on_top cleared!", 'info')
+		else:
+			ret = True
+			win.keep_on_top_set()
+			np.log(f"Window '{win.Title}': keep_on_top set!", 'info')
+		return ret
+
+
 	def set_window_screen(self, screen: int, conf=None):
 		if conf == None:
 			self.conf = np.readConf()
@@ -362,10 +462,9 @@ class gui():
 		self.conf['windows']['gui'][state][gui_screen]['y'] = y
 		return self.conf
 
-	def dump_layout(self, layout, filename):
+	def dump_object(self, _object, filename):
 		with open (filename, 'w') as f:
-			layout = str(layout)
-			f.write(layout)
+			ret = obj_to_string(_object)
+			f.write(ret)
 		f.close()
-		with open (filename, 'a') as f:
-			f.write('ELEMENT_START')
+		return filename

@@ -20,11 +20,13 @@ from np.core.nplayer_db import create_table_music
 from np.core.nplayer_db import test_db
 from np.utils.cleandb import run as cleandb
 from np.core.db_editor import run as db_editor
+from np.utils.tag_editor import run as tag_editor
 from np.core.conf import initConf, readConf, writeConf, run_setup
 from np.utils.music_mgr import music_mgr
 from np.utils.query_series import tmdb_query_series as query_series
-from np.core.core import create_media, get_local_ip, err, get_res, enable_debug, disable_debug, read_history, write_history, set_play_type, calculate_scale, init_window_position, file_browse_window, folder_browse_window, DATA_DIR, KEY_EVENTS
+from np.core.core import create_media, get_local_ip, err, get_res, enable_debug, disable_debug, read_history, write_history, set_play_type, calculate_scale, init_window_position, file_browse_window, folder_browse_window, DATA_DIR, KEY_EVENTS, shell, check_process, python
 from np.core.gui import gui
+from np.core.gui import db_editor, bring_to_front, send_to_back, run_long_operation, write_event, restore, maximize, minimize, hide, un_hide, reappear, dissapear, get_pointer, start_thread
 from np.core.nplayer import nplayer
 #from np.utils.gui_create import add_elem
 #add_elem = add_elem()

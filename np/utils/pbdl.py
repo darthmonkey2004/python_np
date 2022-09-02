@@ -4,7 +4,7 @@ import pickle
 import PySimpleGUI as sg
 import subprocess
 import os
-from np import readConf, get_columns, log, SFTP_DIR, DATA_DIR, HOME, writeConf
+from np import readConf, get_columns, log, SFTP_DIR, DATA_DIR, HOME, writeConf, shell
 from np.utils.pbdl_se_isin import se_isin, parse
 from np.utils.query_series import tmdb_query_series
 from np.utils.query_movies import query_imdb as query_movies
@@ -103,85 +103,39 @@ def save_torrent_log(torrents):
 
 def update_media_type(win, play_type=None):
 	if play_type == None:
-		play_type = conf['play_type']
-	pbdl_win = win
-	diff = 0
-	extra_length = 0
-	columns_list = list(get_columns(play_type))
-	columns_ct = len(columns_list)
-	old_columns_ct = columns_ct
-	log(f"Type changed:{play_type}", 'info')
-	columns_list = list(get_columns(play_type).keys())
-	columns_ct = len(columns_list)
-	if columns_ct <= 13:
-		extra_length = 13 - columns_ct - 1
-		if extra_length >= 0:
-			columns_ct = extra_length + columns_ct
-		elif extra_length < 0:
-			columns_ct = extra_length - columns_ct
-	pos = -1
-	
-	if len(columns_list) < columns_ct:
-		d = 13 - len(columns_list) - 1
-		for i in (0, d):
-			string = (f"No Field{i}")
-			columns_list.append(string)
-	for i in range(0, columns_ct):
-		column = columns_list[i]
-		pos = str(int(pos) + 1)
-		d = ("d_" + pos)
+		play_type = win.AllKeysDict['-MEDIA_TYPE-'].Get()
+	columns = list(get_columns(play_type).keys())
+	idx = -1
+	for idx in range(0, 14):
 		try:
-			pbdl_win[d].update(column)
-			if diff >= 0:
-				for i in range(columns_ct, extra_length):
-					d = ("d_" + str(i))
-					pbdl_win[d].update('None')
+			column = columns[idx]
 		except:
-			break
-	pbdl_win.refresh()
+			column = "None"
+		key = f"-dbcolumn{idx}-"
+		win[key].update(column)
+	win.refresh()
 
 	
 def select_torrent(tid=None):
+	try:
+		old_type = play_type
+	except:
+		old_type = None
 	conf = readConf()
 	play_type = conf['play_type']
 	torrents[tid]['play_type'] = play_type
 	pragma = get_columns(play_type)
 	columns = list(pragma.keys())
-	for column in columns:
-		field = (f"-{columns.index(column)}-")
-		if column == 'id':
-			pbdl_win[field].update(tid)
-		elif column == 'filepath':
-			
-			idx = columns.index('filepath')
-			k = (f"-{idx}-")
-			try:
-				filepath = values[k]
-			except:
-				filepath = torrents[tid]['files'][0]
-		else:
-			try:
-				pbdl_win[field].update(torrents[tid][column])
-			except:
-				torrents[tid][column] = 'Unknown'
-				pbdl_win[field].update(torrents[tid][column])
+	update_info(pbdl_win, torrents[tid])
 				
-	play_type = torrents[tid]['play_type']
 	pbdl_win['-MEDIA_TYPE-'].update(play_type)
-	update_media_type(play_type)
+	update_media_type(pbdl_win, play_type)
 	files = torrents[tid]['files']
 	name = torrents[tid]['name']
 	pbdl_win['-tid-'].update(tid)
 	pbdl_win['-Name-'].update(name)
 	string = (str(torrents[tid]['have']) + " " + str(torrents[tid]['size_unit']))
 	pbdl_win['-Have-'].update(string)
-	pbdl_win['-ETA-'].update(torrents[tid]['eta'])
-	pbdl_win['-Upload Rate-'].update(torrents[tid]['up'])
-	pbdl_win['-Download Rate-'].update(torrents[tid]['down'])
-	pbdl_win['-Status-'].update(torrents[tid]['status'])
-	pbdl_win['-Ratio-'].update(torrents[tid]['ratio'])
-	pbdl_win['-TORRENT_FILES-'].update(files)
-	pbdl_win['-Percent-'].update(torrents[tid]['percent'])
 	return torrents[tid]
 
 
@@ -211,13 +165,6 @@ def display_torrents(play_type, data=None):
 		percent = torrents[tid]['percent']
 		string = (f"{tid}:{play_type}:{percent}:{name}")
 		active_torrents.append(string)
-		#except Exception as e:
-		#	log(f"Exception, display_torrents(), {e}", 'error')
-		#	#torrents[tid]['play_type'] = 'Unknown Type'
-		#	percent = torrents[tid]['percent']
-		#	name = torrents[tid]['name']
-		#	string = (f"{tid}:{percent}:{name}")
-		#	active_torrents.append(string)
 	return active_torrents
 
 
@@ -236,16 +183,15 @@ def create_torrent_mgr():
 	columns_list = list(get_columns(play_type).keys())
 	pbdl_layout = [
 	[sg.Listbox(active_torrents, expand_x=True, enable_events=True, size=(50,10), key='-TORRENT_SELECT-')],
-	[sg.Text('tid:'), sg.Text('', expand_x=True, key='-tid-')],
-	[sg.Text('Name:'), sg.Text('', expand_x=True, key='-Name-')],
-	[sg.Text('Percent:'), sg.Text('', expand_x=True, key='-Percent-')],
-	[sg.Text('Have:'), sg.Text('', expand_x=True, key='-Have-')],
-	[sg.Text('ETA:'), sg.Text('', expand_x=True, key='-ETA-')],
-	[sg.Text('Upload Rate:'), sg.Text('', expand_x=True, key='-Upload Rate-')],
-	[sg.Text('Download Rate:'), sg.Text('', expand_x=True, key='-Download Rate-')],
-	[sg.Text('Status:'), sg.Text('', expand_x=True, key='-Status-')],
-	[sg.Text('Ratio:'), sg.Text('', expand_x=True, key='-Ratio-')],
-	[sg.Listbox([], expand_x=True, expand_y=True, enable_events=True, select_mode='multiple', size=(50,50), key='-TORRENTS-')]
+	[sg.Text('tid:'), sg.Text('', expand_x=True, key='tid')],
+	[sg.Text('Name:'), sg.Text('', expand_x=True, key='name')],
+	[sg.Text('Percent:'), sg.Text('', expand_x=True, key='percent')],
+	[sg.Text('Have:'), sg.Text('', expand_x=True, key='have')],
+	[sg.Text('ETA:'), sg.Text('', expand_x=True, key='eta')],
+	[sg.Text('Upload Rate:'), sg.Text('', expand_x=True, key='up')],
+	[sg.Text('Download Rate:'), sg.Text('', expand_x=True, key='down')],
+	[sg.Text('Status:'), sg.Text('', expand_x=True, key='status')],
+	[sg.Text('Ratio:'), sg.Text('', expand_x=True, key='ratio')],
 
 	]
 	title_bar_layout = [sg.MenubarCustom(menu_def, tearoff=False, key='-menubar_key-'), sg.Combo(['series', 'movies', 'music'], conf['play_type'] , enable_events=True,key='-MEDIA_TYPE-'), sg.Button("Quit!", key='-Close PBDL-')],
@@ -273,57 +219,20 @@ def create_torrent_mgr():
 
 
 def build_column_table(play_type=None):
+	conf = readConf()
+	if play_type == None:
+		play_type = conf['play_type']
 	media_info_layout = []
 	is_active_ckbox = [sg.Button('Refresh From Remote', key='-REFRESH_DATA-'), sg.Button('Load Info', key='-LOAD_INFO-'), sg.Button('Save Info', key='-SAVE_INFO-'), sg.Checkbox(text='Is Active:', auto_size_text=True, change_submits=True, enable_events=True, key='-SET_ACTIVE-'), sg.Checkbox(text='Auto Remove Torrents:', auto_size_text=True, change_submits=True, enable_events=True, key='-AUTO_REMOVE-')]
 	media_info_layout.append(is_active_ckbox)
 	pos = -1
 	columns = list(get_columns(play_type).keys())
-	if play_type == 'series':
-		media_info_layout.append([sg.Text('id', key='d_0'), sg.Input(default_text='', enable_events=True, do_not_clear=True, key="-0-", expand_x=True)])
-		media_info_layout.append([sg.Text('isactive', key='d_1'), sg.Input(default_text='', enable_events=True, do_not_clear=True, key="-1-", expand_x=True)])
-		media_info_layout.append([sg.Text('series_name', key='d_2'), sg.Input(default_text='', enable_events=True, do_not_clear=True, key="-2-", expand_x=True)])
-		media_info_layout.append([sg.Text('tmdbid', key='d_3'), sg.Input(default_text='', enable_events=True, do_not_clear=True, key="-3-", expand_x=True)])
-		media_info_layout.append([sg.Text('season', key='d_4'), sg.Input(default_text='', enable_events=True, do_not_clear=True, key="-4-", expand_x=True)])
-		media_info_layout.append([sg.Text('episode_number', key='d_5'), sg.Input(default_text='', enable_events=True, do_not_clear=True, key="-5-", expand_x=True)])
-		media_info_layout.append([sg.Text('episode_name', key='d_6'), sg.Input(default_text='', enable_events=True, do_not_clear=True, key="-6-", expand_x=True)])
-		media_info_layout.append([sg.Text('description', key='d_7'), sg.Input(default_text='', enable_events=True, do_not_clear=True, key="-7-", expand_x=True)])
-		media_info_layout.append([sg.Text('air_date', key='d_8'), sg.Input(default_text='', enable_events=True, do_not_clear=True, key="-8-", expand_x=True)])
-		media_info_layout.append([sg.Text('still_path', key='d_9'), sg.Input(default_text='', enable_events=True, do_not_clear=True, key="-9-", expand_x=True)])
-		media_info_layout.append([sg.Text('duration', key='d_10'), sg.Input(default_text='', enable_events=True, do_not_clear=True, key="-10-", expand_x=True)])
-		media_info_layout.append([sg.Text('filepath', key='d_11'), sg.Input(default_text='', enable_events=True, do_not_clear=True, key="-11-", expand_x=True)])
-		media_info_layout.append([sg.Text('md5', key='d_12'), sg.Input(default_text='', enable_events=True, do_not_clear=True, key="-12-", expand_x=True)])
-		media_info_layout.append([sg.Text('url', key='d_13'), sg.Input(default_text='', enable_events=True, do_not_clear=True, key="-13-", expand_x=True)])
-	elif play_type == 'music':
-		media_info_layout.append([sg.Text('id', key='d_0'), sg.Input(default_text='', enable_events=True, do_not_clear=True, key="-0-", expand_x=True)])
-		media_info_layout.append([sg.Text('isactive', key='d_1'), sg.Input(default_text='', enable_events=True, do_not_clear=True, key="-1-", expand_x=True)])
-		media_info_layout.append([sg.Text('title', key='d_2'), sg.Input(default_text='', enable_events=True, do_not_clear=True, key="-2-", expand_x=True)])
-		media_info_layout.append([sg.Text('mdbid', key='d_3'), sg.Input(default_text='', enable_events=True, do_not_clear=True, key="-3-", expand_x=True)])
-		media_info_layout.append([sg.Text('album', key='d_4'), sg.Input(default_text='', enable_events=True, do_not_clear=True, key="-4-", expand_x=True)])
-		media_info_layout.append([sg.Text('album_id', key='d_5'), sg.Input(default_text='', enable_events=True, do_not_clear=True, key="-5-", expand_x=True)])
-		media_info_layout.append([sg.Text('artist_id', key='d_6'), sg.Input(default_text='', enable_events=True, do_not_clear=True, key="-6-", expand_x=True)])
-		media_info_layout.append([sg.Text('artist', key='d_7'), sg.Input(default_text='', enable_events=True, do_not_clear=True, key="-7-", expand_x=True)])
-		media_info_layout.append([sg.Text('genre', key='d_8'), sg.Input(default_text='', enable_events=True, do_not_clear=True, key="-8-", expand_x=True)])
-		media_info_layout.append([sg.Text('track', key='d_9'), sg.Input(default_text='', enable_events=True, do_not_clear=True, key="-9-", expand_x=True)])
-		media_info_layout.append([sg.Text('filepath', key='d_10'), sg.Input(default_text='', enable_events=True, do_not_clear=True, key="-10-", expand_x=True)])
-		media_info_layout.append([sg.Text('No Field1', key='d_11'), sg.Input(default_text='', enable_events=True, do_not_clear=True, key="-11-", expand_x=True)])
-		media_info_layout.append([sg.Text('No Field2', key='d_12'), sg.Input(default_text='', enable_events=True, do_not_clear=True, key="-12-", expand_x=True)])
-		media_info_layout.append([sg.Text('No Field3', key='d_13'), sg.Input(default_text='', enable_events=True, do_not_clear=True, key="-13-", expand_x=True)])
-
-	elif play_type == 'movies':
-		media_info_layout.append([sg.Text('id', key='d_0'), sg.Input(default_text='', enable_events=True, do_not_clear=True, key="-0-", expand_x=True)])
-		media_info_layout.append([sg.Text('isactive', key='d_1'), sg.Input(default_text='', enable_events=True, do_not_clear=True, key="-1-", expand_x=True)])
-		media_info_layout.append([sg.Text('tmdbid', key='d_2'), sg.Input(default_text='', enable_events=True, do_not_clear=True, key="-2-", expand_x=True)])
-		media_info_layout.append([sg.Text('title', key='d_3'), sg.Input(default_text='', enable_events=True, do_not_clear=True, key="-3-", expand_x=True)])
-		media_info_layout.append([sg.Text('year', key='d_4'), sg.Input(default_text='', enable_events=True, do_not_clear=True, key="-4-", expand_x=True)])
-		media_info_layout.append([sg.Text('release_date', key='d_5'), sg.Input(default_text='', enable_events=True, do_not_clear=True, key="-5-", expand_x=True)])
-		media_info_layout.append([sg.Text('duration', key='d_6'), sg.Input(default_text='', enable_events=True, do_not_clear=True, key="-6-", expand_x=True)])
-		media_info_layout.append([sg.Text('description', key='d_7'), sg.Input(default_text='', enable_events=True, do_not_clear=True, key="-7-", expand_x=True)])
-		media_info_layout.append([sg.Text('poster', key='d_8'), sg.Input(default_text='', enable_events=True, do_not_clear=True, key="-8-", expand_x=True)])
-		media_info_layout.append([sg.Text('filepath', key='d_9'), sg.Input(default_text='', enable_events=True, do_not_clear=True, key="-9-", expand_x=True)])
-		media_info_layout.append([sg.Text('md5', key='d_10'), sg.Input(default_text='', enable_events=True, do_not_clear=True, key="-10-", expand_x=True)])
-		media_info_layout.append([sg.Text('url', key='d_11'), sg.Input(default_text='', enable_events=True, do_not_clear=True, key="-11-", expand_x=True)])
-		media_info_layout.append([sg.Text('No Field1', key='d_12'), sg.Input(default_text='', enable_events=True, do_not_clear=True, key="-12-", expand_x=True)])
-		media_info_layout.append([sg.Text('No Field2', key='d_13'), sg.Input(default_text='', enable_events=True, do_not_clear=True, key="-13-", expand_x=True)])
+	for pos in range(0, 14):
+		try:
+			column = columns[pos]
+		except:
+			column = "None"
+		media_info_layout.append([sg.Text(column, key=f"-dbcolumn{pos}-"), sg.Input(default_text='', enable_events=True, do_not_clear=True, key=f"dbcolumn{pos}", expand_x=True)])
 	return media_info_layout
 
 
@@ -354,9 +263,9 @@ def parse_further():
 		idx = columns.index('series_name')
 		k = (f"-{idx}-")
 		series_name = values[k]
-		idx = columns.index('seasom')
+		idx = columns.index('season')
 		k = (f"-{idx}-")
-		seasom = values[k]
+		season = values[k]
 		idx = columns.index('episode_number')
 		k = (f"-{idx}-")
 		episode_number = values[k]
@@ -370,26 +279,35 @@ def parse_further():
 				elif dtype == 'TEXT':
 					torrents[tid][key] = f("\'{val}\'")
 
-def default_info(tid, torrents, filepath):
-		
+def default_info(win, tid, torrents, play_type=None):
+	if play_type == None:
+		play_type = win.AllKeysDict['-MEDIA_TYPE-'].Get()
+	
 	global values
 	info = {}
-	for key in torrents[tid].keys():
-		try:
-			vkey = f"-{key}-"
-			val = values[vkey]
-			if val is not None:
-				info[key] = val
-				torrents[tid][key] = val
-			
-		except:
+	columns = list(get_columns(play_type).keys())
+	files = get_files(tid)
+	for filepath in files:
+		for column in columns:
 			try:
-				val = info[key]
-			except:
-				val = torrents[tid][key]
-				info[key] = val
-	info['filepath'] = filepath
-	return info
+				val = torrents[tid]['info'][filepath][column]
+			except Exception as e:
+				log(f"Exception getting value:{e}", 'error')
+				torrents[tid]['info'][filepath][column] = "Unknown"
+		d = torrents[tid]['info'][filepath]
+		for key in d.keys():
+			if key in columns:
+				if key != 'filepath':
+					idx = columns.index(key)
+					newkey = f"dbcolumn{idx}"
+					val = win.AllKeysDict[newkey].Get()
+					del torrents[tid]['info'][filepath][key]
+					if val is not None and val != '':
+						torrents[tid]['info'][filepath][newkey] = val
+					else:
+						torrents[tid]['info'][filepath][newkey] = 'Unknown'
+		torrents[tid]['info'][filepath] = d
+	return torrents[tid]['info'][filepath]
 
 
 def get_files(tid):
@@ -400,10 +318,6 @@ def get_files(tid):
 		if item != '':
 			item = item.strip()
 			files.append(item)
-	try:
-		pbdl_win['-TORRENTS-'].update(files)
-	except:
-		pass
 	return files
 
 
@@ -755,13 +669,15 @@ def build_data():
 	return torrents
 
 
-def query_tmdb(pbdl_win, values):
-	try:
-		tid = values['-TORRENT_SELECT-'][0].split(':')[0]
-	except:
-		log(f"Error: No files selected!", 'error')
-		return None
-	play_type = values['-TORRENT_SELECT-'][0].split(':')[1]
+def query_tmdb(win, values, tid=None, play_type=None):
+	if tid == None:
+		try:
+			tid = values['-TORRENT_SELECT-'][0].split(':')[0]
+		except:
+			log(f"Error: No files selected!", 'error')
+			return None
+	if play_type == None:
+		play_type = win.AllKeysDict['-MEDIA_TYPE-'].Get()
 	if play_type == 'movies':
 		table = values['-MEDIA_TYPE-'][0]
 		pragma = get_columns(table)
@@ -823,15 +739,12 @@ def query_tmdb(pbdl_win, values):
 		table = 'series'
 		pragma = get_columns(table)
 		columns = list(pragma.keys())
-		idx = columns.index('series_name')
-		k = (f"-{idx}-")
-		series_name = values[k]
-		idx = columns.index('season')
-		k = (f"-{idx}-")
-		season = values[k]
-		idx = columns.index('episode_number')
-		k = (f"-{idx}-")
-		episode_number = values[k]
+		snkey = f"dbcolumn{columns.index('series_name')}"
+		skey = f"dbcolumn{columns.index('season')}"
+		ekey = f"dbcolumn{columns.index('episode_number')}"
+		series_name = values[snkey]
+		season = values[skey]
+		episode_number = values[ekey]
 		
 		if len(values['-TORRENT_FILES-']) == 0:
 			progressive = True
@@ -856,69 +769,52 @@ def query_tmdb(pbdl_win, values):
 			if episode_number != f_episode_number:
 				episode_number = f_episode_number
 				log(f"Episode number from ({f_episode_number}) file different than input field ({episode_number}). Assuming input is wrong...", 'warning')
-				
-			print (_file_path, series_name, season, episode_number)
 			info = tmdb_query_series(_file_path, series_name, season, episode_number)
 			log(f"TMDB query ({_file_path}) info: {info}", 'info')
 			if info:
-				for key in list(info.keys()):
-					info[key] = str(info[key]).replace("'", "").replace('"', '')
-				idx = columns.index('series_name')
-				series_name_key = (f"-{idx}-")
-				#torrents[tid]['series_name'] = info['series_name']
-				pbdl_win[series_name_key].update(info['series_name'])
-
-				idx = columns.index('tmdbid')
-				tmdbid_key = (f"-{idx}-")
-				#torrents[tid]['tmdbid'] = info['tmdbid']
-				pbdl_win[tmdbid_key].update(info['tmdbid'])
-	
-				idx = columns.index('season')
-				season_key = (f"-{idx}-")
-				#torrents[tid]['season'] = info['season']
-				pbdl_win[season_key].update(info['season'])
-
-				idx = columns.index('episode_number')
-				episode_number_key = (f"-{idx}-")
-				#torrents[tid]['episode_number'] = info['episode_number']
-				pbdl_win[episode_number_key].update(info['episode_number'])
-
-				idx = columns.index('episode_name')
-				episode_name_key = (f"-{idx}-")
-				#torrents[tid]['episode_name'] = info['episode_name']
-				pbdl_win[episode_name_key].update(info['episode_name'])
-
-				idx = columns.index('description')
-				description_key = (f"-{idx}-")
-				#torrents[tid]['description'] = info['description']
-				pbdl_win[description_key].update(info['description'])
-
-				idx = columns.index('air_date')
-				air_date_key = (f"-{idx}-")
-				#torrents[tid]['air_date'] = info['air_date']
-				pbdl_win[air_date_key].update(info['air_date'])
-							
-				idx = columns.index('still_path')
-				still_path_key = (f"-{idx}-")
-				#torrents[tid]['still_path'] = info['still_path']
-				pbdl_win[still_path_key].update(info['still_path'])
-
-				idx = columns.index('duration')
-				duration_key = (f"-{idx}-")
-				#torrents[tid]['duration'] = info['duration']
-				pbdl_win[duration_key].update(info['duration'])
-
-				idx = columns.index('md5')
-				md5_key = (f"-{idx}-")
-				#torrents[tid]['md5'] = info['md5']
-				pbdl_win[md5_key].update(info['md5'])
-
-				idx = columns.index('url')
-				url_key = (f"-{idx}-")
-				#torrents[tid]['url'] = info['url']
-				pbdl_win[url_key].update(info['url'])
+				ret = update_info(win, info)
+				if ret:
+					log(f"update_info returned data: {ret}", 'info')
 		return info
 					
+
+def update_info(win, data):
+	try:
+		d = win.key_dict
+	except Exception as e:
+		log(f"Error: Unable to get current values of {win.Title}! ({e})", 'error')
+		return False
+	winkeys = list(d.keys())
+	dkeys = list(data.keys())
+	nd = {}
+	for dkey in dkeys:
+		if dkey in winkeys:
+			val = data[dkey]
+			nd[dkey] = val
+		else:
+			log(f"Warning: key not found in {win.Title}: {dkey}", 'warning')
+	try:
+		sg.fill_form_with_values(win, nd)
+		return True
+	except Exception as e:
+		log(f"Error: Unable to update window {win.Title}: {e}", 'error')
+		return False
+
+
+def clear_data():
+	savefile = (f"{DATA_DIR}/pbdl.dat")
+	if os.path.exists(savefile):
+		com = f"rm \"{savefile}\""
+		ret = shell(com)
+		if ret:
+			log(f"Error: Unable to remove savefile! Results:{ret}", 'error')
+			return False
+		torrents = get_torrents()
+		ret = save_torrent_log(torrents)
+		if ret is not True:
+			log(f"Error: Unable to save current data! Details:{ret}", 'error')
+	torrents = build_data()
+	return torrents
 
 
 def run_mgr():
@@ -936,8 +832,10 @@ def run_mgr():
 			torrents[tid] = old[tid]
 		elif tid not in old:
 			pass
-
+	
+	
 	while True:
+		old_type = pbdl_win.AllKeysDict['-MEDIA_TYPE-'].Get()
 		if exit == True:
 			break
 		try:
@@ -983,6 +881,7 @@ def run_mgr():
 				tid = int(val.split(':')[0])
 				torrent_files = []
 				torrent_files = get_files(tid)
+				update_info(pbdl_win, torrents[tid])
 				pbdl_win['-TORRENT_FILES-'].update(torrent_files)
 				pbdl_win.refresh()
 				save_torrent_log(torrents)
@@ -992,23 +891,13 @@ def run_mgr():
 			elif event == 'Rotten Tomatoes Query' or event == 'Search Rotten Tomatoes':
 				table = values['-MEDIA_TYPE-'][0]
 				if table == 'movies':
-					columns = list(get_columns('movies').keys())	
-					idx = columns.index('title')
-					k = (f"-{idx}-")
-					title = values[k]
+					title = values['title']
 					info = get_movie_data(title)
 				elif table == 'series':
 					pragma = get_columns(table)
-					columns = list(pragma.keys())
-					idx = columns.index('series_name')
-					k = (f"-{idx}-")
-					series_name = values[k]
-					idx = columns.index('season')
-					k = (f"-{idx}-")
-					season = values[k]
-					idx = columns.index('episode_number')
-					k = (f"-{idx}-")
-					episode_number = values[k]
+					series_name = values['series_name']
+					season = values['season']
+					episode_number = values['episode_number']
 					info = get_episode_data(series_name, season, episode_number)
 		
 			#elif event == '':
@@ -1022,26 +911,34 @@ def run_mgr():
 				except Exception as e:
 					log(f"Error: No file selected!", 'error')
 					_file_path = None
-				try:	
-					print(f"Filepath:", _file_path)
-				except:
-					_file_path = None
 				if _file_path is not None:
+					fname = os.path.basename(_file_path)
 					log(f"Selected: {_file_path}", 'info')
-					if l == 1:
-						fullpath = get_fullpath(_file_path)
-						fname = os.path.basename(_file_path)
-						fname = fname.replace('.', " ")[0:len(fname)-4]
+					try:
 						sinfo = parse(fname)
-						series_name = fname.split(sinfo)[0].strip()
-						season, episode_number = se_isin(fname)
+					except:
+						sinfo = None
+					if sinfo is not None and sinfo != '':
+						play_type = 'series'
+					else:
+						play_type = 'movies'
+					update_media_type(pbdl_win, play_type)
+					pbdl_win['-MEDIA_TYPE-'].update(play_type)
+					if l == 1:
 						if play_type == 'series':
+							fullpath = get_fullpath(_file_path)
+							fname = os.path.basename(_file_path)
+							fname = fname.replace('.', " ")[0:len(fname)-4]
+							sinfo = parse(fname)
+							series_name = fname.split(sinfo)[0].strip()
+							season, episode_number = se_isin(fname)
 							try:
 								info = torrents[tid]['info'][_file_path]
 								series_name = info['series_name']
-							
 							except Exception as e:
 								log(f"Unable to get info from torrent data! Looking it up..", 'warning')
+								info = None
+							if info == None:
 								fname = os.path.basename(_file_path)
 								fname = fname.replace('.', " ")[0:len(fname)-4]
 								sinfo = parse(fname)
@@ -1055,65 +952,20 @@ def run_mgr():
 									series_name = series_exists
 								info = query_tmdb(pbdl_win, values)
 								torrents[tid]['info'][_file_path] = info
+								if fullpath is not None:
+									torrents[tid]['info'][_file_path]['filepath'] = fullpath
 								save_torrent_log(torrents)
 								#try:
+							d = {}
+							for key in list(info.keys()):
+								if key in columns:
+									newkey = f"dbcolumn{columns.index(key)}"
+									d[newkey] = info[key]
+							info = d
+							ret = update_info(pbdl_win, info)
+							if ret is not None:
+								log(f"Update returned data: {ret}", 'info')
 
-					for key in columns:
-						info = torrents[tid]['info'][_file_path]
-						print ("Info:", info)
-						fullpath = get_fullpath(_file_path)
-						if key != 'id':
-							if key == 'filepath':
-								info[key] = info[key].replace("'", "\'").replace('"', '\"')
-								pbdl_win[(f"-{columns.index(key)}-")].update(fullpath)
-							elif key == 'isactive':
-								pbdl_win[(f"-{columns.index(key)}-")].update("1")
-							elif key == 'series_name':
-								info[key] = info[key].replace("'", "\'").replace('"', '\"')
-								pbdl_win[(f"-{columns.index(key)}-")].update(series_name)
-							else:
-								try:
-									info[key] = str(info[key]).replace("'", "\'").replace('"', '\"')
-									pbdl_win[(f"-{columns.index(key)}-")].update(info[key])
-								except Exception as e:
-									log(f"Error: Can't update '{key}': {e}", 'error')
-									pbdl_win[(f"-{columns.index(key)}-")].update('Unknown')
-
-
-			elif event == 'be a screwball..':
-				table = values['-MEDIA_TYPE-'][0]
-				pragma = get_columns(table)
-				columns = list(pragma.keys())
-				try:
-					filepath = values['-TORRENT_FILES-'][0]
-				except:
-					filepath = None
-				sinfo = se_isin(filepath)
-				if sinfo is not None:
-					season, episode_number = sinfo
-				pbdl_win['-11-'].update(filepath)
-				
-				com = (f"find \"{SFTP_DIR}\" -type f")
-				try:
-					play_type = values['-MEDIA_TYPE-']
-					update_media_type(play_type)
-					idx = columns.index('filepath')
-					key = (f"-{idx}-")
-					pbdl_win[key].update(filepath)
-					if tid == None:
-						tid = values['-TORRENT_SELECT-'][0].split(':')[0]
-					table = values['-MEDIA_TYPE-'][0]
-
-					for column in columns:
-						idx = columns.index(column)
-						k = (f"-{idx}-")
-						if column != 'id':					
-							val = torrents[tid][column]
-							pbdl_win[k].update(val)
-						elif column == 'filepath':
-							pbdl_win[k].update(torrents[tid]['files'])
-				except:
-					pass
 			elif event == '-PBDL_SEARCH_QUERY-':
 				pbdl_query = values[event]
 			elif event == '-Migrate Files-' or event == 'Migrate Data':
@@ -1138,14 +990,6 @@ def run_mgr():
 					auto_remove = True
 				if conf['debug'] == True:
 					log(f"Auto Remove set to {auto_remove}", 'info')
-			elif event == '-TORRENTS-':
-				string = values[event][0].split(":")
-				tid = string[0]
-				for key in torrents[tid]:
-					val = torrents[tid][key]
-					k = (f"-{key}-")
-					pbdl_win[k].update(val)
-				
 			elif event == 'Remove':
 				if tid is None:
 					log(f"Select a torrent file first!", 'warning')
@@ -1236,7 +1080,8 @@ def run_mgr():
 				active_torrents = display_torrents(conf['play_type'], torrents)
 				pbdl_win['-TORRENT_SELECT-'].update(active_torrents)
 			elif event == 'Clear Data':
-				log(f"TODO: Build clear data function!", 'info')
+				torrents = clear_data()
+				log(f"Data cleared!", 'info')
 			
 
 			else:

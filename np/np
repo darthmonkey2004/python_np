@@ -628,6 +628,7 @@ def start():
 			log("Error: media directories not found inf conf file:{e}", 'error')
 			np.set_media_paths()
 	UI = np.gui()
+	UI.WINDOW.read(timeout=1)
 	try:
 		init = MP.conf['init']
 	except Exception as e:
@@ -651,7 +652,7 @@ def start():
 	readmax = 1500
 	if MP.conf['remote']['server']['state'] == 1:
 		run_server()
-	refresh_log_data()
+	#refresh_log_data()
 	while True:
 		readct += 1
 		#if MP.conf['debug'] == True:
@@ -1143,6 +1144,8 @@ def start():
 						MP.play_needed = 1
 				elif event == "-Database Editor-":
 					UI.db_editor()
+				elif event == '-ID3 Tag Editor-':
+					UI.tag_editor()
 				elif event == '-PLAY_MODE-':
 					MP.play_mode = values[event]
 					log(f"Play mode changed:{MP.play_mode}", 'info')

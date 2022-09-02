@@ -76,10 +76,7 @@ class nplayer():
 		self.series_history = np.read_history()
 		self.resume = None
 		self.play_pos = self.conf['nowplaying']['play_pos']
-		try:
-			self.main_keyboard = self.conf['main_keyboard']['path']
-		except:
-			self.main_keyboard = None
+		
 
 
 	def get_position(self):
@@ -622,11 +619,11 @@ class nplayer():
 			np.log("Set play needed: 0")
 
 		if self.conf['play_type'] == 'music':
-			try:
-				self.album_art = self.dl_img()
-				self.ART_UPDATE_NEEDED = True
-			except:
-				self.ART_UPDATE_NEEDED = False
+			#try:
+			self.album_art = self.dl_img()
+			self.ART_UPDATE_NEEDED = True
+			#except:
+			#	self.ART_UPDATE_NEEDED = False
 
 		np.writeConf(self.conf)
 
@@ -636,9 +633,9 @@ class nplayer():
 			filepath = self.next
 		test='https://www.google.com/imgres?imgurl='
 		s = '&amp;imgrefurl'
-		song = eyed3.load(filepath)
-		artist = song.tag.artist
-		title = song.tag.title
+		song = np.tag().read(filepath)
+		artist = song.artist
+		title = song.title
 		query = (artist + " " + title + " album art")
 		q = quote(query)
 		url = ("https://www.google.com/search?q=" + q)
@@ -689,7 +686,7 @@ class nplayer():
 			f.close()
 			return True
 		except Exception as e:
-			np.log("Unable to save media playlist:" + str(e) + ", " + filepath + ", " + str(media_list))
+			np.log(f"Unable to save media playlist:{e}, {filepath}, {media_list}", 'error')
 			return False
 
 	def load_directory(self, path):
@@ -702,7 +699,7 @@ class nplayer():
 			items = self.load_playlist(playlist)
 			return items
 		except Exception as e:
-			np.log("Unable to load directory:" + str(e) + ", " + path)
+			np.log(f"Unable to load directory:({e}), {path}", 'error')
 			return None
 
 

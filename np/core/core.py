@@ -43,17 +43,30 @@ KEY_EVENTS['SKIP_NEXT'] = 115
 KEY_EVENTS['SKIP_PREV'] = 114
 sep = os.path.sep
 conf_file=(npdir + sep + "nplayer.conf")
-
+conf = readConf()
 
 def get_local_ip():
 	com = "ip -o -4 a s | awk -F'[ /]+' '$2!~/lo/{print $4}'"
-	return subprocess.check_output(com, shell=True).decode().strip()
+	return sg.subprocess.check_output(com, shell=True).decode().strip()
+
+def shell(com, wait=False, cwd=None):
+	if cwd == None:
+		cwd = DATA_DIR
+	com = f"cd \"{cwd}\"; {com}"
+	ret = subprocess.check_output(com, shell=True).decode().strip()
+	if ret != '':
+		return ret
+	elif ret == '' or ret is None:
+		return None
+
+def check_process(pid):
+	return sg.execute_subprocess_still_running(pid)
 
 
-conf = readConf()
 
-
-
+def python(filepath):
+	ret = sg.execute_py_file(filepath)
+	return ret
 
 class err():
 	def __init__(self):
@@ -116,21 +129,6 @@ def disable_debug():
 	conf['debug'] = False
 	writeConf(conf)
 	log("Debug disabled!", 'info') 
-
-
-#def updateConf(conf, key, val):
-#	log('core.py.updateConf running from somewhere...', 'debug')
-#	conf = readConf()
-#	key = str(key)
-#	keys = list(conf.keys())
-#	if key in keys:
-#		conf[key] = val
-#		writeConf(conf)
-#		log("Conf updated!", 'info')
-#		return True
-#	else:
-#		log(f"key not found: {key}", 'error')
-#		return False
 
 
 def read_history():
@@ -365,13 +363,15 @@ def create_media(play_type=None, rows=None):
 	return media
 
 
-def file_browse_window():
+def file_browse_window(cwd=None):
+	if cwd == None:
+		cwd = DATA_DIR
 	x = conf['windows']['browser']['x']
 	y = conf['windows']['browser']['y']
 	w = conf['windows']['browser']['w']
 	h = conf['windows']['browser']['h']
 	filepath = None
-	file_browser_layout = [[sg.T("")], [sg.Text("Choose a file: "), sg.Input(), sg.FileBrowse(key="-IN-")],[sg.Button("Submit")]]
+	file_browser_layout = [[sg.T("")], [sg.Text("Choose a file: "), sg.Input(cwd, key='-path-', enable_events=True), sg.FileBrowse(initial_folder=cwd, key="-IN-")],[sg.Button("Submit")]]
 	file_browser_window = sg.Window('Load Media file or playlist...', file_browser_layout, location=(int(x), int(y)), size=(int(w), int(h)))
 	while True:
 		file_browser_event, file_browser_values = file_browser_window.read()
@@ -379,27 +379,47 @@ def file_browse_window():
 			filepath = None
 			break
 		elif file_browser_event == "Submit":
-			filepath = file_browser_values["-IN-"]
-			file_browser_window.close()
-			break
+			try:
+				filepath = file_browser_values["-IN-"]
+				file_browser_window.close()
+				break
+			except:
+				filepath = file_browser_values['-path-']
+				file_browser_window.close()
+				break
+			
 	return filepath
 
 
-def folder_browse_window():
+def folder_browse_window(cwd=None):
+	if cwd == None:
+		cwd = DATA_DIR
 	x = conf['windows']['browser']['x']
 	y = conf['windows']['browser']['y']
 	w = conf['windows']['browser']['w']
 	h = conf['windows']['browser']['h']
 	path = None
-	folder_browser_layout = [[sg.T("")], [sg.Text("Choose directory: "), sg.Input(), sg.FolderBrowse(key="-SAVE_PATH-")], [sg.Button("Submit")]]
+	folder_browser_layout = [[sg.T("")], [sg.Text("Choose directory: "), sg.Input(cwd, key='-path-', enable_events=True), sg.FolderBrowse(initial_folder=cwd, key="-SAVE_PATH-")], [sg.Button("Submit")]]
 	folder_browser_window = sg.Window("Save playlist file...", folder_browser_layout, location=(int(x), int(y)), size=(int(w), int(h)))
 	while True:
-		folder_browser_event, folder_browser_values = folder_browser_window.read()
+		folder_browser_event, folder_browser_values = folder_browser_window.read(timeout=1)
+		if folder_browser_event == '__TIMEOUT__':
+			pass
 		if folder_browser_event == sg.WIN_CLOSED or folder_browser_event=="Exit":
 			path = None
 			return None
 		elif folder_browser_event == "Submit":
-			path = folder_browser_values["-SAVE_PATH-"]
-			folder_browser_window.close()
-			return path
+			try:
+				path = folder_browser_values["-SAVE_PATH-"]
+				folder_browser_window.close()
+				if path == '':
+					path = cwd
+				break
+			except:
+				path = folder_browser_values['-path-']
+				folder_browser_window.close()
+				if path == '':
+					path = cwd
+				break
+	return path
 
