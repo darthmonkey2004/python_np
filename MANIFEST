@@ -12,6 +12,7 @@ np/core/db_editor.py
 np/core/err.py
 np/core/gui.py
 np/core/log.py
+np/core/np_main.py
 np/core/nplayer.py
 np/core/nplayer_db.py
 np/core/xrandr.py

@@ -4,6 +4,30 @@ import np
 import PySimpleGUI as sg
 #-----------main gui creation class------------#
 
+
+
+def folder_browse_window():
+	x = MP.conf['windows']['browser']['x']
+	y = MP.conf['windows']['browser']['y']
+	w = MP.conf['windows']['browser']['w']
+	h = MP.conf['windows']['browser']['h']
+	path = None
+	folder_browser_layout = [[sg.T("")], [sg.Text("Choose directory: "), sg.Input(), sg.FolderBrowse(key="-SAVE_PATH-")], [sg.Button("Submit")]]
+	folder_browser_window = sg.Window("Save playlist file...", folder_browser_layout, location=(int(x), int(y)), size=(int(w), int(h)))
+	while True:
+		folder_browser_event, folder_browser_values = folder_browser_window.read()
+		if folder_browser_event == sg.WIN_CLOSED or folder_browser_event=="Exit":
+			path = None
+			return None
+		elif folder_browser_event == "Submit":
+			ret = folder_browser_values[0]
+			if MP.conf['debug'] == True:
+				np.log(ret, 'info')
+			folder_browser_window.close()
+			return ret
+
+
+
 def db_editor():
 	com = (f"python3 -c \"import np; np.db_editor()\"&")
 	subprocess.call(com, shell=True)
@@ -91,6 +115,8 @@ class gui():
 		self.player = np.nplayer()
 		self.media = self.player.create_media()
 		self.conf = np.readConf()
+		self.windows = []
+		self.conf['active_windows'] = self.windows
 		self.conf['gui_data'] = {}
 		self.tables = ['series', 'movies', 'music']
 		self.theme = 'DarkBlue'
@@ -137,14 +163,23 @@ class gui():
 		if self.conf['play_type'] == 'videos':
 			self.table = 'series'
 		sg.theme(self.theme)
-		self.windows = {}
 		self.WINDOW = self.create_gui_window()
 		if self.win_type == 'internal':
 			self.WINDOW2 = sg.Window('Viewer', self.player_window_layout, no_titlebar=True, location=(int(self.viewer_win_x), int(self.viewer_win_y)), size=(int(self.viewer_win_w), int(self.viewer_win_h)), grab_anywhere=True, keep_on_top=False, element_justification='center', finalize=True, resizable=True).Finalize()
 			self.WINDOW2['-VID_OUT-'].expand(True, True)
+		title = self.WINDOW2.Title
+		if title not in self.windows:
+			self.windows.append(title)
+			np.log(f"Added {title} to self.windows! ({self.windows})", 'info')
+		else:
+			np.log(f"Warning: {title} already in self.windows! ({self.windows})", 'warning')
 		self.RESET = False
 		self.icon_path = f"{np.HOME}/.local/poster.png"
 		sg.set_global_icon(self.icon_path)
+
+
+	def list_active_windows(self):
+		return self.windows
 
 
 	def create_gui_window(self):
@@ -193,9 +228,14 @@ class gui():
 		self.menu_def = [['&File', ['-&Load Directory-', '-&Load Playlist-', '-&Save Playlist-', 'E&xit']], ['&Tools', ['&Pirate Bay Downloader', '-&Database Editor-', '-ID3 Tag Editor-', '&Torrent Manager', '&Video Filters', [np.VLC_VIDEO_FILTERS], '&Audio Filters', [np.VLC_AUDIO_FILTERS]]], ['&Help', '&About...'], ['&Media', ['-Scan Movies-', '-Scan Series-', '-Scan Music-', '-Scan All-']]]
 		#self.layout = [[sg.MenubarCustom(self.menu_def, tearoff=True, key='-menubar_key-'), sg.Button("Close")], [sg.TabGroup([[sg.Tab('MP Controls', self.player_control_layout, key='-player_control_layout-')], [sg.Tab('DB Manager', self.db_mgr_layout, key='-db_mgr_layout-')]], 	expand_x=True, expand_y=True, enable_events=True)]]
 		self.layout = [[sg.MenubarCustom(self.menu_def, tearoff=True, key='-menubar_key-'), sg.Button("Close")], [sg.TabGroup([[sg.Tab('MP Controls', self.player_control_layout, key='-player_control_layout-')], line_window_ctl], expand_x=True, expand_y=True, enable_events=True)]]
-		win = sg.Window('GUI', self.layout, no_titlebar=True, location=(int(self.gui_win_x),int(self.gui_win_y)), size=(self.gui_win_w,self.gui_win_h), keep_on_top=False, grab_anywhere=True, element_justification='center', finalize=False, resizable=True)
+		win = sg.Window('GUI', self.layout, no_titlebar=True, location=(int(self.gui_win_x),int(self.gui_win_y)), size=(self.gui_win_w,self.gui_win_h), keep_on_top=False, grab_anywhere=True, element_justification='center', finalize=True, resizable=True)
 		title = win.Title
-		self.windows[title] = win
+		if title not in self.windows:
+			self.windows.append(title)
+			np.log(f"Added {title} to self.windows ({self.windows}", 'info')
+		else:
+			np.log(f"Warning: {title} already in self.windows! ({self.windows})", 'warning')
+
 		return win
 
 

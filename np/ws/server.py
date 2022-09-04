@@ -52,14 +52,23 @@ def get_mac(ip=None):
 				mac = i.strip().split(' ')[1]
 				return mac
 	else:
-		com = (f"ping -c 1 {ip}")
-		ret = subprocess.check_output(com, shell=True).decode().strip()
-	com = (f"arp -n {ip}")
-	string = subprocess.check_output(com, shell=True).decode().strip().split(' ')
-	for chunk in string:
-		if ':' in chunk:
-			mac = chunk
-			return mac
+		try:
+			com = (f"ping -c 1 {ip}")
+			ret = subprocess.check_output(com, shell=True).decode().strip()
+		except Exception as e:
+			np.log(f"Ping shell command failed for {ip}:{e}", 'error')
+			pass
+	try:
+		com = (f"arp -n {ip}")
+		string = subprocess.check_output(com, shell=True).decode().strip().split(' ')
+		for chunk in string:
+			if ':' in chunk:
+				mac = chunk
+				return mac
+	except Exception as e:
+		np.log(f"Unable to get mac address for ip {ip}:{e}", 'error')
+		mac = 'Unknown'
+		return mac
 
 def get_localip():
 	com = (f"ifconfig")

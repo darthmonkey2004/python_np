@@ -24,7 +24,8 @@ from np.utils.tag_editor import run as tag_editor
 from np.core.conf import initConf, readConf, writeConf, run_setup
 from np.utils.music_mgr import music_mgr
 from np.utils.query_series import tmdb_query_series as query_series
-from np.core.core import create_media, get_local_ip, err, get_res, enable_debug, disable_debug, read_history, write_history, set_play_type, calculate_scale, init_window_position, file_browse_window, folder_browse_window, DATA_DIR, KEY_EVENTS, shell, check_process, python
+from np.core.core import create_media, get_local_ip, err, get_res, enable_debug, disable_debug, read_history, write_history, set_play_type, calculate_scale, init_window_position, file_browse_window, DATA_DIR, KEY_EVENTS, shell, check_process, python
+from np.core.gui import folder_browse_window
 from np.core.gui import gui
 from np.core.gui import db_editor, bring_to_front, send_to_back, run_long_operation, write_event, restore, maximize, minimize, hide, un_hide, reappear, dissapear, get_pointer, start_thread
 from np.core.nplayer import nplayer
@@ -63,6 +64,7 @@ try:
 	conf = readConf()
 	log("Conf read!", 'info')
 	DATA_DIR = conf['DATA_DIR']
+	EXEC_DIR = conf['EXEC_DIR']
 	LOGFILE = conf['LOGFILE']
 	WSLOGFILE = conf['WSLOGFILE']
 	CAPTURE_DIR = conf['CAPTURE_DIR']
@@ -72,12 +74,14 @@ try:
 	MUSIC_DIR = conf['media_directories']['music']
 	MOVIES_DIR = conf['media_directories']['movies']
 	SERIES_DIR = conf['media_directories']['series']
+	EXEC_DIR = conf['EXEC_DIR']
 	COMFILE = conf['COMFILE']
 	DEFAULT_POSTER = conf['DEFAULT_POSTER']
 	log("__init__.py:Read directory data from conf!", 'info')
 except Exception as e:
 	log(f"__init__.py:Unable to read conf: {e}", 'error')
 	conf = initConf()
+	EXEC_DIR = conf['EXEC_DIR']
 	DATA_DIR = conf['DATA_DIR']
 	LOGFILE = conf['LOGFILE']
 	WSLOGFILE = conf['WSLOGFILE']

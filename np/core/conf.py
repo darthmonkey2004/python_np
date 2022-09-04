@@ -100,6 +100,7 @@ def initConf():
 	conf['SFTP_DIR'] = (f"{home}{os.path.sep}.np{os.path.sep}sftp")
 	conf['DEFAULT_POSTER'] = (f"{home}{os.path.sep}.local{os.path.sep}poster.png")
 	conf['COMFILE'] = (f"{conf['DATA_DIR']}{os.path.sep}nplayer.com")
+	conf['EXEC_DIR'] = (f"{home}/.local/lib/python3.8/site-packages/np")
 	#ret = writeConf(conf)
 	return conf
 
