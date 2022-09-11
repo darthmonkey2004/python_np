@@ -1,5 +1,8 @@
 #!/usr/bin/python3
 
+from np.core.core import folder_browse_window, file_browse_window
+from threading import *
+import queue
 #import imwatchingyou
 import timeit
 import pafy
@@ -14,34 +17,36 @@ import pickle
 import vlc
 import random
 import time
+import sys, traceback
 from np.core.log import np_logger
-log = np_logger().log_msg
+from np.ws.server import server
+logger = np_logger().log_msg
 update_ct = 5
+remote_com_q = queue.Queue()
+remote_ret_q = queue.Queue()
+server = server(remote_com_q, remote_ret_q)
+
+def log(msg, _type=None):
+	if _type is None:
+		_type = 'info'
+	if _type == 'error':
+		exc_info = sys.exc_info()
+		logger(msg, _type, exc_info)
+		return
+	else:
+		logger(msg, _type)
+
+
 
 def run_server():
+	global server
 	try:
-		com = "pgrep python3"
-		pids = subprocess.check_output(com, shell=True).decode().strip().split("\n")
-	except:
-		pids = []
-	try:
-		com = (f"python3 -c \"from np import server; server.start();\"&")
-		subprocess.call(com, shell=True)
+		server_thread = Thread(target=server.start)
+		server_thread.setDaemon(True)
+		server_thread.start()
+		log(f"Socket server started!", 'info')
 	except Exception as e:
-		log(f"Exception trying to run remote server: {e}", 'error')
-		return False
-	try:
-		com = "pgrep python3"
-		newpids = subprocess.check_output(com, shell=True).decode().strip().split("\n")
-		for p in newpids:
-			if p not in pids:
-				pid = str(p)
-				MP.conf['remote']['server']['pid'] = pid
-				np.writeConf(MP.conf)
-		log(f"Remote server running as background process. PID={pid}", 'info')
-	except Exception as e:
-		log(f"Unable to get current pid of server! Error data: {e}", 'error')
-		return False
+		log(f"Error starting socket server: {e}", 'error')
 
 def sqlite3(query):
 	dbfile = (f"{np.DATA_DIR}{os.path.sep}nplayer.db")
@@ -181,6 +186,7 @@ def store_window_location():
 def gui_reset():
 	global P, MP, UI
 	MP.conf['GUI_RESET'] = True
+	log(f"Reset Starting (Reset set to true)! Conf updated!.", 'info')
 	np.writeConf(MP.conf)
 	update_resume()
 	MP.stop()
@@ -347,38 +353,6 @@ def set_debug(mode=None):
 	log(f"Debug option changed: {MP.conf['debug']}!", 'info')
 
 
-def start_socket_server():
-	host = MP.conf['network_mode']['control_host']
-	port = MP.conf['network_mode']['control_port']
-	log(f"Opening socket server at {host}:{port}...", 'info')
-	try:
-		subprocess.Popen(["nohup","np.wsserver"])
-	except Exception as e:
-		log(f"Error opening socket server: {e}", 'error')
-
-
-#def start_message_receiver():
-#	host = MP.conf['network_mode']['control_host']
-#	port = MP.conf['network_mode']['control_port']
-#	log(f"Running message receiver. Listening to {host}:{port}...", 'info')
-#	try:
-#		return np.receiver(host, port)
-#	except:
-#		log(f"Error running message receiver: {e}", 'error')
-
-#def send_message(message=None):
-#	if message == None:
-#		log(f"Error: No message data provided!", 'error')
-#	host = MP.conf['network_mode']['control_host']
-#	port = MP.conf['network_mode']['control_port']
-#	try:
-#		np.sender.send(host, port, message)
-#		log(f"Message sent successfuly!", 'info')
-#		return True
-#	except Exception as e:
-#		log(f"Error sending message: {e}", 'error')
-#		return False
-
 def btn_handler(btn):
 	global P, MP, UI
 	if btn == MP.KEY_EVENTS['SEEK_FWD']:
@@ -406,14 +380,17 @@ def btn_handler(btn):
 
 
 def remote_handler(com, arg):
+	global server
 	remote_commands = ['create_viewer', 'help', 'commands', 'play', 'create_gui', 'close_gui', 'close_viewer', 'pause', 'stop', 'skip_next', 'skip_prev', 'vol_set', 'vol_up', 'vol_down', 'mute', 'unmute', 'quit', 'load', 'play_mode', 'play_type', 'seek', 'move_gui', 'move_player', 'get_pos', 'get_window_location', 'media_pick', 'media_get', 'debug']
 	#if com not in remote_commands:
 	#	np.log(f"REMOTE: ERROR: Command not found ({com})", 'error')
 	#	return False
 	global P, MP, UI
 	log(f"Command: '{com}', Argument: '{arg}'", 'info')
+	ret = None
 	if com == 'play':					
 		MP.play()
+		ret = "REMOTE: Playing!"
 		log("REMOTE: Playing!", 'info')
 	elif com == 'lookup_movies':
 		ret = lookup_movies(arg)
@@ -425,6 +402,7 @@ def remote_handler(com, arg):
 			for win in UI.windows.values():
 				if arg == win.Title:
 					np.bring_to_front(win)
+		ret = "Moved to front!"
 	elif com == 'send_to_back':
 		if arg == None:
 			np.send_to_back(UI.WINDOW)
@@ -432,6 +410,7 @@ def remote_handler(com, arg):
 			for win in UI.windows.values():
 				if arg == win.Title:
 					np.send_to_back(win)
+		ret = "Sent to back!"
 	elif com == 'write_event':
 		try:
 			event, value, win = arg.split(':')
@@ -440,42 +419,49 @@ def remote_handler(com, arg):
 				write_event(event, value, win)
 		except:
 			np.log(f"Unable to parse string! Expected event,value,win..", 'error')
+		ret = "Event written!"
 	elif com == 'restore':
 		if arg is None:
 			win = UI.WINDOW
 		win.restore()
 		log(f"{win.Title} restored!", 'info')
+		ret = 'Window restored!'
 	elif com == 'maximize':
 		if arg is None:
 			win = UI.WINDOW
 		win.maximize()
 		log(f"{win.Title} maximized!", 'info')
-		
+		ret = 'Window Maximized!'
 	elif com == 'hide':
 		if arg is None:
 			win = UI.WINDOW
 		win.hide()
 		log(f"{win.Title} hidden!", 'info')
+		ret = 'Window hidden!'
 	elif com == 'un_hide':
 		if arg is None:
 			win = UI.WINDOW
 		win.un_hide()
 		log(f"{win.Title} revealed!", 'info')
+		ret = 'Window unhidden!'
 	elif com == 'reappear':
 		if arg is None:
 			win = UI.WINDOW
 		win.reappear()
 		log(f"{win.Title} reappeared!", 'info')
+		ret = 'Window reappeared!'
 	elif com == 'dissapear':
 		if arg is None:
 			win = UI.WINDOW
 		win.dissapear()
 		log(f"{win.Title} dissapeared!", 'info')
+		ret = 'Window disappeared!'
 	elif com == 'get_pointer':
 		if arg is None:
 			win = UI.WINDOW
 		coords = win.get_pointer()
 		log(f"REMOTE:get_pointer={coords}", 'info')
+		ret = f"Mouse coords: {coords}"
 	elif com == 'lookup_series':
 		try:
 			sn, s, e = arg.split(',')
@@ -486,6 +472,7 @@ def remote_handler(com, arg):
 		log(f"REMOTE:SeriesLookup={ret}", 'info')
 	elif com == 'recenter_ui':
 		recenter_ui()
+		ret = 'ui recentered!'
 	elif com == 'help' or com == 'commands':
 		com = f"filepath=$(which np); cat \"$filepath\""
 		code = np.shell(com).split("def remote_handler(com, arg):")[1].split('return True')[0].split("\n")
@@ -500,6 +487,7 @@ def remote_handler(com, arg):
 	elif com == 'create_gui':
 		UI.WINDOW = UI.create_gui_window()
 		log("REMOTE:GUI Window created.", 'info')
+		ret = 'gui created!'
 	elif com == 'close_gui':
 		title = UI.WINDOW.Title
 		if title in UI.windows:
@@ -507,83 +495,98 @@ def remote_handler(com, arg):
 			np.log("REMOTE: Closed gui (removed from active windows list)", 'info')
 		UI.WINDOW.close()
 		log("REMOTE:GUI Window closed.", 'info')
-	elif com == 'close_viewer':
-		UI.WINDOW2.close()
-		log("REMOTE:Viewer Window closed.", 'info')
-	elif com == 'create_viewer':
-		UI.create_viewer_window()
-		log("REMOTE:Viewer Window created.", 'info')
+		ret = 'gui closed!'
 	elif com == 'pause':
 		P.pause()
 		log("REMOTE: Paused", 'info')
+		ret = 'paused'
 	elif com == 'stop':
 		MP.stop()
 		log("REMOTE: Stopped", 'info')
+		ret = 'stopped'
 	elif com == 'skip_next':
 		MP.skip_next()
 		log("REMOTE: Skipped Next", 'info')
+		ret = 'skipped next'
 	elif com == 'skip_prev':
 		MP.skip_previous()
 		log("REMOTE: Skipped Previous", 'info')
+		ret = 'skipped previous'
 	elif com == 'vol_set':
 		MP.volume_set(arg)
 		log(f"REMOTE: vol_set={arg}", 'info')
+		ret = f'volume set: {arg}'
 	elif com == 'vol_up':
 		log("REMOTE: volume_up", 'info')
 		MP.volume_up()
+		ret = 'volume up'
 	elif com == 'vol_down':
 		MP.volume_down()
 		log("REMOTE: volume_down", 'info')
+		ret = 'volume down'
 	elif com == 'mute':
 		MP.volume_set(0)
 		log("REMOTE: Mute", 'info')
+		ret = 'Muted!'
 	elif com == 'unmute':
 		vol = int(self.conf['volume'])
 		MP.volume_set(vol)
 		log("REMOTE: Unmuted", 'info')
+		ret = 'Unmuted'
 	elif com == 'quit':
 		log("REMOTE: Quitting...", 'info')
 		update_resume()
 		MP.exit = True
+		ret = 'Quittin time..'
 	elif com == 'load':
 		log(f"REMOTE: Loading file:{arg}", 'info')
 		load_playlist(arg)
+		ret = f"File loaded: {arg}"
 	elif com == 'play_mode':
 		MP.play_mode = arg
 		log(f"REMOTE: Play mode set:{arg}", 'info')
+		ret = f"Play mode set: {arg}"
 	elif com == 'play_type':
 		MP.conf['play_type'] = arg
 		np.writeConf(MP.conf)
 		MP.play_type = arg
 		log(f"REMOTE: Play type set:{arg}", 'info')
 		gui_reset()
+		ret = f"Play type set: {arg}"
 	elif com == 'seek':
 		pos = float(float(arg) / 100)
 		P.set_position(pos)
 		log(f"REMOTE: seek to position:{pos}", 'info')
+		ret = f"Seek to position: {pos}"
 	elif com == 'move_gui':
 		x, y = int(arg.split(',')[0]), int(arg.split(',')[1])
 		UI.move_window('gui', x, y)
 		log(f"REMOTE: GUI Window moved by remote: ({x},{y})", 'info')
+		ret = f"Moved gui window: ({x}, {y})"
 	elif com == 'move_player':
 		x, y = int(arg.split(',')[0]), int(arg.split(',')[1])
 		UI.move_window('player', x, y)
 		log(f"REMOTE: Player Window moved by remote: ({x},{y})", 'info')
+		ret = f"Moved viewer window: ({x}, {y})"
 	elif com == 'get_pos':
 		pos = MP.get_position()
 		log(f"PLAYBACK_POSITION={pos}", 'info')
+		ret = f"Window position (x, y): {pos}"
 	elif com == 'get_window_location':
 		loc = UI.get_window_location(arg)
 		log(f"REMOTE: GUI Window Location={loc}", 'info')
+		ret = f"Window location (x, y): {loc}"
 	elif com == 'media_pick':
 		try:
 			if ':' in arg:
 				arg = arg.split(':')[1]
 			MP.next = arg
 			MP.play(MP.next)
+			ret = "Playing file: {MP.next}"
 			log(f"REMOTE: Playback started. File='{MP.next}'", 'info')
 		except Exception as e:
 			log(f"REMOTE: Failed to play file:{arg}, Details:{e}", 'error')
+			ret = "Pick file failed! ({arg}): {e}"
 			return False
 	elif com == 'media_get':
 		if arg is None:
@@ -600,9 +603,11 @@ def remote_handler(com, arg):
 		l = j.join(l)
 		log(f"REMOTE: MEDIA_FILES={l}", 'info')
 		MP.remote_media = l
+		ret = l
 	elif com == 'fix_scaling':
 		MP.set_scale(MP.conf['nowplaying']['filepath'])
 		log("REMOTE: Fix Scaling command received, scale set ({MP.scale})", 'info')
+		ret = "Scaling fixed!"
 	elif com == 'debug':
 		try:
 			debug = bool(arg)
@@ -611,6 +616,7 @@ def remote_handler(com, arg):
 		except Exception as e:
 			log(f"REMOTE: Failed to set debug mode: {e}", 'error')
 			return False
+	server.ret_q.put(ret)
 	return True
 
 
@@ -638,6 +644,7 @@ def refresh_log_data():
 
 
 def start():
+	global server, remote_q
 	if os.path.exists('todo.txt'):
 		with open('todo.txt', 'r') as f:
 			text = f.read()
@@ -677,6 +684,7 @@ def start():
 			log("Error: media directories not found inf conf file:{e}", 'error')
 			np.set_media_paths()
 	UI = np.gui()
+	log("UI created: np_main.py, Start, line 694", 'info')
 	UI.WINDOW.read(timeout=1)
 	try:
 		init = MP.conf['init']
@@ -701,21 +709,16 @@ def start():
 	readmax = 1500
 	if MP.conf['remote']['server']['state'] == 1:
 		run_server()
-	#refresh_log_data()
 	while True:
 		readct += 1
-		#if MP.conf['debug'] == True:
-		#	imwatchingyou.refresh_debugger()
 		start_timer = timeit.default_timer()
 		data = None
 		update = update + 1
-		#Check COMFILE for input commands from np.remote
+		#Check remote queue for input commands from np.remote
 		if update >= update_ct or update == 0:
 			try:
-				com = None
-				with open (np.COMFILE, 'r') as f:
-					data = f.read().strip()
-				f.close()
+				if not remote_com_q.empty():
+					data = remote_com_q.get_nowait()
 				if data is not None and data != '':
 					log(f"Command received: '{data}'", 'info')
 					if '=' in data:
@@ -729,27 +732,13 @@ def start():
 							arg = None
 							log(f"Com: {com}, Arg: None", 'error')
 							remote_handler(com, arg)
-						# if command received via COMFILE (from np.remote), pass to handler.
+						# if command received via socket server (from np.remote), pass to handler.
 					else:
 						com = data
 						arg = None
 						remote_handler(com, arg)
-						
-				with open (np.COMFILE, 'w') as f:
-					f.write('')
-					f.close()
 			except Exception as e:
-				#com = (f"fusermount -u '{np.SFTP_DIR}'")
-				#subprocess.check_output(com, shell=True)
-				#com = (f"google-drive-ocamlfuse '{np.SFTP_DIR}'")
-				#subprocess.check_output(com, shell=True)
 				log(f"Exception receiving remote command: '{e}'", 'error')
-				with open (np.COMFILE, 'w') as f:
-					data = ''
-					f.write(data)
-					f.close()
-					data = None
-
 				
 			UI.window, UI.uievent, UI.uivalues = UI.get_events()
 			if UI.uievent is not None and UI.uievent != '__TIMEOUT__':
@@ -771,6 +760,13 @@ def start():
 					MP.conf['network_mode']['media_user'] = media_user
 					np.writeConf(MP.conf)
 					log(f"Network media mode changed:{media_mode}", 'info')
+				elif event == 'Hide UI':
+					title = UI.WINDOW.Title
+					if title in UI.windows:
+						UI.windows.remove(title)
+						np.log("REMOTE: Closed gui (removed from active windows list)", 'info')
+					UI.WINDOW.close()
+					log("REMOTE:GUI Window closed.", 'info')
 				elif event == '-CONTROL_MODE-':
 					control_mode = values[event]
 					if media_mode == 'remote':
@@ -791,16 +787,16 @@ def start():
 				elif event == 'Exit' or event == 'Close':
 					update_resume()
 					MP.exit = True
-					com = (f"kill {MP.conf['remote']['server']['pid']}")
-					try:
-						ret = subprocess.check_output(com, shell=True).decode().strip()
-						log(f"Remote server killed sucessfully!", 'info')
-					except Exception as e:
-						log(f"Killing remote server failed: {e}. Killing all python...", 'error')
-						com = (f"kill $(pgrep python3)")
-						ret = subprocess.check_output(com, shell=True).decode().strip()							
-					if ret != '':
-						log(f"Killing remote server returned response: {ret}", 'warning')
+					#com = (f"kill {MP.conf['remote']['server']['pid']}")
+					#try:
+					#	ret = subprocess.check_output(com, shell=True).decode().strip()
+					#	log(f"Remote server killed sucessfully!", 'info')
+					#except Exception as e:
+					#	log(f"Killing remote server failed: {e}. Killing all python...", 'error')
+					#	com = (f"kill $(pgrep python3)")
+					#	ret = subprocess.check_output(com, shell=True).decode().strip()							
+					#if ret != '':
+					#	log(f"Killing remote server returned response: {ret}", 'warning')
 					MP.conf['remote']['server']['pid'] = None
 					np.writeConf(MP.conf)
 					log(f"Exit set to true {event}", 'info')
@@ -1280,6 +1276,7 @@ def start():
 				media = np.create_media()
 				media['series_history'] = np.read_history()
 				UI = np.gui()
+				log("np.py: Created GUI from main loop ('GUI_RESET' = {MP.conf['GUI_RESET']}", 'info')
 				set_video_out()
 				MP.continuous = 1
 				UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.PLAYLIST_ITEMS)
@@ -1291,7 +1288,8 @@ def start():
 				log(f"Skipped to {MP.conf['nowplaying']['play_pos']}", 'info')
 				MP.continuous = 1
 				MP.conf['GUI_RESET'] = False
-				log(f"Reset finished!:{MP.conf['GUI_RESET']}", 'info')
+				log(f"np_main.py:Reset finished (Reset set to false)! Conf written.", 'info')
+				np.writeConf(MP.conf)
 				recenter_ui()
 			elif MP.play_needed == 1:
 				log("Playing from 'play needed'", 'info')

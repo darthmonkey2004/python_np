@@ -1,8 +1,8 @@
 import vlc
 import os
 import pathlib
-from np.core.log import np_logger
 from np.core.xrandr import xrandr
+from np.core.log import np_logger
 log = np_logger().log_msg
 from np.utils.guess_intro import guess_intro
 from np.utils.insert_intro import insert_intro
@@ -22,42 +22,28 @@ from np.utils.cleandb import run as cleandb
 from np.core.db_editor import run as db_editor
 from np.utils.tag_editor import run as tag_editor
 from np.core.conf import initConf, readConf, writeConf, run_setup
-from np.utils.music_mgr import music_mgr
-from np.utils.query_series import tmdb_query_series as query_series
+#from np.utils.pbdl import query_series
+#from np.utils.pbdl import query_movies
 from np.core.core import create_media, get_local_ip, err, get_res, enable_debug, disable_debug, read_history, write_history, set_play_type, calculate_scale, init_window_position, file_browse_window, DATA_DIR, KEY_EVENTS, shell, check_process, python
 from np.core.gui import folder_browse_window
 from np.core.gui import gui
 from np.core.gui import db_editor, bring_to_front, send_to_back, run_long_operation, write_event, restore, maximize, minimize, hide, un_hide, reappear, dissapear, get_pointer, start_thread
 from np.core.nplayer import nplayer
-#from np.utils.gui_create import add_elem
-#add_elem = add_elem()
-#create = add_elem.create
-#create_element = add_elem.create_element
-#from np.utils.pbdl_se_isin import se_isin
-#from np.utils.pbdl import pbdl
-from np.utils.query_series import tmdb_query_series as lookup_series
-from np.utils.query_series import get_sinfo_from_filepath as seinfo
-from np.utils.query_movies import query_imdb as lookup_movies
+DEFAULT_POSTER = None
+#from np.utils.pbdl.se_isin import se_isin
+#from np.utils.pbdl.ty_isin import ty_isin, parse_title
 from np.core.nplayer_db import addtodb
 from np.utils.tadb_search import lookup as lookup_music
 from np.utils.scan_music import scan_music
 from np.utils.scan_series import scan_series
 from np.utils.scan_movies import scan_movies
 from np.utils.scan_all import scan_all
-#from np.utils.ytdl import ytdl
 from np.core.conf import run_setup
-#from np.utils.pbdl_add_to_series import add_series
-from np.utils.set_media_paths import set_media_paths
 from np.utils.id3 import tag
 from np.ws import websocket_server
 from np.ws import server
 from np.ws import client
 from np.ws import thread
-from np.utils.rotten_tomatoes_query import get_episode_data as rt_series_query
-from np.utils.rotten_tomatoes_query import get_movie_data as rt_movies_query
-#from np.utils.pbdl import build_torrents
-#from np.utils.pbdl import test_media_type
-#from np.utils.pbdl import get_user_input
 from np.utils.insert_intro import fix3d
 HOME = os.path.expanduser("~")
 try:
@@ -75,7 +61,6 @@ try:
 	MOVIES_DIR = conf['media_directories']['movies']
 	SERIES_DIR = conf['media_directories']['series']
 	EXEC_DIR = conf['EXEC_DIR']
-	COMFILE = conf['COMFILE']
 	DEFAULT_POSTER = conf['DEFAULT_POSTER']
 	log("__init__.py:Read directory data from conf!", 'info')
 except Exception as e:
@@ -92,18 +77,13 @@ except Exception as e:
 	MUSIC_DIR = conf['media_directories']['music']
 	MOVIES_DIR = conf['media_directories']['movies']
 	SERIES_DIR = conf['media_directories']['series']
-	COMFILE = conf['COMFILE']
 	log(f"__init__.py:Unable to read directory data from conf: {e}. Defaults used.", 'error')
-
 
 if not os.path.exists(conf['CONFFILE']):
 	log(f"conf file doesn't exist, creating...", 'warning')
 	com = (f"touch '{CONFFILE}'")
 	subprocess.check_output(com, shell=True)
-if not os.path.exists(COMFILE):
-	log(f"command file doesn't exist, creating...", 'warning')
-	com = (f"touch '{COMFILE}'")
-	subprocess.check_output(com, shell=True)
+
 
 try:
 	INIT = conf['init']

@@ -6,6 +6,7 @@ import subprocess
 import os
 from np import readConf, get_columns, log, SFTP_DIR, DATA_DIR, HOME, writeConf, shell
 from np.utils.pbdl_se_isin import se_isin, parse
+from np.utils.pbdl_title_year_isin import parse_title as ty_isin
 from np.utils.query_series import tmdb_query_series
 from np.utils.query_movies import query_imdb as query_movies
 from np.utils.rotten_tomatoes_query import get_episode_data, get_movie_data
@@ -112,6 +113,8 @@ def update_media_type(win, play_type=None):
 		except:
 			column = "None"
 		key = f"-dbcolumn{idx}-"
+		bkey = f"dbcolumn{idx}"
+		win[bkey].update('Unknown')
 		win[key].update(column)
 	win.refresh()
 
@@ -676,62 +679,19 @@ def query_tmdb(win, values, tid=None, play_type=None):
 		except:
 			log(f"Error: No files selected!", 'error')
 			return None
+
 	if play_type == None:
 		play_type = win.AllKeysDict['-MEDIA_TYPE-'].Get()
+	
+
 	if play_type == 'movies':
-		table = values['-MEDIA_TYPE-'][0]
-		pragma = get_columns(table)
+		pragma = get_columns(play_type)
 		columns = list(pragma.keys())
-		idx = columns.index('title')
-		k = (f"-{idx}-")
-		title = values[k]
-		info = lookup_movies(title)
+		title = win.AllKeysDict[f"dbcolumn{columns.index('title')}"].Get()
+		year = win.AllKeysDict[f"dbcolumn{columns.index('year')}"].Get()
+		info = query_movies(title)
 		if info:
-			for key in list(info.keys()):
-				info[key] = info[key].replace("'", "").replace('"', '')
-			idx = columns.index('title')
-			title_key = (f"-{idx}-")
-			torrents[tid]['title'] = info['title']
-			pbdl_win[title_key].update(info['title'])
-			idx = columns.index('description')
-			description_key = (f"-{idx}-")
-			torrents[tid]['description'] = info['description']
-			pbdl_win[description_key].update(info['description'])
-
-			idx = columns.index('poster')
-			poster_key = (f"-{idx}-")
-			torrents[tid]['poster'] = info['poster']
-			pbdl_win[poster_key].update(info['poster'])
-
-			idx = columns.index('year')
-			year_key = (f"-{idx}-")
-			torrents[tid]['year'] = info['year']
-			pbdl_win[year_key].update(info['year'])
-
-			idx = columns.index('tmdbid')
-			tmdbid_key = (f"-{idx}-")
-			torrents[tid]['tmdbid'] = info['tmdbid']
-			pbdl_win[tmdbid_key].update(info['tmdbid'])
-
-			idx = columns.index('release_date')
-			release_date_key = (f"-{idx}-")
-			torrents[tid]['release_date'] = info['release_date']
-			pbdl_win[release_date_key].update(info['release_date'])
-
-			idx = columns.index('duration')
-			duration_key = (f"-{idx}-")
-			torrents[tid]['duration'] = info['duration']
-			pbdl_win[duration_key].update(info['duration'])
-
-			idx = columns.index('md5')
-			md5_key = (f"-{idx}-")
-			torrents[tid]['md5'] = info['md5']
-			pbdl_win[md5_key].update(info['md5'])
-
-			idx = columns.index('url')
-			url_key = (f"-{idx}-")
-			torrents[tid]['url'] = info['url']
-			pbdl_win[url_key].update(info['url'])
+			ret = update_info(win, info)
 		return info
 
 	elif play_type == 'series':
@@ -786,6 +746,13 @@ def update_info(win, data):
 		return False
 	winkeys = list(d.keys())
 	dkeys = list(data.keys())
+	columns = list(get_columns(win.AllKeysDict['-MEDIA_TYPE-'].Get()).keys())
+	for key in columns:
+		if key in data:
+			newkey = f"dbcolumns{columns.index(key)}"
+			val = data[key]
+			del data[key]
+			data[newkey] = val
 	nd = {}
 	for dkey in dkeys:
 		if dkey in winkeys:
@@ -923,7 +890,9 @@ def run_mgr():
 					else:
 						play_type = 'movies'
 					update_media_type(pbdl_win, play_type)
+					columns = list(get_columns(play_type).keys())
 					pbdl_win['-MEDIA_TYPE-'].update(play_type)
+					pbdl_win[f"dbcolumn{columns.index('filepath')}"].update(_file_path)
 					if l == 1:
 						if play_type == 'series':
 							fullpath = get_fullpath(_file_path)
@@ -965,7 +934,19 @@ def run_mgr():
 							ret = update_info(pbdl_win, info)
 							if ret is not None:
 								log(f"Update returned data: {ret}", 'info')
-
+						elif play_type == 'movies':
+							try:
+								info = torrents[tid]['info'][_file_path]
+								title = info['title']
+							except Exception as e:
+								log(f"Unable to get info from torrent data! Looking it up..", 'warning')
+								info = None
+								if info == None:
+									title, year = ty_isin(_file_path)
+									pbdl_win[f"dbcolumn{columns.index('title')}"].update(title)
+									pbdl_win[f"dbcolumn{columns.index('year')}"].update(year)
+									info = query_tmdb(pbdl_win, values)
+									print(info)
 			elif event == '-PBDL_SEARCH_QUERY-':
 				pbdl_query = values[event]
 			elif event == '-Migrate Files-' or event == 'Migrate Data':
@@ -977,6 +958,15 @@ def run_mgr():
 					log(f"Migration results:{ret}", 'info')
 			elif event == '-Query TMDB-' or event == 'Search TMDB':
 				info = query_tmdb(pbdl_win, values)
+				play_type = values['-MEDIA_TYPE-']
+				columns = list(get_columns(play_type.keys()))
+				d = {}
+				for key in columns:
+					if key in list(info.keys()):
+						idx = columns.index(key)
+						k = f"dbcolumn{idx}"
+						d[k] = info[key]
+				info = d
 				try:
 					torrents[tid]['info'][_file_path] = info
 				except:

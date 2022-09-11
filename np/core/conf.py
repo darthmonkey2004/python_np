@@ -99,13 +99,13 @@ def initConf():
 	conf['CAPTURE_DIR'] = (f"{home}{os.path.sep}Pictures{os.path.sep}nplayer_caps")
 	conf['SFTP_DIR'] = (f"{home}{os.path.sep}.np{os.path.sep}sftp")
 	conf['DEFAULT_POSTER'] = (f"{home}{os.path.sep}.local{os.path.sep}poster.png")
-	conf['COMFILE'] = (f"{conf['DATA_DIR']}{os.path.sep}nplayer.com")
 	conf['EXEC_DIR'] = (f"{home}/.local/lib/python3.8/site-packages/np")
+	conf['exit_ok'] = False
 	#ret = writeConf(conf)
 	return conf
 
 def run_setup():
-	keys = ['play_type', 'play_types', 'screen', 'fullscreen', 'screens', 'scale', 'volume', 'rotate', 'shuffle', 'mute', 'video_methods', 'video_players', 'screens', 'nowplaying', 'vlc', 'network_modes', 'network_mode', 'remote', 'debug', 'init', 'GUI_RESET', 'window', 'pbdl_url', 'DATA_DIR', 'LOGFILE', 'CONFFILE', 'WSLOGFILE', 'CAPTURE_DIR', 'SFTP_DIR', 'media_directories', 'DEFAULT_POSTER	', 'COMFILE']
+	keys = ['play_type', 'play_types', 'screen', 'fullscreen', 'screens', 'scale', 'volume', 'rotate', 'shuffle', 'mute', 'video_methods', 'video_players', 'screens', 'nowplaying', 'vlc', 'network_modes', 'network_mode', 'remote', 'debug', 'init', 'GUI_RESET', 'window', 'pbdl_url', 'DATA_DIR', 'LOGFILE', 'CONFFILE', 'WSLOGFILE', 'CAPTURE_DIR', 'SFTP_DIR', 'media_directories', 'DEFAULT_POSTER']
 	conf = {}
 	for key in keys:
 		conf[key] = {}
@@ -182,10 +182,9 @@ def run_setup():
 	conf['CAPTURE_DIR'] = (f"{home}{os.path.sep}Pictures{os.path.sep}nplayer_caps")
 	conf['SFTP_DIR'] = (f"{home}{os.path.sep}.np{os.path.sep}sftp")
 	conf['DEFAULT_POSTER'] = (f"{home}{os.path.sep}.local{os.path.sep}poster.png")
-	conf['COMFILE'] = (f"{conf['DATA_DIR']}{os.path.sep}nplayer.com")
 	conf['ssh'] = {}
 	conf['ssh']['connection_string'] = input("Please enter ssh connection string i.e. user@host: (blank for None):")
-	
+	conf['exit_ok'] = False
 	
 	
 	ret = writeConf(conf)

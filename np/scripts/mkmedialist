@@ -3,7 +3,7 @@
 if [ -n "$1" ]; then
 	dir="$1"
 else
-	dir=$(python3 -c "import np; conf = np.readConf(); print(conf['media_directories']['main'])")
+	dir=$(python3 -c "import np; conf = np.readConf(); print(conf['media_directories']['main'])" | grep -v "DEBUG")
 fi
 has_series=$(ls -d "$dir" | grep "Series")
 has_movies=$(ls -d "$dir" | grep "Movies")

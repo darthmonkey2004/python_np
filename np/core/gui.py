@@ -1,9 +1,22 @@
+import sys, traceback
 import subprocess
 import os
+from np import log as logger
 import np
+
 import PySimpleGUI as sg
 #-----------main gui creation class------------#
 
+
+def log(msg, _type=None):
+	if _type is None:
+		_type = 'info'
+	if _type == 'error':
+		exc_info = sys.exc_info()
+		logger(msg, _type, exc_info)
+		return
+	else:
+		logger(msg, _type)
 
 
 def folder_browse_window():
@@ -22,7 +35,7 @@ def folder_browse_window():
 		elif folder_browser_event == "Submit":
 			ret = folder_browser_values[0]
 			if MP.conf['debug'] == True:
-				np.log(ret, 'info')
+				log(ret, 'info')
 			folder_browser_window.close()
 			return ret
 
@@ -40,12 +53,12 @@ def tag_editor():
 
 def bring_to_front(win):
 	win.bring_to_front()
-	np.log(f"Window ({win.Title}) on the front lines!", 'info')
+	log(f"Window ({win.Title}) on the front lines!", 'info')
 	return True
 
 def send_to_back(win):
 	win.send_to_back()
-	np.log(f"Window ({win.Title}) in the rear with the gear!", 'info')
+	log(f"Window ({win.Title}) in the rear with the gear!", 'info')
 	return True
 
 
@@ -59,32 +72,32 @@ def write_event(event, value, win):
 
 def restore(win):
 	win.normal()
-	np.log(f"Window ({win.Title}) restored!", 'info')
+	log(f"Window ({win.Title}) restored!", 'info')
 
 
 def maximize(win):
 	win.maximize()
-	np.log(f"Window ({win.Title}) maximized!", 'info')
+	log(f"Window ({win.Title}) maximized!", 'info')
 
 
 def hide(win):
 	win.hide()
-	np.log(f"Window ({win.Title}) hidden!", 'info')
+	log(f"Window ({win.Title}) hidden!", 'info')
 
 
 def un_hide(win):
 	win.un_hide()
-	np.log(f"Window ({win.Title}) un-hidden!", 'info')
+	log(f"Window ({win.Title}) un-hidden!", 'info')
 
 
 def reappear(win):
 	win.reappear()
-	np.log(f"Window ({win.Title}) revealed!", 'info')
+	log(f"Window ({win.Title}) revealed!", 'info')
 
 
 def dissapear(win):
 	win.dissapear()
-	np.log(f"Window ({win.Title}) dissapeared!", 'info')
+	log(f"Window ({win.Title}) dissapeared!", 'info')
 
 
 def get_pointer(win):
@@ -93,17 +106,17 @@ def get_pointer(win):
 
 def minimize(win):
 	win.minimize()
-	np.log(f"Window ({win.Title}) minimized!", 'info')
+	log(f"Window ({win.Title}) minimized!", 'info')
 
 
 def start_thread(function, key, win):
 	try:
 		ret = win.start_thread(function, key)
 		if ret is not None:
-			np.log(f"Thread start returned data: {ret}", 'info')
+			log(f"Thread start returned data: {ret}", 'info')
 		return True
 	except Exception as e:
-		np.log(f"Exception in start_thread: {e}", 'error')
+		log(f"Exception in start_thread: {e}", 'error')
 		return False
 
 
@@ -143,12 +156,12 @@ class gui():
 		self.gui_win_y = self.conf['windows']['gui'][state][screen]['y']
 		self.gui_win_w = self.conf['windows']['gui'][state][screen]['w']
 		self.gui_win_h = self.conf['windows']['gui'][state][screen]['h']
-		np.log(f"GUI window set: {self.gui_win_x}, {self.gui_win_y}, {self.gui_win_w}, {self.gui_win_y}", 'info')
+		log(f"GUI window set: {self.gui_win_x}, {self.gui_win_y}, {self.gui_win_w}, {self.gui_win_y}", 'info')
 		self.viewer_win_x = self.conf['windows']['viewer'][viewer_screen]['x']
 		self.viewer_win_y = self.conf['windows']['viewer'][viewer_screen]['y']
 		self.viewer_win_w = self.conf['windows']['viewer'][viewer_screen]['w']
 		self.viewer_win_h = self.conf['windows']['viewer'][viewer_screen]['h']
-		np.log(f"Viewer window set: {self.viewer_win_x}, {self.viewer_win_y}, {self.viewer_win_w}, {self.viewer_win_h}", 'info')
+		log(f"Viewer window set: {self.viewer_win_x}, {self.viewer_win_y}, {self.viewer_win_w}, {self.viewer_win_h}", 'info')
 		#self.window = None
 		self.event = None
 		self.values = None
@@ -170,9 +183,9 @@ class gui():
 		title = self.WINDOW2.Title
 		if title not in self.windows:
 			self.windows.append(title)
-			np.log(f"Added {title} to self.windows! ({self.windows})", 'info')
+			log(f"Added {title} to self.windows! ({self.windows})", 'info')
 		else:
-			np.log(f"Warning: {title} already in self.windows! ({self.windows})", 'warning')
+			log(f"Warning: {title} already in self.windows! ({self.windows})", 'warning')
 		self.RESET = False
 		self.icon_path = f"{np.HOME}/.local/poster.png"
 		sg.set_global_icon(self.icon_path)
@@ -227,15 +240,18 @@ class gui():
 
 		self.menu_def = [['&File', ['-&Load Directory-', '-&Load Playlist-', '-&Save Playlist-', 'E&xit']], ['&Tools', ['&Pirate Bay Downloader', '-&Database Editor-', '-ID3 Tag Editor-', '&Torrent Manager', '&Video Filters', [np.VLC_VIDEO_FILTERS], '&Audio Filters', [np.VLC_AUDIO_FILTERS]]], ['&Help', '&About...'], ['&Media', ['-Scan Movies-', '-Scan Series-', '-Scan Music-', '-Scan All-']]]
 		#self.layout = [[sg.MenubarCustom(self.menu_def, tearoff=True, key='-menubar_key-'), sg.Button("Close")], [sg.TabGroup([[sg.Tab('MP Controls', self.player_control_layout, key='-player_control_layout-')], [sg.Tab('DB Manager', self.db_mgr_layout, key='-db_mgr_layout-')]], 	expand_x=True, expand_y=True, enable_events=True)]]
-		self.layout = [[sg.MenubarCustom(self.menu_def, tearoff=True, key='-menubar_key-'), sg.Button("Close")], [sg.TabGroup([[sg.Tab('MP Controls', self.player_control_layout, key='-player_control_layout-')], line_window_ctl], expand_x=True, expand_y=True, enable_events=True)]]
-		win = sg.Window('GUI', self.layout, no_titlebar=True, location=(int(self.gui_win_x),int(self.gui_win_y)), size=(self.gui_win_w,self.gui_win_h), keep_on_top=False, grab_anywhere=True, element_justification='center', finalize=True, resizable=True)
-		title = win.Title
-		if title not in self.windows:
-			self.windows.append(title)
-			np.log(f"Added {title} to self.windows ({self.windows}", 'info')
+		self.layout = [[sg.MenubarCustom(self.menu_def, tearoff=True, key='-menubar_key-'), sg.Button('Hide UI'), sg.Button("Close")], [sg.TabGroup([[sg.Tab('MP Controls', self.player_control_layout, key='-player_control_layout-')], line_window_ctl], expand_x=True, expand_y=True, enable_events=True)]]
+		if 'GUI' not in self.windows:
+			self.windows.append('GUI')
+			log(f"Added 'GUI' to self.windows ({self.windows})", 'info')
 		else:
-			np.log(f"Warning: {title} already in self.windows! ({self.windows})", 'warning')
-
+			log(f"Warning: 'GUI' already in self.windows! Not creating...({self.windows})", 'warning')
+			try:
+				raise Exception("Window already created!")
+				log("Window already created!", 'error')
+			except:
+				log("Window already created!", 'error')
+		win = sg.Window('GUI', self.layout, no_titlebar=True, location=(int(self.gui_win_x),int(self.gui_win_y)), size=(self.gui_win_w,self.gui_win_h), keep_on_top=False, grab_anywhere=True, element_justification='center', finalize=True, resizable=True)
 		return win
 
 
@@ -251,28 +267,28 @@ class gui():
 		try:
 			self.WINDOW.TKroot.focus_force()
 			self.WINDOW.Element('-SEARCH_QUERY-').SetFocus()
-			np.log(f"Fixed focus!", 'info')
+			log(f"Fixed focus!", 'info')
 		except Exception as e:
-			np.log(f"Unable to set focus: {e}. Is GUI window open?", 'error')
+			log(f"Unable to set focus: {e}. Is GUI window open?", 'error')
 
 
 	def get_window_location(self, window=None):
 		if window == None:
-			np.log(f"Error Getting Window location: Name=None, no name provided. Options are 'viewer/player', and 'gui'.", 'error')
+			log(f"Error Getting Window location: Name=None, no name provided. Options are 'viewer/player', and 'gui'.", 'error')
 			return False
 		elif window == 'player' or window == 'viewer':
 			try:
 				coords = self.WINDOW2.CurrentLocation()
 			except Exception as e:
-				np.log(f"Error Getting Window location: Name={window} appears to be closed!", 'error')
+				log(f"Error Getting Window location: Name={window} appears to be closed!", 'error')
 				return None
 		elif window == 'gui':
 			try:
 				coords = self.WINDOW.CurrentLocation()
 			except Exception as e:
-				np.log(f"Error Getting Window location: Name=appears to be closed!", 'error')
+				log(f"Error Getting Window location: Name=appears to be closed!", 'error')
 				return None
-		np.log(f"Window location: Name={window}, Coords={coords}", 'info')
+		log(f"Window location: Name={window}, Coords={coords}", 'info')
 		return coords
 
 	def db_editor(self):
@@ -326,7 +342,7 @@ class gui():
 			elif window == 'gui':
 				self.gui_win_y = y
 				self.WINDOW.move(self.gui_win_x , self.gui_win_y)
-		np.log(f"{window} window moved to!", 'info')
+		log(f"{window} window moved to!", 'info')
 			
 			
 	def create(self, elem, args={}):
@@ -465,11 +481,11 @@ class gui():
 		if state:
 			ret = False
 			win.keep_on_top_clear()
-			np.log(f"Window '{win.Title}': keep_on_top cleared!", 'info')
+			log(f"Window '{win.Title}': keep_on_top cleared!", 'info')
 		else:
 			ret = True
 			win.keep_on_top_set()
-			np.log(f"Window '{win.Title}': keep_on_top set!", 'info')
+			log(f"Window '{win.Title}': keep_on_top set!", 'info')
 		return ret
 
 

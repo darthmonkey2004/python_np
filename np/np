@@ -1,28 +1,35 @@
 #!/usr/bin/env python3
 
-from np import shell, COMFILE, EXEC_DIR
+from threading import *
+from np import shell, EXEC_DIR
 from np.core.np_main import start
 
 def getpid():
 	pid = None
-	target1 = "python3 -c"
-	target2 = "from np import server"
-	target3 = "server.start"
+	target1 = "python3"
+	target2 = "/home/monkey/.local/bin/np"
 	com = "pgrep -af python3"
 	lines = shell(com).split("\n")
+	ret = []
 	for line in lines:
-		if target1 in line and target2 in line and target3 in line:
+		if target1 in line and target2 in line:
 			pid=line.split(" ")[0]
-			return pid
-	return pid
+			ret.append(pid)
+	return ret
 
-isrunning = getpid()
+pids = getpid()
+if len(pids) < 2:
+	isrunning = False
+else:
+	isrunning = True
+if isrunning:
+	import websocket
+	c = websocket.create_connection('ws://192.168.2.2:8000/')
+	c.send('create_gui')
+	c.close()
+	exit()
 
-if isrunning is not None:
-	#If running, assume gui open is needed.
-	with open(COMFILE, "w") as f:
-		f.write("create_gui")
-	f.close()
-elif isrunning is None:
+else:
 	print ("starting")
-	start()
+	t = Thread(target = start)
+	t.start()

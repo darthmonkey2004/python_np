@@ -43,6 +43,7 @@ class nplayer():
 		self.history['playing_from_history'] = False
 		self.events_conf = 'events.conf'
 		self.play_needed = 1
+		np.log(f"play_needed set = 1: line46", 'info')
 		self.scale_needed = 0
 		self.PLAYLIST_ITEMS = self.media['PLAYLIST_ITEMS']
 		self.dbmgr_picked_items = []
@@ -76,6 +77,7 @@ class nplayer():
 		self.series_history = np.read_history()
 		self.resume = None
 		self.play_pos = self.conf['nowplaying']['play_pos']
+		self.server = None
 		
 
 
@@ -113,12 +115,12 @@ class nplayer():
 	def playback_started(self):
 		self.is_playing = 1
 		self.play_needed = 0
-	
+
 	def playback_finished(self):
 		np.log("Playback finished!")
 		self.nowplaying['filepath'] = None
 		self.play_needed = 1
-
+		np.log(f"play_needed set = 1 (playback_finished): line123", 'info')
 
 	def init_vlc(self, uri=None):
 		try:
@@ -164,6 +166,7 @@ class nplayer():
 				event = event.split(':')[1]
 				if event == 'EventType.MediaMPEndReached':
 					self.play_needed = 1
+					np.log(f"play_needed set = 1 (vlc_event[MediaMPEndReached]): line169, conf written", 'info')
 					self.conf['nowplaying']['filepath'] = None
 					np.writeConf(self.conf)
 					self.playback_finished()
@@ -196,6 +199,7 @@ class nplayer():
 				elif event == 'EventType.MediaMPPlaying':
 					self.is_playing = self.player.is_playing()
 					self.play_needed = 0
+					np.log(f"play_needed set = 0 (vlc_event[MediaMPPlaying]: line202", 'info')
 				elif event == 'EventType.MediaMPAudioDevice':
 					self.audio_device = self.player.audio_output_device_get()
 				elif event == 'EventType.MediaMPAudioVolume':
@@ -354,6 +358,7 @@ class nplayer():
 		self.is_playing = 0
 		self.continuous = 0
 		self.play_needed = 0
+		np.log(f"play_needed set = 0 (stop): line361", 'info')
 		self.media['now_playing'] = {}
 		self.nowplaying['filepath'] = None
 
@@ -480,6 +485,7 @@ class nplayer():
 						
 
 	def play(self, _file=None):
+		print(self.play_mode)
 		#init resume to None
 		self.resume = None
 		self.series_history = np.read_history()
@@ -535,18 +541,25 @@ class nplayer():
 			if self.conf['debug'] == True:
 				np.log(f"playlist last set in MP.play(): playlist_last:{self.playlist_last}, play_mode={self.play_mode}", 'info')
 			if self.conf['play_type'] == 'series':
-				query_string = ("filepath like '%" + self.next + "%'")
-				series_name = np.querydb('series', 'series_name', query_string)[0][0]
-				self.series_history[series_name] = self.next
-				np.write_history(self.series_history)
+				try:
+					query_string = ("filepath like '%" + self.next + "%'")
+					series_name = np.querydb('series', 'series_name', query_string)[0][0]
+					self.series_history[series_name] = self.next
+					np.write_history(self.series_history)
+				except:
+					np.log(f"Couldn't find series db or history...(playlist?)", 'info')
 
 		elif self.play_mode == 'database':
+			series_name = None		
 			if self.conf['play_type'] == 'series':
-				query_string = ("filepath like '%" + self.next + "%'")
-				np.log(f"Query string: {query_string}", 'info')
-				series_name = np.querydb('series', 'series_name', query_string)[0][0]
-				self.series_history[series_name] = self.next
-				np.write_history(self.series_history)
+				try:
+					query_string = ("filepath like '%" + self.next + "%'")
+					np.log(f"Query string: {query_string}", 'info')
+					series_name = np.querydb('series', 'series_name', query_string)[0][0]
+					self.series_history[series_name] = self.next
+					np.write_history(self.series_history)
+				except:
+					pass
 
 		#Guess intro
 		intro = np.guess_intro(self.next)
@@ -616,7 +629,7 @@ class nplayer():
 			self.conf['nowplaying']['filepath'] = self.next
 			self.conf['nowplaying']['play_pos'] = self.play_pos
 			self.play_needed = 0
-			np.log("Set play needed: 0")
+			np.log("Set play needed = 0 (play): line624", 'info')
 
 		if self.conf['play_type'] == 'music':
 			#try:
@@ -647,8 +660,11 @@ class nplayer():
 				if '%' in self.img_url:
 					self.img_url = unquote(self.img_url)
 				break
-		com = ("wget --output-document 'poster.jpg' '" + self.img_url + "'")
-		subprocess.check_output(com, shell=True)
+		try:
+			com = ("wget --output-document 'poster.jpg' '" + self.img_url + "'")
+			subprocess.check_output(com, shell=True)
+		except Exception as e:
+			np.log(f"Unable to get poster: {e}", 'error')
 		screen = self.conf['screen']
 		self.art_w = self.conf['windows']['viewer'][screen]['w']
 		self.art_h = self.conf['windows']['viewer'][screen]['h']
@@ -704,33 +720,36 @@ class nplayer():
 
 
 	def build_info_string_from_filepath(self, filepath):
-		np.log("running build info from filepath")
-		qstring = ("filepath = '" + filepath + "'")
 		try:
-			series_name, season, episode_number, episode_name, _id = np.querydb('series', 'series_name,season,episode_number,episode_name,id', qstring)[0]
-			sstring = (f"series:{series_name}:{season}:{episode_number}:{episode_name}:{_id}")
-			np.log(f"Series string:{sstring}", 'info')
+			np.log("running build info from filepath")
+			qstring = ("filepath = '" + filepath + "'")
+			try:
+				series_name, season, episode_number, episode_name, _id = np.querydb('series', 'series_name,season,episode_number,episode_name,id', qstring)[0]
+				sstring = (f"series:{series_name}:{season}:{episode_number}:{episode_name}:{_id}")
+				np.log(f"Series string:{sstring}", 'info')
+			except:
+				sstring = None
+			try:
+				title, year, _id = np.querydb('movies', 'title,year,id', qstring)[0]
+				mvstring = ("movies:" + title + ":" + str(year) + ":" + str(_id))
+				np.log("Movies string:" + mvstring)
+			except:
+				mvstring = None
+			try:
+				msstring = np.querydb('music', 'filepath', qstring)[0]
+			except:
+				msstring = None
+			if sstring is not None:
+				return sstring
+			elif mvstring is not None:
+				return mvstring
+			elif msstring is not None:
+				return msstring
+			else:
+				np.log(f"data not found in database: {filepath}", 'info')
+				return None
 		except:
-			sstring = None
-		try:
-			title, year, _id = np.querydb('movies', 'title,year,id', qstring)[0]
-			mvstring = ("movies:" + title + ":" + str(year) + ":" + str(_id))
-			np.log("Movies string:" + mvstring)
-		except:
-			mvstring = None
-		try:
-			msstring = np.querydb('music', 'filepath', qstring)[0]
-		except:
-			msstring = None
-		if sstring is not None:
-			return sstring
-		elif mvstring is not None:
-			return mvstring
-		elif msstring is not None:
-			return msstring
-		else:
-			np.log("data not found in database:" + filepath)
-			return None
+			np.log(f"data not found in database: {filepath}", 'info')
 
 
 	def get_playlist_next(self):

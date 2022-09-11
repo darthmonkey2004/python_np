@@ -1,9 +1,38 @@
 import subprocess
 import os
-from np import readConf, test_db, addtodb, log, DATA_DIR, cleandb
+from np import readConf, test_db, addtodb, DATA_DIR, cleandb
 from np.utils.tadb_search import lookup
 from np.utils.id3 import tag
+from np.core.log import np_logger
+from np.core.nplayer_db import get_columns
+logger = np_logger().log_msg
 id3 = tag()
+
+
+def log(msg, _type=None):
+	if _type is None:
+		_type = 'info'
+	if _type == 'error':
+		exc_info = sys.exc_info()
+		logger(msg, _type, exc_info)
+		return
+	else:
+		logger(msg, _type)
+
+
+
+def set_empty(play_type):
+	pragma = get_columns(play_type)
+	columns = list(pragma.keys())
+	info = {}
+	for key in columns:
+		dtype = pragma[key]['data_type']
+		if dtype == 'INTEGER' or dtype == 'BOOL':
+			info[key] = 0
+		elif dtype == 'TEXT':
+			info[key] = 'Unknown'
+	return info
+
 
 
 def test_exists(filepath):
@@ -33,7 +62,8 @@ def scan_music(target_dir=None):
 		exists = test_exists(filepath)
 		if exists == True:
 			print (f"Already in database: '{filepath}'")
-		else:		
+		else:
+			info = set_empty('music')
 			hastag = True
 			tag_data = {}
 			title = None
@@ -53,28 +83,30 @@ def scan_music(target_dir=None):
 				title = None
 				artist = None
 				hastag = False
-
-			if tag.title is None or tag.artist is None or hastag == False:
-				split = (f"{target_dir}/")
-				fname = filepath.split(split)[1]
-				if '[' in fname:
-					if tag.title is None:
-						tag.title = fname.split('[')[0].strip()
-					if tag.artist is None:
-						s = ' - '
-						tag.artist = fname.split(s)[1].split('.')[0]
-				else:
-					s = ' - '
-					try:
+			if tag is None:
+				pass
+			else:
+				if tag.title is None or tag.artist is None or hastag == False:
+					split = (f"{target_dir}/")
+					fname = filepath.split(split)[1]
+					if '[' in fname:
 						if tag.title is None:
-							tag.title = fname.split(s)[0]
+							tag.title = fname.split('[')[0].strip()
 						if tag.artist is None:
+							s = ' - '
 							tag.artist = fname.split(s)[1].split('.')[0]
-					except:
-						print (f"File: '{filepath}' - Unable to parse info from path.")
-						tag.title = input("Enter artist name: ")
-						tag.artist = input("Enter song title: ")
-			info = lookup(tag.artist, tag.title)
+					else:
+						s = ' - '
+						try:
+							if tag.title is None:
+								tag.title = fname.split(s)[0]
+							if tag.artist is None:
+								tag.artist = fname.split(s)[1].split('.')[0]
+						except:
+							print (f"File: '{filepath}' - Unable to parse info from path.")
+							tag.title = input("Enter artist name: ")
+							tag.artist = input("Enter song title: ")
+				info = lookup(tag.artist, tag.title)
 
 			if info['artist'] != 'Unknown':
 				tag.artist = info['artist']

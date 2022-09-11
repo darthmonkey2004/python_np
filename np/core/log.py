@@ -1,3 +1,4 @@
+import traceback, sys
 import pickle
 import logging
 import datetime
@@ -22,7 +23,7 @@ def readConf():
 		f.close()
 		return data
 	except Exception as e:
-		print(f"Exception in readConf: {e}")
+		print(f"log.py, Exception in readConf: {e}")
 		return None
 	
 
@@ -40,9 +41,9 @@ def writeConf(data, CONFFILE=None):
 			pickle.dump(data, f)
 		f.close()
 		try:
-			logger('core.py, writeConf: Conf updated!', 'info')
+			logger('log.py, writeConf: Conf updated!', 'info')
 		except:
-			print('core.py, writeConf: Conf updated!, logger uninitialized')
+			print('log.py, writeConf: Conf updated!, logger uninitialized')
 		return True
 	except Exception as e:
 		print(f"Exception in log.py, writeConf, line 43:{e}")
@@ -118,6 +119,9 @@ class np_logger():
 			self.debug = self.conf['debug']
 		except Exception as e:
 			print (f"Error in log.py: debug setting not in conf: {e}")
+
+
+
 	def log_msg(self, *args):
 		#print (self.msg)
 		pos = -1
@@ -131,15 +135,27 @@ class np_logger():
 				self.log_type = arg
 				self.log_level = getattr(logging, self.log_type.upper(), None)
 				logging.basicConfig(filename=self.logfile, level=self.log_level)
+			elif pos == 2:
+				try:
+					t, v, tb = arg
+					formatted_lines = traceback.format_exc().splitlines()
+					j = "\n"
+					tb_text = j.join(formatted_lines)
+					self.msg = (f"{ts}::{self.msg}\n{tb_text}")
+				except Exception as e:
+					print("tb_text", tb_text)
+					self.msg = (f"{ts}::{self.msg}\nUnable to insert traceback info({e})")
 		if not isinstance(self.log_level, int):
 			raise ValueError('Invalid log level: %s' % self.log_type)
 			return
 		if self.msg == None:
 			raise ValueError('No message data provided!')
-		if self.debug == True:
-			print ("DEBUG MESSAGE:", self.msg)
+		if self.debug == True and self.log_level != 40:
+			# if debug flag == True, override debug value and print all messages (unless error)
+			self.log_level = 10
 		if self.log_level == 10:#debug level
 			logging.debug(self.msg)
+			print(f"DEBUG::{self.msg}")
 		elif self.log_level == 20:
 			logging.info(self.msg)
 		elif self.log_level == 30:
@@ -147,7 +163,7 @@ class np_logger():
 		elif self.log_level == 40:
 			logging.error(self.msg)
 			try:
-				print("Nplayer logged an error:", self.msg)
+				print(f"ERROR:{self.msg}")
 			except Exception as e:
 				ouch=("Unable to print error message, background process(?)", self.msg, e)
 				logging.error(ouch)
