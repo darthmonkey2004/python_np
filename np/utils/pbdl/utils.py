@@ -94,6 +94,7 @@ def umount_sftp():
 
 
 def get_fullpath(query, t=None):
+	play_type = test_media(query)
 	found = None
 	if t == None:
 		from_dir = SFTP_DIR
@@ -110,68 +111,108 @@ def get_fullpath(query, t=None):
 		log(f"Unable to find full path for \"{query}\"", 'warning')
 		return None
 
+def refresh_info(torrents, tid):
+	files = get_files(tid)
+	for filepath in files:
+		torrents[tid]['files'] = {}
+		torrents[tid]['files'][filepath] = {}
+		play_type = test_media(filepath)
+		columns = list(get_columns(play_type).keys())
+		info = set_empty(play_type)
+		torrents[tid]['files'][filepath]['info'] = info
+		torrents[tid]['files'][filepath]['info']['play_type'] = play_type
+		if play_type == 'series':
+			series_name, season, episode_number = test_media(filepath, True)
+			#print ("name:", series_name, "s:", season, "e:", episode_number)
+			info = set_empty('series')
+			info['series_name'] = series_name
+			info['season'] = season
+			info['episode_number'] = episode_number
+		elif play_type == 'movies':
+			title, year = test_media(filepath, True)
+			#print("title:", title, "year:", year)
+			info = set_empty('movies')
+			info['title'] = title
+			info['year'] = year
+		lookup_type = '-rotten tomatoes-'
+		torrents[tid]['files'][filepath]['info']['lookup_type'] = lookup_type
+		ret = lookup(torrents[tid]['files'][filepath]['info'])
+		try:
+			if ret['results'] == True:
+				torrents[tid]['files'][filepath]['info'] = ret
+			return torrents[tid]
+		except Exception as e:
+			log(f"Error: Unable to automatically complete missing data for id {tid}! ({e}). Skipping...", 'error')
+			return None
 
-def add_to_db(info):
-	filepath = info['filepath']
-	fname = os.path.basename(filepath).replace("'", "%27")
-	play_type = info['play_type']
-	exists = None
-	com = f"sqlite3 \"{DATA_DIR}/nplayer.db\" \"select id from {play_type} where filepath like \'%{fname}%\';\""
-	exists = subprocess.check_output(com, shell=True).decode().strip()
-	if exists is not None and exists != '':
-		log(f"File already exists with id {exists} ({filepath}). Aborting...", 'warning')
-		return False
-	fullpath = None
-	is_mounted = test_sftp_mount()
-	if is_mounted is False:
-		mount_sftp()
-		
-	elif play_type == 'movies':
-		info = query_movies(title)
-	vals = []
-	keys = []
-	pragma = get_columns(play_type)
-	columns = list(pragma.keys())
-	for column in columns:
-		if column != 'id':
-			keys.append(str(column))
-			if column == 'isactive':
-				vals.append("1")
-			elif column == 'filepath':
-				fullpath = get_fullpath(filepath)
-				fullpath = fullpath.replace("'", "%27")
-				vals.append(f"\'{fullpath}\'")
-			else:
-				try:
-					dtype = pragma[column]['data_type']
-					val = info[column]
-					if val is None or val == '':
-						if dtype == 'TEXT':
+
+def add_to_db(torrents):
+	for tid in list(torrents.keys()):
+		try:
+			hasfiles = torrents[tid]['files']
+		except:
+			info = refresh_info(torrents, tid)
+			if info is None:
+				break
+		for filepath in list(torrents[tid]['files'].keys()):
+			info = torrents[tid]['files'][filepath]['info']
+			fname = os.path.basename(filepath).replace("'", "%27")
+			try:
+				play_type = info['play_type']
+			except:
+				play_type = test_media(filepath)
+			exists = None
+			com = f"sqlite3 \"{DATA_DIR}/nplayer.db\" \"select id from {play_type} where filepath like \'%{fname}%\';\""
+			exists = subprocess.check_output(com, shell=True).decode().strip()
+			if exists is not None and exists != '':
+				log(f"File already exists with id {exists} ({filepath}). Aborting...", 'warning')
+				break
+			fullpath = None
+			is_mounted = test_sftp_mount()
+			if is_mounted is False:
+				mount_sftp()		
+			vals = []
+			keys = []
+			pragma = get_columns(play_type)
+			columns = list(pragma.keys())
+			for column in columns:
+				if column != 'id':
+					keys.append(str(column))
+					if column == 'isactive':
+						vals.append("1")
+					elif column == 'filepath':
+						fullpath = get_fullpath(filepath)
+						fullpath = fullpath.replace("'", "%27")
+						vals.append(f"\'{fullpath}\'")
+					else:
+						try:
+							dtype = pragma[column]['data_type']
+							val = info[column]
+							if val is None or val == '':
+								if dtype == 'TEXT':
+									val = 'Unknown'
+								elif dtype == 'INTEGER' or dtype == 'BOOL':
+									val = 0
+							else:	
+								if dtype == 'TEXT':
+									val = val.replace('"', '').replace("'", "")
+									vals.append(f"\'{val}\'")
+								elif dtype == 'INTEGER' or dtype == 'BOOL':
+									vals.append(str(val))
+						except Exception as e:
+							log(f"Exception {e}: Column:{column}", 'error')
 							val = 'Unknown'
-						elif dtype == 'INTEGER' or dtype == 'BOOL':
-							val = 0
-					else:	
-						if dtype == 'TEXT':
-							val = val.replace('"', '').replace("'", "")
 							vals.append(f"\'{val}\'")
-						elif dtype == 'INTEGER' or dtype == 'BOOL':
-							vals.append(str(val))
-				except Exception as e:
-					log(f"Exception {e}: Column:{column}", 'error')
-					val = 'Unknown'
-					vals.append(f"\'{val}\'")
-	j = ', '
-	kstring = j.join(keys)
-	vstring = j.join(vals)
-	qstring = (f"INSERT INTO {play_type} ({kstring}) VALUES({vstring});")
-	com = f"sqlite3 \"{DATA_DIR}/nplayer.db\" \"{qstring}\""
-	ret = subprocess.check_output(com, shell=True).decode().strip()
-	if ret:
-		log(f"Error: Add to database failed for file '{filepath}': {ret}", 'error')
-		return False
-	else:
-		log("Ok!")
-		return True
+			j = ', '
+			kstring = j.join(keys)
+			vstring = j.join(vals)
+			qstring = (f"INSERT INTO {play_type} ({kstring}) VALUES({vstring});")
+			com = f"sqlite3 \"{DATA_DIR}/nplayer.db\" \"{qstring}\""
+			ret = subprocess.check_output(com, shell=True).decode().strip()
+			if ret:
+				log(f"Error: Add to database failed for file '{filepath}': {ret}", 'error')
+			else:
+				log("Ok!")
 
 
 def migrate_series():
@@ -181,6 +222,8 @@ def migrate_series():
 	com = (f"sqlite3 {db} \"select id,series_name,season,episode_number,episode_name,filepath from series where filepath like \'%{SFTP_DIR}%\';\"")
 	results = subprocess.check_output(com, shell=True).decode().strip().split("\n")
 	for item in results:
+		if item == '':
+			return None
 		_id, series_name, season, episode_number, episode_name, filepath = item.split('|')
 		if '%27' in filepath:
 			filepath = filepath.replace("%27", "'")
@@ -208,6 +251,39 @@ def migrate_series():
 			break
 
 
+def migrate_movies():
+	conf = readConf()
+	media_dir = conf['media_directories']['movies']
+	db = f"{DATA_DIR}/nplayer.db"
+	com = (f"sqlite3 {db} \"select id,title,year,filepath from movies where filepath like \'%{SFTP_DIR}%\';\"")
+	results = subprocess.check_output(com, shell=True).decode().strip().split("\n")
+	for item in results:
+		_id, title, year, filepath = item.split('|')
+		if '%27' in filepath:
+			filepath = filepath.replace("%27", "'")
+		l = len(filepath) - 4
+		ext = filepath[l:]
+		newdir = (f"{media_dir}/{title} ({year})")
+		com = (f"mkdir -p \"{newdir}\"")
+		ret = subprocess.check_output(com, shell=True).decode().strip()
+		if ret:
+			log(f"Error creating directory: {newdir}. ({ret})", 'error')
+			break
+		newpath = (f"{newdir}/{title} ({year}){ext}").replace("'", "")
+		log(f"Migrating file '{filepath}' to '{newpath}'..", 'info')
+		com = (f"cp \"{filepath}\" \"{newpath}\"")
+		ret = subprocess.check_output(com, shell=True).decode().strip()
+		if ret:
+			log(f"Error migrating file: {filepath} to {newpath}. ({ret})", 'error')
+			break
+		else:
+			log(f"File moved!", 'info')
+		com = (f"sqlite3 {db} \"update series set filepath = \'{newpath}\' where id = {_id};\"")
+		ret = subprocess.check_output(com, shell=True).decode().strip()
+		if ret:
+			log(f"Error renaming file in database: id={_id}", 'error')
+			break
+
 def get_torrents():
 	torrents = {}
 	com = (f"transmission-remote {conf['pbdl_url']} -l")
@@ -229,6 +305,7 @@ def get_torrents():
 					if cpos == 0:
 						tid = int(chunk)
 						torrents[tid] = {}
+						torrents[tid]['tid'] = tid
 					elif cpos == 1:
 						torrents[tid]['percent'] = chunk
 					elif cpos == 2:
@@ -343,9 +420,9 @@ def parse_movies(filepath):
 
 
 def lookup(args):
-	media_type = args['media_type']
+	play_type = args['play_type']
 	lookup_type = args['lookup_type']
-	if media_type == 'series':
+	if play_type == 'series':
 		if lookup_type == '-rotten tomatoes-':
 			#print("get_episode_data", args['series_name'], args['season'], args['episode_number'])
 			data = get_episode_data(args['series_name'], args['season'], args['episode_number'])
@@ -358,7 +435,7 @@ def lookup(args):
 			if data['results'] == True:
 				log("Lookup successful!", 'info')
 				return data
-	elif media_type == 'movies':
+	elif play_type == 'movies':
 		if lookup_type == '-rotten tomatoes-':
 			#print("get_movie_data", args['title'])
 			data = get_movie_data(args['title'])
@@ -511,7 +588,7 @@ def merge_saved_data():
 		log(f"Saved data found! Merging...", 'info')
 		for tid in torrents:
 			if tid in old:
-				torrents[tid] = old[tid]
+				torrents[tid]['files'] = old[tid]['files']
 			elif tid not in old:
 				pass
 	else:
@@ -539,7 +616,7 @@ def build_data(rebuild=False, lookup_type=None):
 		files = get_files(tid)
 		torrents[tid]['files']  = {}
 		for filepath in files:
-			media_type = test_media(filepath)
+			play_type = test_media(filepath)
 			try:
 				results = torrents[tid]['files'][filepath]['info']['results']
 			except Exception as e:
@@ -548,9 +625,9 @@ def build_data(rebuild=False, lookup_type=None):
 				results = None
 			if results is None:
 				torrents[tid]['files'][filepath] = {}
-				torrents[tid]['files'][filepath]['info'] = set_empty(media_type)
-				torrents[tid]['files'][filepath]['info']['media_type'] = media_type
-				if torrents[tid]['files'][filepath]['info']['media_type'] == 'series':
+				torrents[tid]['files'][filepath]['info'] = set_empty(play_type)
+				torrents[tid]['files'][filepath]['info']['play_type'] = play_type
+				if torrents[tid]['files'][filepath]['info']['play_type'] == 'series':
 					series_name, season, episode_number = test_media(filepath, True)
 					tname = verify_series_name(series_name)
 					if tname is not None:
@@ -559,7 +636,7 @@ def build_data(rebuild=False, lookup_type=None):
 					torrents[tid]['files'][filepath]['info']['season'] = season
 					torrents[tid]['files'][filepath]['info']['episode_number'] = episode_number
 					torrents[tid]['files'][filepath]['info']['lookup_type'] = lookup_type
-				elif torrents[tid]['files'][filepath]['info']['media_type'] == 'movies':
+				elif torrents[tid]['files'][filepath]['info']['play_type'] == 'movies':
 					title, year = test_media(filepath, True)
 					torrents[tid]['files'][filepath]['info']['title'] = title
 					torrents[tid]['files'][filepath]['info']['year'] = year

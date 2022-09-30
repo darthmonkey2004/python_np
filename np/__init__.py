@@ -24,7 +24,7 @@ from np.utils.tag_editor import run as tag_editor
 from np.core.conf import initConf, readConf, writeConf, run_setup
 #from np.utils.pbdl import query_series
 #from np.utils.pbdl import query_movies
-from np.core.core import create_media, get_local_ip, err, get_res, enable_debug, disable_debug, read_history, write_history, set_play_type, calculate_scale, init_window_position, file_browse_window, DATA_DIR, KEY_EVENTS, shell, check_process, python
+from np.core.core import create_media, get_local_ip, err, get_res, enable_debug, disable_debug, read_history, write_history, set_play_type, calculate_scale, init_window_position, DATA_DIR, KEY_EVENTS, shell, check_process, python
 from np.core.gui import folder_browse_window
 from np.core.gui import gui
 from np.core.gui import db_editor, bring_to_front, send_to_back, run_long_operation, write_event, restore, maximize, minimize, hide, un_hide, reappear, dissapear, get_pointer, start_thread
@@ -142,5 +142,11 @@ def create_vlc_filters(t = None):
 VLC_VIDEO_FILTERS = create_vlc_filters('video')
 VLC_AUDIO_FILTERS = create_vlc_filters('audio')
 err = err().err
-
-
+red = (255, 0, 0)
+orange = (255, 127.5, 0)
+yellow = (255, 255, 0)
+green = (0, 255, 0)
+blue = (0, 255, 255)
+indigo = (0, 0, 255)
+violet = (255, 0, 255)
+colors = [red, orange, yellow, green, blue, indigo, violet]

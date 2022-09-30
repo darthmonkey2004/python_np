@@ -1,4 +1,4 @@
-from np.core.conf import readConf
+from np.core.conf import readConf, writeConf
 import PySimpleGUI as sg
 from np.core.log import np_logger
 from np.utils.pbdl.search import search
@@ -32,11 +32,11 @@ def create_downloader():
 		[results_box]
 	]
 	try:
-		x = 0
-		y = conf['windows']['pbdl_dl']['y']
+		x, y = conf['locations']['dl']
 		w = conf['windows']['pbdl_dl']['w']
 		h = conf['windows']['pbdl_dl']['h']
-	except:
+	except Exception as e:
+		log(f"Error: Unable to restore previous window location: {e}", 'error')
 		conf = readConf()
 		screen = conf['screen']
 		x, y = conf['screens'][screen]['pos_x'], conf['screens'][screen]['pos_y']
@@ -47,8 +47,12 @@ def create_downloader():
 		w = conf['windows']['pbdl_dl']['w']
 		h = conf['windows']['pbdl_dl']['h']
 		writeConf(conf)
-	win = sg.Window('GUI', pbdl_search_layout, no_titlebar=False, location=(x,y), size=(w,h), keep_on_top=False, grab_anywhere=True, element_justification='center', finalize=True, resizable=True).Finalize()
+	win = sg.Window('PBDL Downloader', pbdl_search_layout, no_titlebar=False, location=(x,y), size=(w,h), keep_on_top=False, grab_anywhere=True, element_justification='center', finalize=True, resizable=True).Finalize()
 	return win
+
+def get_location(win):
+	return win.current_location()
+
 
 def downloader_loop(win=None, mgr=None):
 	conf = readConf()
@@ -57,11 +61,16 @@ def downloader_loop(win=None, mgr=None):
 		mgr = torrent_mgr()
 	if win == None:
 		win = create_downloader()
+	mgr.set_start_paused()
+	mgr.set_global_ratio(0)
+	mgr.start_vpn()
 	while True:
 		if exit == True:
 			break
 		try:
 			window, event, values = sg.read_all_windows(timeout=10)
+			if window is not None:
+				conf['locations']['dl'] = window.current_location()
 		except Exception as e:
 			log(f"Exit exception:{e}", 'error')
 			exit = True
@@ -70,6 +79,8 @@ def downloader_loop(win=None, mgr=None):
 				log(f"EVENT: {event}", 'info')
 		if event=='-Close PBDL-' or event == "Exit" or event == '-DOWNLOADER_EXIT-':
 				exit = True
+				conf['locations']['dl'] = window.current_location()
+				writeConf(conf)
 				window.close()
 		if event == '-DL_MEDIA_TYPE-':
 			play_type = values[event]
@@ -93,14 +104,24 @@ def downloader_loop(win=None, mgr=None):
 					picked = values[event][0]
 					log(f"Downloading:{picked}", 'info')
 					magnet = results[picked]
-					mgr.start_vpn()
 					ret = mgr.add(magnet)
+					mgr.stop_seeds()
 					if ret != '':
 						log(f"Send magnet results: {ret}", 'info')
 				except Exception as e:
 					log(f"list empty? {e}", 'warning')
 		win.refresh()
 	return True
+
+
+def quit(win):
+	conf['locations']['dl'] = win.current_location()
+	writeConf(conf)
+	try:
+		win.close()
+	except:
+		pass
+
 
 def start(mgr=None, win=None):
 	if mgr == None:

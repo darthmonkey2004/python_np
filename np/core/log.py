@@ -76,7 +76,6 @@ def initConf():
 	conf['nowplaying']['play_pos'] = None
 	conf['vlc'] = {}
 	conf['vlc']['opts'] = "--no-xlib"
-	conf['debug'] = True
 	conf['network_modes'] = {}
 	conf['network_modes']['control_modes'] = ['local', 'remote', 'server']
 	conf['network_modes']['media_modes'] = ['local', 'remote']
@@ -106,21 +105,11 @@ class np_logger():
 		lvl_fatal = getattr(logging, 'FATAL', None)
 		lvl_fatal = getattr(logging, 'INFO', None)
 		lvl_warning = getattr(logging, 'WARNING', None)
-		self.conf = conf
+		self.debug = conf['debug']
 		self.log_type = 'debug'
 		self.log_level = getattr(logging, self.log_type.upper(), None)
 		logging.basicConfig(filename=self.logfile, level=self.log_level)
 		self.msg = None
-		if self.conf['debug'] == None:
-			self.conf = np.initConf()
-			np.writeConf(self.conf)
-			np.log(f"Over wrote conf file (empty debug string. Data: {self.conf}", 'warning')
-		try:
-			self.debug = self.conf['debug']
-		except Exception as e:
-			print (f"Error in log.py: debug setting not in conf: {e}")
-
-
 
 	def log_msg(self, *args):
 		#print (self.msg)
@@ -135,16 +124,8 @@ class np_logger():
 				self.log_type = arg
 				self.log_level = getattr(logging, self.log_type.upper(), None)
 				logging.basicConfig(filename=self.logfile, level=self.log_level)
-			elif pos == 2:
-				try:
-					t, v, tb = arg
-					formatted_lines = traceback.format_exc().splitlines()
-					j = "\n"
-					tb_text = j.join(formatted_lines)
-					self.msg = (f"{ts}::{self.msg}\n{tb_text}")
-				except Exception as e:
-					print("tb_text", tb_text)
-					self.msg = (f"{ts}::{self.msg}\nUnable to insert traceback info({e})")
+		
+
 		if not isinstance(self.log_level, int):
 			raise ValueError('Invalid log level: %s' % self.log_type)
 			return
@@ -161,6 +142,14 @@ class np_logger():
 		elif self.log_level == 30:
 			logging.warning(self.msg)
 		elif self.log_level == 40:
+			try:
+				formatted_lines = traceback.format_exc().splitlines()
+				j = "\n"
+				tb_text = j.join(formatted_lines)
+				self.msg = (f"{ts}::{self.msg}\n{tb_text}")
+			except Exception as e:
+				print("tb_text", tb_text)
+				self.msg = (f"{ts}::{self.msg}\nUnable to insert traceback info({e})")
 			logging.error(self.msg)
 			try:
 				print(f"ERROR:{self.msg}")

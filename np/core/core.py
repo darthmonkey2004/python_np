@@ -160,7 +160,20 @@ def set_play_type(play_type):
 	np.log('core.py, set_play_type: Conf file written!', 'info')
 
 
-def calculate_scale(_file, conf=None, _type='file'):
+def get_scaling():
+    # called before window created
+    root = sg.tk.Tk()
+    scaling = root.winfo_fpixels('1i')/72
+    root.destroy()
+    return scaling
+
+
+def calculate_scale(_file, size=None, scale=None, conf=None, _type='file'):
+	w, h = size
+	test_scale = scale
+
+	print(f"Original: W:{w}, H:{h}, Scale:{scale}")
+	
 	if _file == None:
 		return 0
 	log(f"ACTION:calculate_scale, file='{_file}', type='{type(_file)}'", 'info')
@@ -218,14 +231,14 @@ def init_window_position():
 	conf['windows']['viewer'] = {}
 	conf['windows']['viewer'][0] = {}
 	conf['windows']['viewer'][1] = {}
-	conf['windows']['viewer'][0]['x'] = data[0]['pos_x']
-	conf['windows']['viewer'][0]['y'] = data[0]['pos_y']
-	conf['windows']['viewer'][0]['w'] = data[0]['w']
-	conf['windows']['viewer'][0]['h'] = data[0]['h']
-	conf['windows']['viewer'][1]['x'] = data[1]['pos_x']
-	conf['windows']['viewer'][1]['y'] = data[1]['pos_y']
-	conf['windows']['viewer'][1]['w'] = data[1]['w']
-	conf['windows']['viewer'][1]['h'] = data[1]['h']
+	conf['windows']['viewer'][0]['x'] = int(data[0]['pos_x']) + 50
+	conf['windows']['viewer'][0]['y'] = int(data[0]['pos_y'])
+	conf['windows']['viewer'][0]['w'] = int(data[0]['w'])
+	conf['windows']['viewer'][0]['h'] = int(data[0]['h'])
+	conf['windows']['viewer'][1]['x'] = int(data[1]['pos_x'])
+	conf['windows']['viewer'][1]['y'] = int(data[1]['pos_y'])
+	conf['windows']['viewer'][1]['w'] = int(data[1]['w'])
+	conf['windows']['viewer'][1]['h'] = int(data[1]['h'])
 	conf['windows']['gui'] = {}
 	conf['windows']['pbdl'] = {}
 	conf['windows']['pbdl_dl'] = {}
@@ -255,6 +268,7 @@ def init_window_position():
 	conf['windows']['gui']['hidden'][0]['h'] = 600
 	conf['windows']['gui']['hidden'][1]['w'] = 1024
 	conf['windows']['gui']['hidden'][1]['h'] = 600
+	pos_x = data[0]['pos_x']
 	conf['windows']['browser'] = {}
 	conf['windows']['browser']['w'] = 600
 	conf['windows']['browser']['h'] = 150
@@ -264,7 +278,7 @@ def init_window_position():
 	elif screen == 1:
 		screen = 0
 	x, y = conf['screens'][screen]['pos_x'], conf['screens'][screen]['pos_y']
-	conf['windows']['browser']['x'] = x
+	conf['windows']['browser']['x'] = int(data[0]['pos_x']) + 50
 	conf['windows']['browser']['y'] = y
 	conf['windows']['pbdl'] = {}
 	conf['windows']['pbdl']['w'] = 900
@@ -288,27 +302,14 @@ def init_window_position():
 
 
 def create_media(play_type=None, rows=None):
-	media = {}
-	media['PLAYLIST_ITEMS'] = []
+	playlist = []
 	if play_type == None:
 		try:
 			conf = readConf()
 			play_type = conf['play_type']
 		except:
 			play_type = 'series'
-	media['series_history'] = {}
-	media['history_file'] = history_file
-	media['is_playing'] = 0
-	media['now_playing'] = {}
-	media['current_vlc_media_object'] = None
-	media['continuous'] = 1
-	media['vlc'] = {}
-	media['vlc']['events'] = ['2:EventType.MediaDurationChanged', '5:EventType.MediaStateChanged', '256:EventType.MediaMPMediaChanged', '260:EventType.MediaMPPlaying', '261:EventType.MediaMPPaused', '262:EventType.MediaMPStopped', '263:EventType.MediaMPForward', '264:EventType.MediaMPBackward', '265:EventType.MediaMPEndReached', '266:EventType.MediaMPEncounteredError', '267:EventType.MediaMPTimeChanged', '268:EventType.MediaMPPositionChanged', '269:EventType.MediaMPSeekableChanged', '270:EventType.MediaMPPausableChanged', '271:EventType.MediaMPTitleChanged', '272:EventType.MediaMPSnapshotTaken', '273:EventType.MediaMPLengthChanged', '274:EventType.MediaMPVout', '275:EventType.MediaMPScrambledChanged', '281:EventType.MediaMPMuted', '282:EventType.MediaMPUnmuted', '283:EventType.MediaMPAudioVolume', '284:EventType.MediaMPAudioDevice', '285:EventType.MediaMPChapterChanged', '1536:EventType.VlmMediaAdded', '1537:EventType.VlmMediaRemoved', '1538:EventType.VlmMediaChanged']
-	media['items'] = {}
-	media_dict = media['items']
 	if play_type == 'series' or play_type == 'videos':
-		media_dict['series'] = {}
-		media_dict = media_dict['series']
 		if rows == None:
 			rows = querydb(table='series', column='id,series_name,tmdbid,season,episode_number,episode_name,description,air_date,still_path,filepath', query='isactive = 1')
 		for _id, series_name, tmdbid, season, episode_number, episode_name, description, air_date, still_path, filepath in rows:
@@ -317,109 +318,21 @@ def create_media(play_type=None, rows=None):
 				j = '|'
 				episode_name = j.join(chunks)
 			string = ("series:" + series_name + ":" + str(season) + ":" + str(episode_number) + ":" + episode_name + ":" + str(_id))
-			media['PLAYLIST_ITEMS'].append(string)
-			media_dict[_id] = {}
-			dic = media_dict[_id]
-			dic['type'] = 'series'
-			dic['series_name'] = series_name
-			dic['tmdbid'] = tmdbid
-			dic['season'] = season
-			dic['episode_number'] = episode_number
-			dic['episode_name'] = episode_name
-			dic['description'] = description
-			dic['air_date'] = air_date
-			dic['still_path'] = still_path
-			dic['filepath'] = filepath
+			playlist.append(string)
 	if play_type == 'movies' or play_type == 'videos':
-		media_dict['movies'] = {}
-		media_dict = media_dict['movies']
 		rows = querydb(table='movies', column='id,tmdbid,title,year,release_date,description,poster,filepath', query='isactive = 1')
 		for _id, tmdbid, title, year, release_date, description, poster, filepath in rows:
 			string = ("movies:" + title + ":" + str(year) + ":" + str(_id))
-			media['PLAYLIST_ITEMS'].append(string)
-			media_dict[_id] = {}
-			dic = media_dict[_id]
-			dic['type'] = 'movies'
-			dic['tmdbid'] = tmdbid
-			dic['title'] = title
-			dic['year'] = year
-			dic['release_date'] = release_date
-			dic['description'] = description
-			dic['poster'] = poster
-			dic['filepath'] = filepath
+			playlist.append(string)
 	if play_type == 'music':
-		media_dict['music'] = {}
-		media_dict = media_dict['music']
-		
-		rows = querydb(table = 'music', column='id,title,artist', query='isactive = 1')
-		for _id, title, artist in rows:
-			string = (f"music:{artist}:{title}:{_id}")
-			media['PLAYLIST_ITEMS'].append(string)
-			media_dict[_id] = {}
-			dic = media_dict[_id]
-			dic['type'] = 'music'
-			dic['title'] = title
-			dic['artist'] = artist
-	return media
+		rows = querydb(table = 'music', column='id,title,artist,album', query='isactive = 1')
+		for _id, title, artist, album in rows:
+			string = (f"music:{artist}:{title}:{album}:{_id}")
+			playlist.append(string)
+	return playlist
 
 
-def file_browse_window(cwd=None):
-	if cwd == None:
-		cwd = DATA_DIR
-	x = conf['windows']['browser']['x']
-	y = conf['windows']['browser']['y']
-	w = conf['windows']['browser']['w']
-	h = conf['windows']['browser']['h']
-	filepath = None
-	file_browser_layout = [[sg.T("")], [sg.Text("Choose a file: "), sg.Input(cwd, key='-path-', enable_events=True), sg.FileBrowse(initial_folder=cwd, key="-IN-")],[sg.Button("Submit")]]
-	file_browser_window = sg.Window('Load Media file or playlist...', file_browser_layout, location=(int(x), int(y)), size=(int(w), int(h)))
-	while True:
-		file_browser_event, file_browser_values = file_browser_window.read()
-		if file_browser_event == sg.WIN_CLOSED or file_browser_event=="Exit":
-			filepath = None
-			break
-		elif file_browser_event == "Submit":
-			try:
-				filepath = file_browser_values["-IN-"]
-				file_browser_window.close()
-				break
-			except:
-				filepath = file_browser_values['-path-']
-				file_browser_window.close()
-				break
-			
-	return filepath
 
 
-def folder_browse_window(cwd=None):
-	if cwd == None:
-		cwd = DATA_DIR
-	x = conf['windows']['browser']['x']
-	y = conf['windows']['browser']['y']
-	w = conf['windows']['browser']['w']
-	h = conf['windows']['browser']['h']
-	path = None
-	folder_browser_layout = [[sg.T("")], [sg.Text("Choose directory: "), sg.Input(cwd, key='-path-', enable_events=True), sg.FolderBrowse(initial_folder=cwd, key="-SAVE_PATH-")], [sg.Button("Submit")]]
-	folder_browser_window = sg.Window("Save playlist file...", folder_browser_layout, location=(int(x), int(y)), size=(int(w), int(h)))
-	while True:
-		folder_browser_event, folder_browser_values = folder_browser_window.read(timeout=1)
-		if folder_browser_event == '__TIMEOUT__':
-			pass
-		if folder_browser_event == sg.WIN_CLOSED or folder_browser_event=="Exit":
-			path = None
-			return None
-		elif folder_browser_event == "Submit":
-			try:
-				path = folder_browser_values["-SAVE_PATH-"]
-				folder_browser_window.close()
-				if path == '':
-					path = cwd
-				break
-			except:
-				path = folder_browser_values['-path-']
-				folder_browser_window.close()
-				if path == '':
-					path = cwd
-				break
-	return path
+
 

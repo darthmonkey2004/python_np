@@ -13,8 +13,8 @@ def lookup(artist, title):
 	}
 	r = requests.request("GET", url, headers=headers, params=querystring)
 	code = r.status_code
+	out = {}
 	if code == 200:
-		out = {}
 		data = r.text
 		data = json.loads(data)
 		try:

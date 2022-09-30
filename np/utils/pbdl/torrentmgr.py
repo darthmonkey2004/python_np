@@ -45,6 +45,8 @@ def get_user_yn(window_title='Yes/No'):
 class torrent_mgr():
 	def __init__(self, remote_ip=None):
 		conf = readConf()
+		self.start_paused = True
+		self.do_not_seed = True
 		try:
 			self.settings = conf['pbdl']
 		except:
@@ -65,6 +67,7 @@ class torrent_mgr():
 			self.set_start_unpaused()
 		else:
 			self.set_start_paused()
+		self.set_global_ratio(0)
 		self.user = HOME.split('/home/')[1]
 
 	def set_remote_host(self, remote_ip=None):
@@ -152,14 +155,18 @@ class torrent_mgr():
 	def add(self, magnet):
 		self.status = self.vpn_status()
 		if self.status == True:
-			self.set_start_unpaused()
-			self.start_all()
-			self.stop_seeds()
+			pass
 		else:
+			self.start_vpn()
+		if self.start_paused == True:
 			self.set_start_paused()
-			self.stop_all()
+		else:
+			self.set_start_unpaused()
+		self.start_all()
 		com=f"transmission-remote {self.remote_ip} -a {magnet}"
 		ret = subprocess.check_output(com, shell=True).decode().strip()
+		self.stop_seeds()
+		self.stop_all()
 		return ret
 
 	def stop(self, tid):

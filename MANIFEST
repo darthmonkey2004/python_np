@@ -39,6 +39,7 @@ np/utils/pbdl_add_to_series.py
 np/utils/pbdl_getTorrents.py
 np/utils/pbdl_old.py
 np/utils/pbdl_se_isin.py
+np/utils/playlist.py
 np/utils/query_movies.py
 np/utils/query_series.py
 np/utils/rotten_tomatoes_query.py
@@ -46,6 +47,8 @@ np/utils/scan_all.py
 np/utils/scan_movies.py
 np/utils/scan_music.py
 np/utils/scan_series.py
+np/utils/searchdb_all.py
+np/utils/searchdb_table.py
 np/utils/set_media_paths.py
 np/utils/tadb_search.py
 np/utils/tag_editor.py

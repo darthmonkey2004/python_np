@@ -1,10 +1,14 @@
+from np import xrandr
 import sys, traceback
 import subprocess
 import os
 from np import log as logger
 import np
-
 import PySimpleGUI as sg
+from np.core.conf import readConf
+home = os.path.expanduser("~")
+DATA_DIR = (home + os.path.sep + ".np")
+conf = np.readConf()
 #-----------main gui creation class------------#
 
 
@@ -19,26 +23,67 @@ def log(msg, _type=None):
 		logger(msg, _type)
 
 
-def folder_browse_window():
-	x = MP.conf['windows']['browser']['x']
-	y = MP.conf['windows']['browser']['y']
-	w = MP.conf['windows']['browser']['w']
-	h = MP.conf['windows']['browser']['h']
+def file_browse_window(cwd=None):
+	if cwd == None:
+		cwd = DATA_DIR
+	x = conf['windows']['browser']['x']
+	y = conf['windows']['browser']['y']
+	w = conf['windows']['browser']['w']
+	h = conf['windows']['browser']['h']
+	filepath = None
+	file_browser_layout = [[sg.T("")], [sg.Text("Choose a file: "), sg.Input(cwd, key='-path-', enable_events=True), sg.FileBrowse(initial_folder=cwd, key="-IN-")],[sg.Button("Submit")]]
+	file_browser_window = sg.Window('Load Media file or playlist...', file_browser_layout, location=(int(x), int(y)), size=(int(w), int(h)))
+	while True:
+		file_browser_event, file_browser_values = file_browser_window.read()
+		if file_browser_event == sg.WIN_CLOSED or file_browser_event=="Exit":
+			filepath = None
+			break
+		elif file_browser_event == "Submit":
+			try:
+				filepath = file_browser_values["-IN-"]
+				file_browser_window.close()
+				break
+			except:
+				filepath = file_browser_values['-path-']
+				file_browser_window.close()
+				break
+			
+	return filepath
+
+
+
+
+def folder_browse_window(cwd=None):
+	if cwd == None:
+		cwd = DATA_DIR
+	x = conf['windows']['browser']['x']
+	y = conf['windows']['browser']['y']
+	w = conf['windows']['browser']['w']
+	h = conf['windows']['browser']['h']
 	path = None
-	folder_browser_layout = [[sg.T("")], [sg.Text("Choose directory: "), sg.Input(), sg.FolderBrowse(key="-SAVE_PATH-")], [sg.Button("Submit")]]
+	folder_browser_layout = [[sg.T("")], [sg.Text("Choose directory: "), sg.Input(cwd, key='-path-', enable_events=True), sg.FolderBrowse(initial_folder=cwd, key="-SAVE_PATH-")], [sg.Button("Submit")]]
 	folder_browser_window = sg.Window("Save playlist file...", folder_browser_layout, location=(int(x), int(y)), size=(int(w), int(h)))
 	while True:
-		folder_browser_event, folder_browser_values = folder_browser_window.read()
+		folder_browser_event, folder_browser_values = folder_browser_window.read(timeout=1)
+		if folder_browser_event == '__TIMEOUT__':
+			pass
 		if folder_browser_event == sg.WIN_CLOSED or folder_browser_event=="Exit":
 			path = None
 			return None
 		elif folder_browser_event == "Submit":
-			ret = folder_browser_values[0]
-			if MP.conf['debug'] == True:
-				log(ret, 'info')
-			folder_browser_window.close()
-			return ret
-
+			try:
+				path = folder_browser_values["-SAVE_PATH-"]
+				folder_browser_window.close()
+				if path == '':
+					path = cwd
+				break
+			except:
+				path = folder_browser_values['-path-']
+				folder_browser_window.close()
+				if path == '':
+					path = cwd
+				break
+	return path
 
 
 def db_editor():
@@ -120,13 +165,21 @@ def start_thread(function, key, win):
 		return False
 
 
+def get_scaling():
+    # called before window created
+    root = sg.tk.Tk()
+    scaling = root.winfo_fpixels('1i')/72
+    root.destroy()
+    return scaling
+
+
 class gui():
 	def __init__(self):
 		self.TAB = '-player_control_layout-'
 		self.RESET = False
 		self.win_type = 'internal'
 		self.player = np.nplayer()
-		self.media = self.player.create_media()
+		self.playlist = self.player.create_media()
 		self.conf = np.readConf()
 		self.windows = []
 		self.conf['active_windows'] = self.windows
@@ -203,7 +256,7 @@ class gui():
 		media_modes = self.conf['network_modes']['media_modes']
 		search_line = [self.create_old('dropdown_menu', [self.tables, self.conf['play_type'], '-PLAY_TYPE-']), self.create_old('dropdown_menu', [list(self.conf['screens'].keys()), self.conf['screen'], '-SET_SCREEN-']), self.create_old('dropdown_menu', [['database', 'playlist'], 'database', '-PLAY_MODE-']), self.create_old('dropdown_menu', [control_modes, self.conf['network_mode']['control_mode'], '-CONTROL_MODE-']), self.create_old('dropdown_menu', [media_modes, self.conf['network_mode']['media_mode'], '-MEDIA_MODE-']), self.create_old('textbox', ['Search', '-SEARCH-']), self.create_old('text_input', ['Enter search query:', '-SEARCH_QUERY-']), self.create_old('btn', ['Search', 'Search'])]
 		debug_element = sg.Multiline(default_text=log_data, enter_submits=True, autoscroll=True, auto_size_text=True, horizontal_scroll=True, change_submits=True, enable_events=True, key='-DEBUGGER-', auto_refresh=True, reroute_stdout=False, reroute_stderr=False, reroute_cprint=False, echo_stdout_stderr=False, focus=False, expand_x=True, expand_y=True, rstrip=True)
-		elem_media_list = [self.create_old('listbox', [self.media['PLAYLIST_ITEMS'], '-CURRENT_PLAYLIST-']), debug_element]
+		elem_media_list = [self.create_old('listbox', [self.playlist, '-CURRENT_PLAYLIST-']), debug_element]
 		update_line = [self.create_old('btn', ['Refresh from Database']), self.create_old('btn', ['Refresh Log Data'])]
 		player_controls1 = [self.create_old('btn', ['Volume Up']), self.create_old('btn', ['previous']), self.create_old('btn', ['play']), self.create_old('btn', ['next']), self.create_old('btn', ['pause']), self.create_old('btn', ['stop'])]
 		player_controls2 = [self.create_old('btn', ['Volume Down']), self.create_old('btn', ['seek fwd']), self.create_old('btn', ['seek rev']), self.create_old('btn', ['Exit']), self.create_old('btn', ['Screenshot']), self.create_old('btn', ['Mark Intro: Start']), self.create_old('btn', ['Mark Intro: End'])]
@@ -213,7 +266,7 @@ class gui():
 			play_pos = 0
 			self.conf['nowplaying']['play_pos'] = play_pos
 		slider_scale = [sg.Slider(range=(0,1), resolution=0.01, default_value=play_pos, orientation='h', expand_x = True, enable_events = True, change_submits = True, key='-PLAY_POS-')]
-		line_window_ctl = [self.create_old('btn', ['store window location']), self.create_old('btn', ['Hide UI']), self.create_old('btn', ['Recenter UI']), self.create_old('btn', ['Fix Focus']), self.create_old('btn', ['Fix Scaling'])]
+		line_window_ctl = [self.create_old('btn', ['store window location']), self.create_old('btn', ['Recenter UI']), self.create_old('btn', ['Fix Focus']), self.create_old('btn', ['Fix Scaling'])]
 		self.video_temp_img = self.create_old('image', [np.DEFAULT_POSTER, '-VID_OUT-'])
 		
 		line.append(self.video_temp_img)
@@ -237,8 +290,7 @@ class gui():
 			[]
 		]
 		dbitems = []
-
-		self.menu_def = [['&File', ['-&Load Directory-', '-&Load Playlist-', '-&Save Playlist-', 'E&xit']], ['&Tools', ['&Pirate Bay Downloader', '-&Database Editor-', '-ID3 Tag Editor-', '&Torrent Manager', '&Video Filters', [np.VLC_VIDEO_FILTERS], '&Audio Filters', [np.VLC_AUDIO_FILTERS]]], ['&Help', '&About...'], ['&Media', ['-Scan Movies-', '-Scan Series-', '-Scan Music-', '-Scan All-']]]
+		self.menu_def = [['&File', ['-&Load Directory-', '-&Load Playlist-', '-&Save Playlist-', 'E&xit']], ['&Tools', ['&Pirate Bay Downloader', '-&Database Editor-', '-ID3 Tag Editor-', '&Torrent Manager', '&Video Filters', [np.VLC_VIDEO_FILTERS], '&Audio Filters', [np.VLC_AUDIO_FILTERS]]], ['&Help', '&About...'], ['&Media', ['-Scan Movies-', '-Scan Series-', '-Scan Music-', '-Scan All-', '-Clean Database-']]]
 		#self.layout = [[sg.MenubarCustom(self.menu_def, tearoff=True, key='-menubar_key-'), sg.Button("Close")], [sg.TabGroup([[sg.Tab('MP Controls', self.player_control_layout, key='-player_control_layout-')], [sg.Tab('DB Manager', self.db_mgr_layout, key='-db_mgr_layout-')]], 	expand_x=True, expand_y=True, enable_events=True)]]
 		self.layout = [[sg.MenubarCustom(self.menu_def, tearoff=True, key='-menubar_key-'), sg.Button('Hide UI'), sg.Button("Close")], [sg.TabGroup([[sg.Tab('MP Controls', self.player_control_layout, key='-player_control_layout-')], line_window_ctl], expand_x=True, expand_y=True, enable_events=True)]]
 		if 'GUI' not in self.windows:
@@ -252,6 +304,8 @@ class gui():
 			except:
 				log("Window already created!", 'error')
 		win = sg.Window('GUI', self.layout, no_titlebar=True, location=(int(self.gui_win_x),int(self.gui_win_y)), size=(self.gui_win_w,self.gui_win_h), keep_on_top=False, grab_anywhere=True, element_justification='center', finalize=True, resizable=True)
+		self.viewer_win_w, self.viewer_win_h = xrandr()[conf['screen']]['w'], xrandr()[conf['screen']]['h']
+		self.viewer_win_scale = get_scaling()
 		return win
 
 
