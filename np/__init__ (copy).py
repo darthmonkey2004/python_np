@@ -46,9 +46,52 @@ from np.ws import server
 from np.ws import client
 from np.ws import thread
 from np.utils.insert_intro import fix3d
+HOME = os.path.expanduser("~")
+try:
+	conf = readConf()
+	log("Conf read!", 'info')
+	DATA_DIR = conf['DATA_DIR']
+	EXEC_DIR = conf['EXEC_DIR']
+	LOGFILE = conf['LOGFILE']
+	WSLOGFILE = conf['WSLOGFILE']
+	CAPTURE_DIR = conf['CAPTURE_DIR']
+	CONFFILE = conf['CONFFILE']
+	SFTP_DIR = conf['SFTP_DIR']
+	MEDIA_DIR = conf['media_directories']['main']
+	MUSIC_DIR = conf['media_directories']['music']
+	MOVIES_DIR = conf['media_directories']['movies']
+	SERIES_DIR = conf['media_directories']['series']
+	EXEC_DIR = conf['EXEC_DIR']
+	DEFAULT_POSTER = conf['DEFAULT_POSTER']
+	log("__init__.py:Read directory data from conf!", 'info')
+except Exception as e:
+	log(f"__init__.py:Unable to read conf: {e}", 'error')
+	conf = initConf()
+	EXEC_DIR = conf['EXEC_DIR']
+	DATA_DIR = conf['DATA_DIR']
+	LOGFILE = conf['LOGFILE']
+	WSLOGFILE = conf['WSLOGFILE']
+	CAPTURE_DIR = conf['CAPTURE_DIR']
+	CONFFILE = conf['CONFFILE']
+	SFTP_DIR = (conf['SFTP_DIR'])
+	MEDIA_DIR = conf['media_directories']['main']
+	MUSIC_DIR = conf['media_directories']['music']
+	MOVIES_DIR = conf['media_directories']['movies']
+	SERIES_DIR = conf['media_directories']['series']
+	log(f"__init__.py:Unable to read directory data from conf: {e}. Defaults used.", 'error')
+
+if not os.path.exists(conf['CONFFILE']):
+	log(f"conf file doesn't exist, creating...", 'warning')
+	com = (f"touch '{CONFFILE}'")
+	subprocess.check_output(com, shell=True)
 
 
+pathlib.Path(DATA_DIR).mkdir(parents=True, exist_ok=True)
+pathlib.Path(SFTP_DIR).mkdir(parents=True, exist_ok=True)
 
+
+	
+		
 
 
 red = (255, 0, 0)

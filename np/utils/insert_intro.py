@@ -1,7 +1,8 @@
 import os
 import subprocess
 import json
-from np import log
+from np.core.log import np_logger
+log = np_logger().log_msg
 
 def extract_metadata(filepath):
 	com = (f"ffmpeg -y -i '{filepath}' -f ffmetadata FFMETADATAFILE.txt")

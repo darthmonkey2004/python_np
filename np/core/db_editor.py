@@ -1,9 +1,11 @@
-import np
 import PySimpleGUI as sg
 import subprocess
-global WINDOW, WINDOW2
+import os
+from np.core.nplayer_db import get_columns
+from np.utils.pbdl.rotten_tomatoes import get_episode_data
+
 def sqlite3(com):
-	path = (f"{np.DATA_DIR}/nplayer.db")
+	path = os.path.join(os.path.expanduser("~"), '.np', 'nplayer.db')
 	com = (f"sqlite3 \"{path}\" \"{com}\"")
 	print (f"Query: \"{com}\"")
 	ret = subprocess.check_output(com, shell=True).decode().strip()
@@ -51,10 +53,10 @@ def get_table(values):
 
 def edit_details(table, _id):
 	menu_def = [['&Tools', ['&Rotten Tomatoes Query']]]
-	global h
+	global h, WINDOW, WINDOW2
 	ew, eh = WINDOW.CurrentLocation()
 	eh = eh + h
-	schema = np.get_columns(table)
+	schema = get_columns(table)
 	columns = list(schema.keys())
 	com = (f"select * from {table} where id = {_id};")
 	info = sqlite3(com).split('|')
@@ -137,7 +139,7 @@ def show_editor():
 	return WINDOW
 
 			
-def run():
+def db_editor():
 	title = None
 	series_name = None
 	artist = None
@@ -152,7 +154,7 @@ def run():
 		try:
 			window, event, values = sg.read_all_windows(timeout=10)
 		except Exception as e:
-			np.log(f"Error reading window (closed?)", 'error')
+			log(f"Error reading window (closed?)", 'error')
 			break
 		try:
 			table = get_table(values)
@@ -169,7 +171,7 @@ def run():
 				WINDOW2.close()
 			elif event == 'Rotten Tomatoes Query':
 				if table == 'series':
-					info = np.utils.rotten_tomatoes_query.get_episode_data(series_name, season, episode_number)
+					info = get_episode_data(series_name, season, episode_number)
 					if info is not None:
 						for key in list(info.keys()):
 							val = info[key]
@@ -364,7 +366,7 @@ def run():
 				episode_number = None
 				episode_name = None
 			elif event == '-update-':
-				pragma = np.get_columns(table)
+				pragma = get_columns(table)
 				columns = list(pragma.keys())
 				pos = -1
 				query = None
@@ -390,8 +392,8 @@ def run():
 								query = (f"update {table} set {column} = {val} where id = {_id}")
 							ret = sqlite3(query)
 							if ret:
-								np.log(f"Error in update items: {ret}", 'error')
+								log(f"Error in update items: {ret}", 'error')
 							else:
-								np.log(f"Item updated! key={key}, val={val}", 'info')
+								log(f"Item updated! key={key}, val={val}", 'info')
 			else:
 				print (window, event, values)

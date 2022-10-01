@@ -1,6 +1,9 @@
 import subprocess
 import os
-from np import readConf, test_db, addtodb, DATA_DIR, cleandb
+from np.core.conf import readConf
+from np.core.nplayer_db import test_db
+from np.core.nplayer_db import addtodb
+from np.utils.cleandb import run as cleandb
 from np.utils.tadb_search import lookup
 from np.utils.id3 import tag
 from np.core.log import np_logger
@@ -37,7 +40,8 @@ def set_empty(play_type):
 
 def test_exists(filepath):
 	conf = readConf()
-	com = (f"sqlite3 \"{DATA_DIR}{os.path.sep}nplayer.db\" \"select id from music where filepath = '{filepath}'\";")
+	dbfile = os.path.join(os.path.expanduser("~"), '.np', 'nplayer.db')
+	com = (f"sqlite3 \"{dbfile}\" \"select id from music where filepath = '{filepath}'\";")
 	exists = subprocess.check_output(com, shell=True).decode().strip()
 	if conf['debug'] == True:
 		log(f"exists: {exists}, filepath: {filepath}", 'debug')

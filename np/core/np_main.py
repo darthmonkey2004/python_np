@@ -23,12 +23,16 @@ import time
 import sys, traceback
 from np.core.log import np_logger
 from np.ws.server import server
+from np.utils.vlc_filters import create_vlc_filters
 logger = np_logger().log_msg
 update_ct = 5
 remote_com_q = queue.Queue()
 remote_ret_q = queue.Queue()
 server = server(remote_com_q, remote_ret_q)
 pbdl = pbdl()
+VLC_VIDEO_FILTERS = create_vlc_filters('video')
+VLC_AUDIO_FILTERS = create_vlc_filters('audio')
+
 
 def log(msg, _type=None):
 	if _type is None:
@@ -86,11 +90,10 @@ def recenter_ui():
 		gui_screen = 0
 	try:
 		state = 'visible'
-		MP.conf['windows']['gui']['visible_status'] = state
-		gui_x = int(MP.conf['windows']['gui'][state][gui_screen]['x'])
-		gui_y = int(MP.conf['windows']['gui'][state][gui_screen]['y'])
+		gui_x = int(MP.conf['windows'][gui_screen]['gui']['x'])
+		gui_y = int(MP.conf['windows'][gui_screen]['gui']['y'])
 		UI.WINDOW.move(gui_x, gui_y)
-		UI.WINDOW2.move(int(MP.conf['windows']['viewer'][viewer_screen]['x']), int(MP.conf['windows']['viewer'][viewer_screen]['y']))
+		UI.WINDOW2.move(int(MP.conf['windows'][viewer_screen]['viewer']['x']), int(MP.conf['windows'][viewer_screen]['viewer']['y']))
 		np.writeConf(MP.conf)
 	except:
 		try:
@@ -99,12 +102,11 @@ def recenter_ui():
 			MP.conf['windows'] = np.init_window_position()
 			log(f"init_window_position running from 'recenter_ui', np.py, MP.conf['windows'] not initialized ({e})", 'warning')
 			
-		MP.conf['windows']['gui']['visible_status'] = state
-		gui_x = int(MP.conf['windows']['gui'][state][gui_screen]['x'])
-		gui_y = int(MP.conf['windows']['gui'][state][gui_screen]['y'])
+		gui_x = int(MP.conf['windows'][gui_screen]['gui']['x'])
+		gui_y = int(MP.conf['windows'][gui_screen]['gui']['y'])
 		UI.WINDOW.move(gui_x, gui_y)
 		screen = int(MP.conf['screen'])
-		UI.WINDOW2.move(int(MP.conf['windows']['viewer'][viewer_screen]['x']), int(MP.conf['windows']['viewer'][viewer_screen]['y']))
+		UI.WINDOW2.move(int(MP.conf['windows'][viewer_screen]['viewer']['x']), int(MP.conf['windows'][viewer_screen]['viewer']['y']))
 		np.writeConf(MP.conf)
 
 def dbmgr_add_items(items=None):
@@ -138,36 +140,6 @@ def dbmgr_clear_all():
 def dbmgr_select_all():
 	MP.dbmgr_picked_items = sorted(MP.playlist)
 	UI.WINDOW['-DBMGR_SELECTED_ROWS-'].update(MP.dbmgr_picked_items)
-			
-def hide_ui(conf=None):
-	if MP.conf == None:
-		MP.conf = np.readConf()
-	viewer_screen = MP.conf['screen']
-	try:
-		if viewer_screen == 0:
-			gui_screen = 1
-		elif viewer_screen == 1:
-			gui_screen = 0
-	except:
-		gui_screen = 0
-	try:
-		MP.conf['windows']['gui']['visible_status'] = 'hidden'
-		log(f"EVENT:UI HIDDEN", 'info')
-		np.writeConf(MP.conf)
-		x = int(MP.conf['windows']['gui']['hidden'][gui_screen]['x'])
-		y = int(MP.conf['windows']['gui']['hidden'][gui_screen]['y'])
-		UI.WINDOW.move(x, y)
-	except Exception as e:
-		log(f"Exception in hide_ui(): {e}, screen={gui_screen}", 'error')
-		try:
-			test = MP.conf['windows']
-		except Exception as e:
-			MP.conf['windows'] = np.init_window_position()
-			log(f"init_window_position running from 'hide_ui', np.py, {e}", 'warning')
-		MP.conf['windows']['gui']['visible_status'] = state
-		x = int(MP.conf['windows']['gui']['hidden'][gui_screen]['x'])
-		y = int(MP.conf['windows']['gui']['hidden'][gui_screen]['y'])
-		UI.WINDOW.move(x, y)
 
 
 def store_window_location():
@@ -180,10 +152,9 @@ def store_window_location():
 			gui_screen = 0
 		else:
 			gui_screen = 0
-		state = MP.conf['windows']['gui']['visible_status']
-		MP.conf['windows']['gui'][state][gui_screen]['x'], MP.conf['windows']['gui'][state][gui_screen]['y'] = UI.get_window_location('gui')
+		MP.conf['windows'][gui_screen]['gui']['x'], MP.conf['windows'][gui_screen]['gui']['y'] = UI.get_window_location('gui')
 		np.writeConf(MP.conf)
-		log(f"Window location stored:{MP.conf['windows']['gui'][state][gui_screen]['x']}, {MP.conf['windows']['gui'][state][gui_screen]['y']}", 'info')
+		log(f"Window location stored:{MP.conf['windows'][gui_screen]['gui']['x']}, {MP.conf['windows'][gui_screen]['gui']['y']}", 'info')
 	except Exception as e:
 		log(f"Unable to get window location (probably closed). Details: {e}", 'error')
 
@@ -328,19 +299,22 @@ def update_media_info(row):
 
 def load_playlist(filepath=None):
 	if filepath is None:
-		filepath = np.file_browse_window()
-	MP.stop()
-	if ".txt" in filepath:
-		MP.playlist = sorted(MP.load_playlist(filepath))
-		UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.playlist)
-		MP.play_mode = 'playlist'
-		UI.WINDOW['-PLAY_MODE-'].update(MP.play_mode)
-		filepath = MP.playlist[0]
-		MP.play(filepath)
-	else:
+		log(f"Error: Cartoons can be quite distracting, ergo you didn't give me a path to load. You're forgiven.", 'error')
 		MP.play_mode = 'database'
 		UI.WINDOW['-PLAY_MODE-'].update(MP.play_mode)
 		MP.play(filepath)
+	else:
+		if ".txt" in filepath:
+			MP.playlist = sorted(MP.load_playlist(filepath))
+			UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.playlist)
+			MP.play_mode = 'playlist'
+			UI.WINDOW['-PLAY_MODE-'].update(MP.play_mode)
+			filepath = MP.playlist[0]
+			MP.play(filepath)
+		else:
+			MP.play_mode = 'database'
+			UI.WINDOW['-PLAY_MODE-'].update(MP.play_mode)
+			MP.play(filepath)
 
 
 def set_debug(mode=None):
@@ -356,31 +330,6 @@ def set_debug(mode=None):
 	np.writeConf(MP.conf)
 	log(f"Debug option changed: {MP.conf['debug']}!", 'info')
 
-
-def btn_handler(btn):
-	global P, MP, UI
-	if btn == MP.KEY_EVENTS['SEEK_FWD']:
-		seek_fwd()
-	elif btn == MP.KEY_EVENTS['SEEK_REV']:
-		seek_rev()
-	elif btn == MP.KEY_EVENTS['SCALE_UP']:
-		scale = P.video_get_scale()
-		scale = float(scale + 0.1)
-		P.video_set_scale(scale)
-	elif btn == MP.KEY_EVENTS['SCALE_DOWN']:
-		scale = P.video_get_scale()
-		scale = float(scale - 0.1)
-		P.video_set_scale(scale)
-	elif btn == MP.KEY_EVENTS['FULLSCREEN']:
-		P.toggle_fullscreen()
-		MP.conf['fullscreen'] = P.get_fullscreen()
-	elif btn == MP.KEY_EVENTS['PAUSE']:
-		P.pause()
-	elif btn == MP.KEY_EVENTS['SKIP_NEXT']:
-		MP.skip_next()
-	elif btn == MP.KEY_EVENTS['SKIP_PREV']:
-		MP.skip_previous()
-	btn = None
 
 
 def remote_handler(com, arg):
@@ -627,7 +576,8 @@ def remote_handler(com, arg):
 
 def refresh_log_data():
 	log_data = []
-	with open(np.LOGFILE, 'r') as f:
+	log_file = os.path.join(os.path.expanduser("~"), '.np', 'nplayer.log')
+	with open(log_file, 'r') as f:
 		data = f.read().split("\n")
 	f.close()
 	if data is not None:
@@ -702,7 +652,6 @@ def start():
 		except Exception as e:
 			MP.conf['windows'] = np.init_window_position()
 			log(f"init_window_position running from 'start', np.py, MP.conf['init'] != True, {e}", 'warning')
-		#MP.conf['windows']['gui']['visible_status'] = 'visible'
 		np.writeConf(MP.conf)
 		ui_center()
 	set_video_out()
@@ -795,16 +744,6 @@ def start():
 				elif event == 'Exit' or event == 'Close':
 					update_resume()
 					MP.exit = True
-					#com = (f"kill {MP.conf['remote']['server']['pid']}")
-					#try:
-					#	ret = subprocess.check_output(com, shell=True).decode().strip()
-					#	log(f"Remote server killed sucessfully!", 'info')
-					#except Exception as e:
-					#	log(f"Killing remote server failed: {e}. Killing all python...", 'error')
-					#	com = (f"kill $(pgrep python3)")
-					#	ret = subprocess.check_output(com, shell=True).decode().strip()							
-					#if ret != '':
-					#	log(f"Killing remote server returned response: {ret}", 'warning')
 					MP.conf['remote']['server']['pid'] = None
 					np.writeConf(MP.conf)
 					log(f"Exit set to true {event}", 'info')
@@ -909,7 +848,7 @@ def start():
 						log(f"ACTION:play", 'info')
 				elif event == 'Refresh from Database':
 					MP.media = np.create_media()
-					UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.PLAYLIST_ITEMS)
+					UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.playlist)
 				elif event == 'Refresh Log Data':
 					refresh_log_data()
 					readct = 0
@@ -1051,7 +990,7 @@ def start():
 							rows = np.querydb(table='series', column='id,series_name,tmdbid,season,episode_number,episode_name,description,air_date,still_path,filepath', query=query_string)
 							MP.playlist = np.create_media(rows=rows)
 							if rows is not None:
-								UI.WINDOW['-CURRENT_PLAYLIST-'].update(sorted(MP.playlist['PLAYLIST_ITEMS']))
+								UI.WINDOW['-CURRENT_PLAYLIST-'].update(sorted(MP.playlist))
 								MP.play_mode = 'playlist'
 								UI.WINDOW['-PLAY_MODE-'].update(MP.play_mode)
 							else:
@@ -1178,27 +1117,29 @@ def start():
 						log(f"No input provided! {e}", 'error')
 				elif event == "-Save Playlist-":
 					filepath = file_browse_window()
-					try:
-						ret = MP.save_playlist(filepath, MP.playlist)
-						if ret is True:
-							log(f"Save playlist: Success: {filepath}", 'info')
-						else:
-							log(f"Save playlist: Failed! {filepath}", 'info')
-					except:
-						log(f"No input provided! {e}", 'error')
+					if filepath is not None:
+						try:
+							ret = MP.save_playlist(filepath, MP.playlist)
+							if ret is True:
+								log(f"Save playlist: Success: {filepath}", 'info')
+							else:
+								log(f"Save playlist: Failed! {filepath}", 'info')
+						except:
+							log(f"No input provided! {e}", 'error')
 				elif event == "-Load Directory-":
 					MP.stop()
 					path = folder_browse_window()
-					try:
-						MP.playlist = sorted(MP.load_directory(path))
-						if MP.playlist is not None:
-							UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.playlist)
-							MP.play_mode = 'playlist'
-							UI.WINDOW['-PLAY_MODE-'].update(MP.play_mode)
-							filepath = MP.playlist[0]
-							MP.play(filepath)
-					except Exception as e:
-						log(f"Error: No user input provided: {e}", 'error')
+					if path is not None:
+						try:
+							MP.playlist = sorted(MP.load_directory(path))
+							if MP.playlist is not None:
+								UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.playlist)
+								MP.play_mode = 'playlist'
+								UI.WINDOW['-PLAY_MODE-'].update(MP.play_mode)
+								filepath = MP.playlist[0]
+								MP.play(filepath)
+						except Exception as e:
+							log(f"Error: No user input provided: {e}", 'error')
 					else:	
 						np.log(f"Failed to load directory '{path}'.", 'error')
 						MP.play_needed = 1
@@ -1236,7 +1177,7 @@ def start():
 				elif event == 'Screenshot':
 					ret = MP.screenshot()
 					np.log(ret, 'info')
-				elif event in np.VLC_VIDEO_FILTERS or event in np.VLC_AUDIO_FILTERS:
+				elif event in VLC_VIDEO_FILTERS or event in VLC_AUDIO_FILTERS:
 					f = event
 					log(f"Changing filter:{f}", 'info')
 					ret = change_filter(f)
@@ -1324,12 +1265,7 @@ def start():
 					else:
 						MP.play()
 				play_needed = 0	
-
-			# if button event, pass to btn handler
-			if btn is not None:
-				btn_handler(btn)
-				log(f"Button event: {btn}", 'info')			
-			#if com, btn, or event handler set nplayer's 'exit' class attribute to True for any reason, stop main loop.
+			#if com or event handler set nplayer's 'exit' class attribute to True for any reason, stop main loop.
 			if MP.exit == True:
 				log(f"Exit (break)!", 'info')
 				break
@@ -1343,7 +1279,7 @@ def start():
 			if P.is_playing() and MP.is_url == False:
 				if MP.scale_needed == 1:
 					#MP.conf['scale'] = np.calculate_scale(MP.next)
-					calculated_scale = np.calculate_scale(MP.conf['nowplaying']['filepath'], (MP.viewer_win_w, MP.viewer_win_h), MP.viewer_win_scale)
+					calculated_scale = np.calculate_scale(MP.conf['nowplaying']['filepath'])
 					current_scale = P.video_get_scale()
 					P.video_set_scale(calculated_scale)
 					log(f"Set scale by scale_needed flag: Previous:{current_scale}, New:{calculated_scale}", 'info')

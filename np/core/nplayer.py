@@ -18,6 +18,11 @@ logger = np_logger().log_msg
 import sys
 import PySimpleGUI as sg
 
+def sqlite3(com):
+	path = os.path.join(os.path.expanduser("~"), '.np', 'nplayer.db')
+	com = f"sqlite3 \"{path}\" \"{com}\""
+	return subprocess.check_output(com, shell=True).decode().strip().split("\n")
+
 
 def log(msg, _type=None):
 	if _type is None:
@@ -28,8 +33,6 @@ def log(msg, _type=None):
 		return
 	else:
 		logger(msg, _type)
-
-
 
 
 #-------------main player class=------------#
@@ -77,7 +80,7 @@ class nplayer():
 		self.next = None
 		self.ART_UPDATE_NEEDED = False
 		self.is_active = 1
-		self.screencaps = np.CAPTURE_DIR
+		self.screencaps = os.path.join(os.path.expanduser("~"), 'Pictures', 'nplayer_caps')
 		self.is_recording = False
 		self.vlcInstance = None
 		self.selected_playlist_item = None
@@ -168,6 +171,7 @@ class nplayer():
 				elif event == 'EventType.MediaMPPlaying':
 					self.is_playing = self.player.is_playing()
 					self.play_needed = 0
+					self.scale_needed = 1
 					log(f"play_needed set = 0 (vlc_event[MediaMPPlaying]: line202", 'info')
 
 #------------playlist/dbmgr functions----------------#
@@ -376,12 +380,9 @@ class nplayer():
 			log(f"set scale: Filepath provided: {filepath}", 'info')
 		prescale = self.player.video_get_scale()
 		self.viewer_win_scale = self.get_scaling()
-		
-		
-		
-		
+
 		w, h = self.viewer_win_w, self.viewer_win_h
-		scale = np.calculate_scale(filepath, (w, h), self.viewer_win_scale)
+		scale = np.calculate_scale(filepath)
 		scale = self.constrain_scale(scale)
 		self.player.video_set_scale(scale)
 		if prescale != scale:
@@ -396,10 +397,8 @@ class nplayer():
 
 	def play(self, _file=None):
 		print(self.play_mode)
-		#init resume to None
 		self.resume = None
 		self.series_history = np.read_history()
-		#init next to None
 		self.next = None
 		#if filepath provided...
 		if _file is not None:
@@ -578,8 +577,8 @@ class nplayer():
 		except Exception as e:
 			log(f"Unable to get poster: {e}", 'error')
 		screen = self.conf['screen']
-		self.art_w = self.conf['windows']['viewer'][screen]['w']
-		self.art_h = self.conf['windows']['viewer'][screen]['h']
+		self.art_w = self.conf['windows'][screen]['viewer']['w']
+		self.art_h = self.conf['windows'][screen]['viewer']['h']
 		com = ("convert 'poster.jpg' -resize " + str(self.art_w) + "x" + str(self.art_h) + " 'poster.png'")
 		ret = subprocess.check_output(com, shell=True)
 		self.album_art = 'poster.png'
@@ -606,6 +605,16 @@ class nplayer():
 
 
 	def save_playlist(self, filepath, media_list):
+		l = []
+		if len(media_list[0].split(':')) >= 3:
+			for string in media_list:
+				_id = string.split(':')[len(string.split(':')) - 1]
+				play_type = string.split(':')[0]
+				path = sqlite3(f"select filepath from {play_type} where id = {_id}")
+				for line in path:
+					l.append(line)
+		if len(l) > 0:
+			media_list = sorted(l)
 		try:
 			j = "\n"
 			data = j.join(media_list)

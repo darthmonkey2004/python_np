@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 import subprocess
 import json
-from np import log
+from np.core.log import np_logger
+log = np_logger().log_msg
 
 def guess_intro(_file):
 	log(f"Guessing intro for file: '{_file}'...", 'info')

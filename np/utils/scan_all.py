@@ -1,12 +1,17 @@
-from np import scan_music, scan_movies, scan_series, readConf, DATA_DIR, create_db
+from np.utils.scan_music import scan_music
+from np.utils.scan_movies import scan_movies
+from np.utils.scan_series import scan_series
+from np.core.conf import readConf
+from np.core.nplayer_db import create_db
 import subprocess
 import os
 import datetime
+data_dir = os.path.join(os.path.expanduser("~"), '.np')
 
 def backup_db():
 	ts = datetime.datetime.now().timestamp()
 	newname = (f"{ts}.nplayer.backup.db")
-	com = f"cd '{DATA_DIR}'; mv nplayer.db {newname}"
+	com = f"cd '{data_dir}'; mv nplayer.db {newname}"
 	ret = subprocess.check_output(com, shell=True)
 	if ret:
 		return ret
@@ -15,7 +20,7 @@ def backup_db():
 
 def scan_all(dir=None):
 	conf = readConf()
-	dbfile = f"{DATA_DIR}/nplayer.db"
+	dbfile = f"{data_dir}/nplayer.db"
 	if dir == None:
 		series_dir = conf['media_directories']['series']
 		music_dir = conf['media_directories']['music']
@@ -33,18 +38,18 @@ def scan_all(dir=None):
 				np.log("Aborting...", 'error')
 				exit()
 	create_db()
-	print ("Scanning for Music...")
+	log("Scanning for Music...", 'info')
 	scan_music(music_dir)
-	print ("Scanning for Movies...")
+	log("Scanning for Movies...", 'info')
 	scan_movies(movies_dir)
-	print ("Scanning for TV Series...")
+	log("Scanning for TV Series...", 'info')
 	scan_series(series_dir)
-	print ("Done!")
+	log("Done!", 'info')
 	yn = input("Run np now? (y/n)")
 	if yn == "y":
 		subprocess.call('np')
 	else:
-		print ("Exiting...")
+		log("Exiting...", 'info')
 		exit()
 	np.log(f"Running cleandb: All...", 'info')
 	np.cleandb()

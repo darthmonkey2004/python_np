@@ -1,8 +1,10 @@
 import subprocess
-from np import readConf,HOME,writeConf,log
+from np.core.conf import readConf, writeConf
+from np.core.log import np_logger
 from np.utils.pbdl.torrentmgr_ui import *
 from np.utils.pbdl.utils import get_torrents, get_files
-
+import os
+log = np_logger().log_msg
 
 def get_user_input(window_title='User Input', txt=None):
 	user_input = None
@@ -68,7 +70,7 @@ class torrent_mgr():
 		else:
 			self.set_start_paused()
 		self.set_global_ratio(0)
-		self.user = HOME.split('/home/')[1]
+		self.user = os.path.expanduser("~").split('/home/')[1]
 
 	def set_remote_host(self, remote_ip=None):
 		conf = readConf()

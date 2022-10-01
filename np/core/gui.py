@@ -1,35 +1,26 @@
-from np import xrandr
-import sys, traceback
+from np.core.nplayer import nplayer
+from np.utils.vlc_filters import create_vlc_filters
+from np.core.xrandr import xrandr
 import subprocess
 import os
-from np import log as logger
-import np
+from np.core.log import np_logger
 import PySimpleGUI as sg
 from np.core.conf import readConf
-home = os.path.expanduser("~")
-DATA_DIR = (home + os.path.sep + ".np")
-conf = np.readConf()
+from np.core.nplayer_db import get_columns
+log = np_logger().log_msg
+
+
+
 #-----------main gui creation class------------#
-
-
-def log(msg, _type=None):
-	if _type is None:
-		_type = 'info'
-	if _type == 'error':
-		exc_info = sys.exc_info()
-		logger(msg, _type, exc_info)
-		return
-	else:
-		logger(msg, _type)
-
-
 def file_browse_window(cwd=None):
+	conf = readConf()
 	if cwd == None:
-		cwd = DATA_DIR
-	x = conf['windows']['browser']['x']
-	y = conf['windows']['browser']['y']
-	w = conf['windows']['browser']['w']
-	h = conf['windows']['browser']['h']
+		cwd = os.path.join(os.path.expanduser("~"), '.np')
+	screen = conf['screen']
+	x = conf['windows'][screen]['browser']['x']
+	y = conf['windows'][screen]['browser']['y']
+	w = conf['windows'][screen]['browser']['w']
+	h = conf['windows'][screen]['browser']['h']
 	filepath = None
 	file_browser_layout = [[sg.T("")], [sg.Text("Choose a file: "), sg.Input(cwd, key='-path-', enable_events=True), sg.FileBrowse(initial_folder=cwd, key="-IN-")],[sg.Button("Submit")]]
 	file_browser_window = sg.Window('Load Media file or playlist...', file_browser_layout, location=(int(x), int(y)), size=(int(w), int(h)))
@@ -54,12 +45,13 @@ def file_browse_window(cwd=None):
 
 
 def folder_browse_window(cwd=None):
+	conf = readConf()
 	if cwd == None:
-		cwd = DATA_DIR
-	x = conf['windows']['browser']['x']
-	y = conf['windows']['browser']['y']
-	w = conf['windows']['browser']['w']
-	h = conf['windows']['browser']['h']
+		cwd = os.path.join(os.path.expanduser("~"), '.np')
+	x = conf['windows'][conf['screen']]['browser']['x']
+	y = conf['windows'][conf['screen']]['browser']['y']
+	w = conf['windows'][conf['screen']]['browser']['w']
+	h = conf['windows'][conf['screen']]['browser']['h']
 	path = None
 	folder_browser_layout = [[sg.T("")], [sg.Text("Choose directory: "), sg.Input(cwd, key='-path-', enable_events=True), sg.FolderBrowse(initial_folder=cwd, key="-SAVE_PATH-")], [sg.Button("Submit")]]
 	folder_browser_window = sg.Window("Save playlist file...", folder_browser_layout, location=(int(x), int(y)), size=(int(w), int(h)))
@@ -178,9 +170,9 @@ class gui():
 		self.TAB = '-player_control_layout-'
 		self.RESET = False
 		self.win_type = 'internal'
-		self.player = np.nplayer()
+		self.player = nplayer()
 		self.playlist = self.player.create_media()
-		self.conf = np.readConf()
+		self.conf = readConf()
 		self.windows = []
 		self.conf['active_windows'] = self.windows
 		self.conf['gui_data'] = {}
@@ -193,11 +185,6 @@ class gui():
 		elif self.conf['screen'] == 1:
 			scrnbtn0_val = False
 			scrnbtn1_val = True
-		try:
-			state = self.conf['windows']['visible_state']
-		except:
-			self.conf['windows'] = np.init_window_position()
-			state = self.conf['windows']['gui']['visible_status']
 		viewer_screen = self.conf['screen']
 		if viewer_screen == 0:
 			screen = 1
@@ -205,15 +192,15 @@ class gui():
 			screen = 0
 		else:
 			screen = 0
-		self.gui_win_x = self.conf['windows']['gui'][state][screen]['x']
-		self.gui_win_y = self.conf['windows']['gui'][state][screen]['y']
-		self.gui_win_w = self.conf['windows']['gui'][state][screen]['w']
-		self.gui_win_h = self.conf['windows']['gui'][state][screen]['h']
+		self.gui_win_x = self.conf['windows'][screen]['gui']['x']
+		self.gui_win_y = self.conf['windows'][screen]['gui']['y']
+		self.gui_win_w = self.conf['windows'][screen]['gui']['w']
+		self.gui_win_h = self.conf['windows'][screen]['gui']['h']
 		log(f"GUI window set: {self.gui_win_x}, {self.gui_win_y}, {self.gui_win_w}, {self.gui_win_y}", 'info')
-		self.viewer_win_x = self.conf['windows']['viewer'][viewer_screen]['x']
-		self.viewer_win_y = self.conf['windows']['viewer'][viewer_screen]['y']
-		self.viewer_win_w = self.conf['windows']['viewer'][viewer_screen]['w']
-		self.viewer_win_h = self.conf['windows']['viewer'][viewer_screen]['h']
+		self.viewer_win_x = self.conf['windows'][viewer_screen]['viewer']['x']
+		self.viewer_win_y = self.conf['windows'][viewer_screen]['viewer']['y']
+		self.viewer_win_w = self.conf['windows'][viewer_screen]['viewer']['w']
+		self.viewer_win_h = self.conf['windows'][viewer_screen]['viewer']['h']
 		log(f"Viewer window set: {self.viewer_win_x}, {self.viewer_win_y}, {self.viewer_win_w}, {self.viewer_win_h}", 'info')
 		#self.window = None
 		self.event = None
@@ -240,7 +227,7 @@ class gui():
 		else:
 			log(f"Warning: {title} already in self.windows! ({self.windows})", 'warning')
 		self.RESET = False
-		self.icon_path = f"{np.HOME}/.local/poster.png"
+		self.icon_path = os.path.join(os.path.expanduser("~"), ".local", "poster.png")
 		sg.set_global_icon(self.icon_path)
 
 
@@ -249,12 +236,16 @@ class gui():
 
 
 	def create_gui_window(self):
+		VLC_VIDEO_FILTERS = create_vlc_filters('video')
+		VLC_AUDIO_FILTERS = create_vlc_filters('audio')
 		line = []
 		log_data = 'Nyuh-uh!'
 		scale = float(int(self.conf['scale']) * 10)
 		control_modes = self.conf['network_modes']['control_modes']
 		media_modes = self.conf['network_modes']['media_modes']
-		search_line = [self.create_old('dropdown_menu', [self.tables, self.conf['play_type'], '-PLAY_TYPE-']), self.create_old('dropdown_menu', [list(self.conf['screens'].keys()), self.conf['screen'], '-SET_SCREEN-']), self.create_old('dropdown_menu', [['database', 'playlist'], 'database', '-PLAY_MODE-']), self.create_old('dropdown_menu', [control_modes, self.conf['network_mode']['control_mode'], '-CONTROL_MODE-']), self.create_old('dropdown_menu', [media_modes, self.conf['network_mode']['media_mode'], '-MEDIA_MODE-']), self.create_old('textbox', ['Search', '-SEARCH-']), self.create_old('text_input', ['Enter search query:', '-SEARCH_QUERY-']), self.create_old('btn', ['Search', 'Search'])]
+		
+		search_line = [self.create_old('dropdown_menu', [self.tables, self.conf['play_type'], '-PLAY_TYPE-']), self.create_old('dropdown_menu', [list(self.conf['screens']), self.conf['screen'], '-SET_SCREEN-']), self.create_old('dropdown_menu', [['database', 'playlist'], 'database', '-PLAY_MODE-']), self.create_old('dropdown_menu', [control_modes, self.conf['network_mode']['control_mode'], '-CONTROL_MODE-']), self.create_old('dropdown_menu', [media_modes, self.conf['network_mode']['media_mode'], '-MEDIA_MODE-']), self.create_old('textbox', ['Search', '-SEARCH-']), sg.Input(default_text='', enable_events=False, do_not_clear=True, key='-SEARCH_QUERY-', expand_x=True), self.create_old('btn', ['Search', 'Search'])]
+		
 		debug_element = sg.Multiline(default_text=log_data, enter_submits=True, autoscroll=True, auto_size_text=True, horizontal_scroll=True, change_submits=True, enable_events=True, key='-DEBUGGER-', auto_refresh=True, reroute_stdout=False, reroute_stderr=False, reroute_cprint=False, echo_stdout_stderr=False, focus=False, expand_x=True, expand_y=True, rstrip=True)
 		elem_media_list = [self.create_old('listbox', [self.playlist, '-CURRENT_PLAYLIST-']), debug_element]
 		update_line = [self.create_old('btn', ['Refresh from Database']), self.create_old('btn', ['Refresh Log Data'])]
@@ -267,14 +258,15 @@ class gui():
 			self.conf['nowplaying']['play_pos'] = play_pos
 		slider_scale = [sg.Slider(range=(0,1), resolution=0.01, default_value=play_pos, orientation='h', expand_x = True, enable_events = True, change_submits = True, key='-PLAY_POS-')]
 		line_window_ctl = [self.create_old('btn', ['store window location']), self.create_old('btn', ['Recenter UI']), self.create_old('btn', ['Fix Focus']), self.create_old('btn', ['Fix Scaling'])]
-		self.video_temp_img = self.create_old('image', [np.DEFAULT_POSTER, '-VID_OUT-'])
+		default_poster = os.path.join(os.path.expanduser("~"), '.local', 'poster.png')
+		self.video_temp_img = self.create_old('image', [default_poster, '-VID_OUT-'])
 		
 		line.append(self.video_temp_img)
 		
 		self.player_window_layout.append(line)
 		self.player_window_layout.append([sg.Sizegrip(key='-viewer_size-')])
 		table = self.play_type
-		columns_list = list(np.get_columns(table).keys())
+		columns_list = list(get_columns(table).keys())
 		radio_sql_table_select = [[sg.Radio('series', "TABLES", default=False, enable_events=True, key='-table_series-'), sg.Radio('movies', "TABLES", default=False, enable_events=True, key='-table_movies-'), sg.Radio('music', "TABLES", default=True, enable_events=True, key='-table_music-'), self.create_old('btn', ['Select All', '-Select All-']), self.create_old('btn', ['Clear All', '-Clear All-'])]]
 		radio_frame = sg.Frame(title='', layout=radio_sql_table_select, key='table_select', expand_x=True, grab=True, element_justification="left", vertical_alignment="top")
 		self.player_control_layout = [
@@ -290,7 +282,7 @@ class gui():
 			[]
 		]
 		dbitems = []
-		self.menu_def = [['&File', ['-&Load Directory-', '-&Load Playlist-', '-&Save Playlist-', 'E&xit']], ['&Tools', ['&Pirate Bay Downloader', '-&Database Editor-', '-ID3 Tag Editor-', '&Torrent Manager', '&Video Filters', [np.VLC_VIDEO_FILTERS], '&Audio Filters', [np.VLC_AUDIO_FILTERS]]], ['&Help', '&About...'], ['&Media', ['-Scan Movies-', '-Scan Series-', '-Scan Music-', '-Scan All-', '-Clean Database-']]]
+		self.menu_def = [['&File', ['-&Load Directory-', '-&Load Playlist-', '-&Save Playlist-', 'E&xit']], ['&Tools', ['&Pirate Bay Downloader', '-&Database Editor-', '-ID3 Tag Editor-', '&Torrent Manager', '&Video Filters', [VLC_VIDEO_FILTERS], '&Audio Filters', [VLC_AUDIO_FILTERS]]], ['&Help', '&About...'], ['&Media', ['-Scan Movies-', '-Scan Series-', '-Scan Music-', '-Scan All-', '-Clean Database-']]]
 		#self.layout = [[sg.MenubarCustom(self.menu_def, tearoff=True, key='-menubar_key-'), sg.Button("Close")], [sg.TabGroup([[sg.Tab('MP Controls', self.player_control_layout, key='-player_control_layout-')], [sg.Tab('DB Manager', self.db_mgr_layout, key='-db_mgr_layout-')]], 	expand_x=True, expand_y=True, enable_events=True)]]
 		self.layout = [[sg.MenubarCustom(self.menu_def, tearoff=True, key='-menubar_key-'), sg.Button('Hide UI'), sg.Button("Close")], [sg.TabGroup([[sg.Tab('MP Controls', self.player_control_layout, key='-player_control_layout-')], line_window_ctl], expand_x=True, expand_y=True, enable_events=True)]]
 		if 'GUI' not in self.windows:
@@ -304,7 +296,7 @@ class gui():
 			except:
 				log("Window already created!", 'error')
 		win = sg.Window('GUI', self.layout, no_titlebar=True, location=(int(self.gui_win_x),int(self.gui_win_y)), size=(self.gui_win_w,self.gui_win_h), keep_on_top=False, grab_anywhere=True, element_justification='center', finalize=True, resizable=True)
-		self.viewer_win_w, self.viewer_win_h = xrandr()[conf['screen']]['w'], xrandr()[conf['screen']]['h']
+		self.viewer_win_w, self.viewer_win_h = xrandr()[self.conf['screen']]['w'], xrandr()[self.conf['screen']]['h']
 		self.viewer_win_scale = get_scaling()
 		return win
 
@@ -354,26 +346,26 @@ class gui():
 
 	def move_window(self, window, x=None, y=None):
 		try:
-			state = self.conf['windows']['visible_state']
+			state = self.conf['windows'][screen]['visible_state']
 			screen = self.conf['screen']
-			self.gui_win_w = self.conf['windows']['gui'][state][screen]['w']
-			self.gui_win_h = self.conf['windows']['gui'][state][screen]['h']
-			self.viewer_win_w = self.conf['windows']['viewer'][screen]['w']
-			self.viewer_win_h = self.conf['windows']['viewer'][screen]['h']
+			self.gui_win_w = self.conf['windows'][screen]['gui']['w']
+			self.gui_win_h = self.conf['windows'][screen]['gui']['h']
+			self.viewer_win_w = self.conf['windows'][screen]['viewer']['w']
+			self.viewer_win_h = self.conf['windows'][screen]['viewer']['h']
 		except:
-			self.conf = np.readConf()
-			state = self.conf['windows']['visible_state']
+			self.conf = readConf()
+			state = self.conf['windows'][screen]['visible_state']
 			screen = self.conf['screen']
-			self.gui_win_w = self.conf['windows']['gui'][state][screen]['w']
-			self.gui_win_h = self.conf['windows']['gui'][state][screen]['h']
-			self.viewer_win_w = self.conf['windows']['viewer'][screen]['w']
-			self.viewer_win_h = self.conf['windows']['viewer'][screen]['h']
+			self.gui_win_w = self.conf['windows'][screen]['gui']['w']
+			self.gui_win_h = self.conf['windows'][screen]['gui']['h']
+			self.viewer_win_w = self.conf['windows'][screen]['viewer']['w']
+			self.viewer_win_h = self.conf['windows'][screen]['viewer']['h']
 		if x is None:
 			if window == 'player' or window == 'viewer':
-				self.viewer_win_x = self.conf['windows']['viewer'][screen]['x']
+				self.viewer_win_x = self.conf['windows'][screen]['viewer']['x']
 				self.WINDOW2.move(self.viewer_win_x, self.viewer_win_y)
 			elif window == 'gui':
-				self.gui_win_x = self.conf['windows']['gui'][state][screen]['x']
+				self.gui_win_x = self.conf['windows'][screen]['gui']['x']
 				self.WINDOW.move(self.gui_win_x , self.gui_win_y)
 		else:
 			if window == 'player' or window == 'viewer':
@@ -384,10 +376,10 @@ class gui():
 				self.WINDOW.move(self.gui_win_x , self.gui_win_y)
 		if y is None:
 			if window == 'player' or window == 'viewer':
-				self.viewer_win_y = self.conf['windows']['viewer'][screen]['y']
+				self.viewer_win_y = self.conf['windows'][screen]['viewer']['y']
 				self.WINDOW2.move(self.viewer_win_x, self.viewer_win_y)
 			elif window == 'gui':
-				self.gui_win_y = self.conf['windows']['gui'][state][screen]['y']
+				self.gui_win_y = self.conf['windows'][screen]['gui']['y']
 				self.WINDOW.move(self.gui_win_x , self.gui_win_y)
 		else:
 			if window == 'player' or window == 'viewer':
@@ -462,7 +454,7 @@ class gui():
 			return sg.Text(text=args[0], auto_size_text=True, enable_events=True, key=args[1])
 
 		def text_input(args):
-			return sg.Input(default_text=args[0], enable_events=True, do_not_clear=True, key=args[1], expand_x=True)
+			return sg.Input(default_text=args[0], enable_events=False, do_not_clear=True, key=args[1], expand_x=True)
 
 		def btn(args):
 			try:
@@ -479,7 +471,6 @@ class gui():
 			return sg.Slider(range=args[0], default_value=args[1], orientation=args[2], expand_x = True, enable_events = True, change_submits = True, key=args[3])
 
 		def radio(args):
-			#print (args)
 			return sg.Radio(text=args[0], group_id=[1], default=args[2], auto_size_text = True, key=args[3], enable_events=True, change_submits=True)
 
 		def checkbox(args):
@@ -495,7 +486,7 @@ class gui():
 			return sg.Image(src, subsample=4, expand_x=True, expand_y=True, enable_events=True, key=key)
 		
 		if args == []:
-			print ("Argument dictionary not provided! Aborting...", args)
+			log(f"Argument dictionary not provided! Aborting... (Args:{args})", 'error')
 			return None
 
 		if elem == 'dropdown_menu':
@@ -517,7 +508,7 @@ class gui():
 		elif elem == 'image':
 			return image(args)
 		else:
-			print ("element not found: ", elem)
+			log(f"element not found: {elem}", 'error')
 			return None
 
 
@@ -526,7 +517,7 @@ class gui():
 			self.window, self.event, self.values = sg.read_all_windows(timeout=10)
 			return (self.window, self.event, self.values)
 		except Exception as e:
-			print ("Error in get_events, line 153", e)
+			log(f"Error in get_events: {e}", 'error')
 			return (None, None, None)
 
 
@@ -545,31 +536,27 @@ class gui():
 
 	def set_window_screen(self, screen: int, conf=None):
 		if conf == None:
-			self.conf = np.readConf()
+			self.conf = readConf()
 		else:
 			self.conf = conf
 		self.conf['screen'] = screen
-		try:
-			state = self.conf['windows']['gui']['visible_status']
-		except:
-			self.conf['windows'] = np.init_window_position()
-			state = self.conf['windows']['gui']['visible_status']
+		state = 'visible'
 		if screen == 1:
 			gui_screen = 0
 		elif screen == 0:
 			gui_screen = 1
-		dims = self.conf['screens'][screen]
-		gui_dims = self.conf['screens'][gui_screen]
+		dims = self.conf['xrandr'][screen]
+		gui_dims = self.conf['xrandr'][gui_screen]
 		w, h, x, y = dims['w'], dims['h'], dims['pos_x'], dims['pos_y']
-		self.conf['windows']['viewer']['w'] = w
-		self.conf['windows']['viewer']['h'] = h
-		self.conf['windows']['viewer']['x'] = x
-		self.conf['windows']['viewer']['y'] = y
-		self.conf['windows']['gui'][state][gui_screen]['w'] = 1024
-		self.conf['windows']['gui'][state][gui_screen]['h'] = 600
+		self.conf['windows'][screen]['viewer']['w'] = w
+		self.conf['windows'][screen]['viewer']['h'] = h
+		self.conf['windows'][screen]['viewer']['x'] = x
+		self.conf['windows'][screen]['viewer']['y'] = y
+		self.conf['windows'][gui_screen]['gui']['w'] = 1024
+		self.conf['windows'][gui_screen]['gui']['h'] = 600
 		x, y = gui_dims['pos_x'], gui_dims['pos_y']
-		self.conf['windows']['gui'][state][gui_screen]['x'] = x
-		self.conf['windows']['gui'][state][gui_screen]['y'] = y
+		self.conf['windows'][gui_screen]['gui']['x'] = x
+		self.conf['windows'][gui_screen]['gui']['y'] = y
 		return self.conf
 
 	def dump_object(self, _object, filename):

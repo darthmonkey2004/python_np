@@ -3,6 +3,7 @@ README
 install_np.sh
 poster.png
 setup.py
+np/__init__ (copy).py
 np/__init__.py
 np/np
 np/core/__init__.py
@@ -55,6 +56,7 @@ np/utils/tag_editor.py
 np/utils/test.pbdl.downloader.py
 np/utils/tmdb_query_series.py
 np/utils/torrent_mgr.py
+np/utils/vlc_filters.py
 np/utils/xrandr.py
 np/utils/ytdl.py
 np/ws/__init__.py

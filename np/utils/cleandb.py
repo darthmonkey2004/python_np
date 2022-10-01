@@ -1,7 +1,8 @@
 import subprocess
-from np import log
+from np.core.log import np_logger
 import os
 import datetime
+log = np_logger().log_msg
 home = os.path.expanduser("~")
 DATA_DIR = (home + os.path.sep + ".np")
 

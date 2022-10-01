@@ -1,4 +1,4 @@
-from np import create_media
+from np.core.core import create_media
 import re
 import subprocess
 

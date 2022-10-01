@@ -1,7 +1,8 @@
 import os
 import subprocess
 
-from np import log
+from np.core.log import np_logger
+log = np_logger().log_msg
 
 class id3():
 	def __init__(self):

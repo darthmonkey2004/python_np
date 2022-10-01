@@ -1,21 +1,9 @@
-import subprocess
 import json
 import requests
-from np import DATA_DIR, readConf
 from np.core.nplayer_db import get_columns
-import sys, traceback
 from np.core.log import np_logger
-logger = np_logger().log_msg
+log = np_logger().log_msg
 
-def log(msg, _type=None):
-	if _type is None:
-		_type = 'info'
-	if _type == 'error':
-		exc_info = sys.exc_info()
-		logger(msg, _type, exc_info)
-		return
-	else:
-		logger(msg, _type)
 
 
 

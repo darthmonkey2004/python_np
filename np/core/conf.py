@@ -2,34 +2,36 @@ from np.core.xrandr import xrandr
 from np.core.log import np_logger
 import os
 import pickle
-import pathlib
 
 log = np_logger().log_msg
-user = os.path.expanduser("~")
-DATA_DIR = (user + os.path.sep + ".np")
-CONFFILE = (DATA_DIR + os.path.sep + 'nplayer.conf')
+main_keys = ['viewer', 'gui', 'pbdl', 'w', 'h', 'x', 'y', 'pbdl_dl', 'ytdl', 'browser', 'is_default']
+ui_windows = ['browser', 'ytdl', 'pbdl', 'pbdl_dl', 'gui', 'viewer']
+
+
 
 def readConf():
+	conf_file = os.path.join(os.path.expanduser("~"), '.np', 'nplayer.conf')
 	try:
-		with open(CONFFILE, 'rb') as f:
+		with open(conf_file, 'rb') as f:
 			data = pickle.load(f)
 		f.close()
 		return data
 	except Exception as e:
-		print ("Exception in conf.py, readConf, line 70:", e)
+		log(f"Exception in conf.py, readConf: {e}", 'error')
 		return None
 
 
 def writeConf(data):
+	conf_file = os.path.join(os.path.expanduser("~"), '.np', 'nplayer.conf')
 	try:
-		with open(CONFFILE, 'wb') as f:
+		with open(conf_file, 'wb') as f:
 			pickle.dump(data, f)
 		f.close()
 		
 		log('core.py, writeConf: Conf updated!', 'info')
 		return True
 	except Exception as e:
-		print(f"Exception in conf.py, writeConf, line 83:{e}")
+		log(f"Exception in conf.py, writeConf: {e}", 'info')
 		return False
 
 def initConf():
@@ -63,10 +65,10 @@ def initConf():
 	conf['network_mode'] = {}
 	conf['network_mode']['media_mode'] = 'local'
 	conf['network_mode']['media_host'] = None
-	conf['network_mode']['media_user'] = user
+	conf['network_mode']['media_user'] = os.path.expanduser("~").split('/home/')[1]
 	conf['network_mode']['control_mode'] = 'local'
 	conf['network_mode']['control_host'] = None
-	conf['network_mode']['control_user'] = user
+	conf['network_mode']['control_user'] = os.path.expanduser("~").split('/home/')[1]
 	conf['network_mode']['control_port'] = 4444
 	conf['remote'] = {}
 	conf['debug'] = False
@@ -83,29 +85,38 @@ def initConf():
 	else:
 		conf['media_directories'] = {}
 		conf['media_directories']['main'] = media_dirs
-		music_dir = (media_dirs + os.path.sep + "Music")
-		movies_dir = (media_dirs + os.path.sep + "Movies")
-		series_dir = (media_dirs + os.path.sep + "Series")
+		music_dir = os.path.join(media_dirs, "Music")
+		movies_dir = os.path.join(media_dirs, "Movies")
+		series_dir = os.path.join(media_dirs, "Series")
 		conf['media_directories']['movies'] = movies_dir
 		conf['media_directories']['music'] = music_dir
 		conf['media_directories']['series'] = series_dir
 		log("Media directories configured! Continuing...", 'info')
 	home = os.path.expanduser("~")
 	conf['pbdl_url'] = None
-	conf['DATA_DIR'] = (f"{home}{os.path.sep}.np")
-	conf['LOGFILE'] = f"{conf['DATA_DIR']}/nplayer.log"
-	conf['CONFFILE'] = f"{conf['DATA_DIR']}/nplayer.conf"
-	conf['WSLOGFILE'] = (f"{conf['DATA_DIR']}{os.path.sep}nplayer.wslog")
-	conf['CAPTURE_DIR'] = (f"{home}{os.path.sep}Pictures{os.path.sep}nplayer_caps")
-	conf['SFTP_DIR'] = (f"{home}{os.path.sep}.np{os.path.sep}sftp")
-	conf['DEFAULT_POSTER'] = (f"{home}{os.path.sep}.local{os.path.sep}poster.png")
-	conf['EXEC_DIR'] = (f"{home}/.local/lib/python3.8/site-packages/np")
+	conf['DATA_DIR'] = os.path.join(os.path.expanduser("~"), '.np')
+	conf['LOGFILE'] = os.path.join(conf['DATA_DIR'], 'nplayer.log')
+	conf['CONFFILE'] = os.path.join(conf['DATA_DIR'], 'nplayer.conf')
+	conf['WSLOGFILE'] = os.path.join(conf['DATA_DIR'], 'nplayer.wslog')
+	conf['CAPTURE_DIR'] = os.path.join(os.path.expanduser("~"), 'Pictures', 'nplayer_caps')
+	conf['SFTP_DIR'] = os.path.join(conf['DATA_DIR'], 'sftp')
+	conf['DEFAULT_POSTER'] = os.path.join(os.path.expanduser("~"), ".local", "poster.png")
+	#conf['EXEC_DIR'] = (f"{home}/.local/lib/python3.8/site-packages/np")
 	conf['exit_ok'] = False
 	#ret = writeConf(conf)
 	return conf
 
 def run_setup():
-	keys = ['play_type', 'play_types', 'screen', 'fullscreen', 'screens', 'scale', 'volume', 'rotate', 'shuffle', 'mute', 'video_methods', 'video_players', 'screens', 'nowplaying', 'vlc', 'network_modes', 'network_mode', 'remote', 'debug', 'init', 'GUI_RESET', 'window', 'pbdl_url', 'DATA_DIR', 'LOGFILE', 'CONFFILE', 'WSLOGFILE', 'CAPTURE_DIR', 'SFTP_DIR', 'media_directories', 'DEFAULT_POSTER']
+	data_dir = os.path.join(os.path.expand_user("~"), '.np')
+	sftp_dir = os.path.join(data_dir, 'sftp')
+	pathlib.Path(data_dir).mkdir(parents=True, exist_ok=True)
+	pathlib.Path(sftp_dir).mkdir(parents=True, exist_ok=True)
+	conf_file = os.path.join(data_dir, 'nplayer.conf')
+	if not os.path.exists(conf_file):
+		log(f"conf file doesn't exist, creating...", 'warning')
+		conf = initConf()
+		writeConf(conf)
+	keys = ['play_type', 'play_types', 'screen', 'fullscreen', 'screens', 'scale', 'volume', 'rotate', 'shuffle', 'mute', 'video_methods', 'video_players', 'screens', 'nowplaying', 'vlc', 'network_modes', 'network_mode', 'remote', 'debug', 'init', 'GUI_RESET', 'window', 'pbdl_url', 'LOGFILE', 'CONFFILE', 'WSLOGFILE', 'CAPTURE_DIR', 'SFTP_DIR', 'media_directories', 'DEFAULT_POSTER']
 	conf = {}
 	for key in keys:
 		conf[key] = {}
@@ -118,9 +129,9 @@ def run_setup():
 	else:
 		conf['media_directories'] = {}
 		conf['media_directories']['main'] = media_dirs
-		music_dir = (media_dirs + os.path.sep + "Music")
-		movies_dir = (media_dirs + os.path.sep + "Movies")
-		series_dir = (media_dirs + os.path.sep + "Series")
+		music_dir = os.path.join(media_dirs, "Music")
+		movies_dir = os.path.join(media_dirs, "Movies")
+		series_dir = os.path.join(media_dirs, "Series")
 		conf['media_directories']['movies'] = movies_dir
 		conf['media_directories']['music'] = music_dir
 		conf['media_directories']['series'] = series_dir
@@ -142,7 +153,8 @@ def run_setup():
 	conf['video_players'] = ['vlc', 'mplayer', 'mpv', 'cv2']
 	conf['nowplaying']['filepath'] = None
 	conf['nowplaying']['play_pos'] = None
-	conf['windows'] = np.init_window_position()
+	# initialize window defaults by passing conf and getting it back
+	conf = init_window_position(conf)
 	conf['GUI_RESET'] = False
 	conf['network_modes'] = {}
 	conf['network_modes']['control_modes'] = ['local', 'remote', 'server']
@@ -175,19 +187,72 @@ def run_setup():
 	conf['GUI_RESET'] = False
 	home = os.path.expanduser("~")
 	conf['pbdl_url'] = None
-	conf['DATA_DIR'] = (f"{home}{os.path.sep}.np")
-	conf['LOGFILE'] = f"{conf['DATA_DIR']}{os.path.sep}nplayer.log"
-	conf['CONFFILE'] = f"{conf['DATA_DIR']}{os.path.sep}nplayer.conf"
-	conf['WSLOGFILE'] = (f"{conf['DATA_DIR']}{os.path.sep}nplayer.wslog")
-	conf['CAPTURE_DIR'] = (f"{home}{os.path.sep}Pictures{os.path.sep}nplayer_caps")
-	conf['SFTP_DIR'] = (f"{home}{os.path.sep}.np{os.path.sep}sftp")
-	conf['DEFAULT_POSTER'] = (f"{home}{os.path.sep}.local{os.path.sep}poster.png")
+	conf['DATA_DIR'] = os.path.join(os.path.expanduser("~"), '.np')
+	conf['LOGFILE'] = os.path.join(conf['DATA_DIR'], 'nplayer.log')
+	conf['CONFFILE'] = os.path.join(conf['DATA_DIR'], 'nplayer.conf')
+	conf['WSLOGFILE'] = os.path.join(conf['DATA_DIR'], 'nplayer.wslog')
+	conf['CAPTURE_DIR'] = os.path.join(os.path.expanduser("~"), 'Pictures', 'nplayer_caps')
+	conf['SFTP_DIR'] = os.path.join(conf['DATA_DIR'], 'sftp')
+	conf['DEFAULT_POSTER'] = os.path.join(os.path.expanduser("~"), ".local", "poster.png")
 	conf['ssh'] = {}
 	conf['ssh']['connection_string'] = input("Please enter ssh connection string i.e. user@host: (blank for None):")
 	conf['exit_ok'] = False
-	
-	
 	ret = writeConf(conf)
 	return conf
+
+
+def test_primary_screen(test_screen):
+	for screen in [screen for screen in list(xrandr().keys())]:
+		if xrandr()[screen]['primary'] is True:
+			if test_screen == screen:
+				return True
+			else:
+				return False
+
+
+def init_window_position(conf=None):
+	if conf is None:
+		conf = readConf()
+	conf['xrandr'] = xrandr()
+	conf['screens'] = list(conf['xrandr'].keys())
+	conf['windows'] = {}
+	for screen in conf['screens']:
+		conf['windows'][screen] = {}
+		conf['windows']['is_default'] = test_primary_screen(screen)
+		for win_title in ui_windows:
+			conf['windows'][screen][win_title] = {}
+			if win_title == 'viewer':
+				conf['windows'][screen][win_title]['x'] = conf['xrandr'][screen]['pos_x']
+				conf['windows'][screen][win_title]['y'] = conf['xrandr'][screen]['pos_y']
+				conf['windows'][screen][win_title]['w'] = conf['xrandr'][screen]['w']
+				conf['windows'][screen][win_title]['h'] = conf['xrandr'][screen]['h']
+			elif win_title == 'gui':
+				conf['windows'][screen][win_title]['x'] = conf['xrandr'][screen]['pos_x']
+				conf['windows'][screen][win_title]['y'] = conf['xrandr'][screen]['pos_y']
+				conf['windows'][screen][win_title]['w'] = 1024
+				conf['windows'][screen][win_title]['h'] = 600
+			elif win_title == 'pbdl':
+				conf['windows'][screen][win_title]['x'] = conf['xrandr'][screen]['pos_x']
+				conf['windows'][screen][win_title]['y'] = conf['xrandr'][screen]['pos_y']
+				conf['windows'][screen][win_title]['w'] = 600
+				conf['windows'][screen][win_title]['h'] = 300
+			elif win_title == 'pbdl_dl':
+				conf['windows'][screen][win_title]['x'] = conf['xrandr'][screen]['pos_x']
+				conf['windows'][screen][win_title]['y'] = conf['xrandr'][screen]['pos_y']
+				conf['windows'][screen][win_title]['w'] = 600
+				conf['windows'][screen][win_title]['h'] = 300
+			elif win_title == 'ytdl':
+				conf['windows'][screen][win_title]['x'] = conf['xrandr'][screen]['pos_x']
+				conf['windows'][screen][win_title]['y'] = conf['xrandr'][screen]['pos_y']
+				conf['windows'][screen][win_title]['w'] = 750
+				conf['windows'][screen][win_title]['h'] = 300
+			elif win_title == 'browser':
+				conf['windows'][screen][win_title]['x'] = conf['xrandr'][screen]['pos_x']
+				conf['windows'][screen][win_title]['y'] = conf['xrandr'][screen]['pos_y']
+				conf['windows'][screen][win_title]['w'] = 600
+				conf['windows'][screen][win_title]['h'] = 150
+	return conf
+
+
 if __name__ == "__main__":
 	run_setup()

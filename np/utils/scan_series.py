@@ -1,20 +1,22 @@
 import os
 from os.path import basename
-import np
+from np.core.conf import readConf
+from np.core.log import np_logger
 import subprocess
 import urllib
 import requests
 import json
-
-conf = np.readConf()
+log = np_logger().log_msg
+conf = readConf()
+data_dir = os.path.join(os.path.expanduser("~"), '.np')
 def sqlite3(query):
 	query = (query.replace("'", "\'").replace('"', '\"'))
-	dbfile = (f"{np.DATA_DIR}{os.path.sep}nplayer.db")
+	dbfile = os.path.join(data_dir, "nplayer.db")
 	com = (f"sqlite3 '{dbfile}' \"{query}\"")
 	out = subprocess.check_output(com, shell=True).decode().strip().split("\n")[0]
 	if conf['debug'] == True:
-		np.log(f"SQLITE3 Query: {query}", 'info')
-		np.log(f"SQLITE3 Results: {out}", 'info')
+		log(f"SQLITE3 Query: {query}", 'info')
+		log(f"SQLITE3 Results: {out}", 'info')
 	return out
 
 def query_series(filepath, series_name, season, episode_number):
@@ -31,11 +33,11 @@ def query_series(filepath, series_name, season, episode_number):
 	try:
 		tmdbid = json_data['results'][0]['id']
 	except Exception as e:
-		np.log(f"Error getting tmdbid:{e}", 'error')
+		log(f"Error getting tmdbid:{e}", 'error')
 	try:
 		still_path = json_data['results'][0]['backdrop_path']
 	except Exception as e:
-		np.log(f"Still path was error:{e}", 'error')
+		log(f"Still path was error:{e}", 'error')
 		still_path = json_data['results'][0]['poster_path']
 	if "'" in json_data['results'][0]['name']:
 		temp = json_data['results'][0]['name']
@@ -89,7 +91,7 @@ def query_series(filepath, series_name, season, episode_number):
 def scan_series(target_dir=None):
 	type = 'series'
 	exts = ['mp4', 'mov', 'avi', 'flv', 'mkv']
-	np.test_db()
+	test_db()
 	if target_dir == None:
 		target_dir = conf['media_directories']['series']
 	for ext in exts:
@@ -105,15 +107,15 @@ def scan_series(target_dir=None):
 			com = (f"select filepath from series where filepath like '%{fname}%';")
 			exists = sqlite3(com)
 			if conf['debug'] == True:
-				np.log(f"Exists: {exists}", 'info')
+				log(f"Exists: {exists}", 'info')
 			if exists == '' or exists is None:
 				if filepath != '' and filepath is not None:
 					go = True
 				else:
 					go = False
-					np.log(f"filepath not set!", 'warning')
+					log(f"filepath not set!", 'warning')
 			else:
-				np.log(f"File already in database: '{filepath}'", 'info')
+				log(f"File already in database: '{filepath}'", 'info')
 				go = False
 			if go == True:
 				try:
@@ -126,10 +128,10 @@ def scan_series(target_dir=None):
 					episode_number = sinfo.split('E')[1]
 					episode_name = fname.split('.')[2]
 					if conf['debug'] == True:
-						np.log(f"series_name='{series_name}', season={season}, episode_number={episode_number}", 'info')
+						log(f"series_name='{series_name}', season={season}, episode_number={episode_number}", 'info')
 
 				except Exception as e:
-					np.log(f"Exception:{e}, Filepath: {filepath}", 'error')
+					log(f"Exception:{e}, Filepath: {filepath}", 'error')
 					s = (f"{target_dir}/series")
 					series_name = input("Enter series name:")
 					season = input("Enter season:")
@@ -142,10 +144,10 @@ def scan_series(target_dir=None):
 				sql_string = (f"INSERT INTO series (isactive, series_name, tmdbid, season, episode_number, episode_name, description, air_date, still_path, filepath) VALUES('{info['isactive']}', '{info['series_name']}', '{info['tmdbid']}', '{info['season']}', '{info['episode_number']}', '{info['episode_name']}', '{info['description']}', '{info['air_date']}', '{info['still_path']}', '{info['filepath']}');")
 				if info['error'] == False:
 					out = (f"Added to series: Name - {info['series_name']}, S{info['season']}E{info['episode_number']}")
-					np.log(out, 'info')
+					log(out, 'info')
 				else:
 					out = (f"Lookup failed for file '{info['filepath']}': Response='{info['response']}'. Adding generic values insteal...")
-					np.log(out, 'warning')
+					log(out, 'warning')
 					if series_name is not None:
 						info['series_name'] = series_name
 					if season is not None:
@@ -154,13 +156,13 @@ def scan_series(target_dir=None):
 						info['episode_number'] = episode_number
 					if episode_name is not None:
 						info['episode_name'] = episode_name
-				ret = np.addtodb('series', sql_string)
+				ret = addtodb('series', sql_string)
 				if ret is not True:
-					np.log(f"Error:{ret}, Data:{info}", 'error')
+					log(f"Error:{ret}, Data:{info}", 'error')
 					input("Press a key...")
 
-	np.log(f"Running cleandb: 'series'...", 'info')
-	np.cleandb('series')
+	log(f"Running cleandb: 'series'...", 'info')
+	cleandb('series')
 if __name__ == "__main__":
 	import sys
 	target_dir = sys.argv[1]

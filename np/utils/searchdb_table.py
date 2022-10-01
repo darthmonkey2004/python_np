@@ -1,6 +1,6 @@
 import subprocess
-from np import create_media, get_columns
-
+from np.core.core import create_media
+from np.core.nplayer_db import get_columns
 def sqlite3(query):
 	dbfile = (f"/home/monkey/.np/nplayer.db")
 	com = (f"sqlite3 '{dbfile}' \"{query}\"")
