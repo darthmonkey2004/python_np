@@ -3,8 +3,8 @@ README
 install_np.sh
 poster.png
 setup.py
+dist/np
 np/__init__.py
-np/np
 np/core/__init__.py
 np/core/conf.py
 np/core/core.py

@@ -1296,8 +1296,35 @@ def start():
 			refresh_log_data()
 			readct = 0
 	UI.WINDOW.close()
-	
+
+def getpid():
+	pid = None
+	com = "pgrep -af np | grep -v \"/bin/sh\""
+	lines = shell(com).split("\n")
+	ret = []
+	for line in lines:
+		if ' np' in line:
+			pid=line.split(" ")[0]
+			ret.append(pid)
+	return ret
+
+def ck_start():
+	pids = getpid()
+	if len(pids) < 2:
+		isrunning = False
+	else:
+		isrunning = True
+	if isrunning:
+		import websocket
+		c = websocket.create_connection('ws://192.168.2.2:8000/')
+		c.send('create_gui')
+		c.close()
+		exit()
+	else:
+		print ("starting")
+		t = Thread(target = start)
+		t.start()	
 
 if __name__ == "__main__":
-	start()
+	ck_start()
 

@@ -31,17 +31,19 @@ add_to_favorites() {
 	gsettings set org.gnome.shell favorite-apps "$newlist"
 	rm temp.py
 }
+
+
 write_desktop() {
 	echo "[Desktop Entry]" > np.desktop
 	echo "Version=1.0" >> np.desktop
 	echo "Name=NPlayer" >> np.desktop
 	echo "Comment=Media player and databasing package." >> np.desktop
-	echo "Exec='$HOME/.local/bin/np'" >> np.desktop
-	echo "Path='$HOME/.local'" >> np.desktop
-	echo "Icon='$HOME/.local/share/applications/poster.png'" >> np.desktop
+	echo "Exec=np" >> np.desktop
+	echo "Path=/home/monkey/.local" >> np.desktop
+	echo "Icon=/home/monkey/.local/share/applications/poster.png" >> np.desktop
 	echo "Terminal=false" >> np.desktop
 	echo "Type=Application" >> np.desktop
-	echo "Categories=Utility;Application;AudioVideo;Audio;Video;Player" >> np.desktop
+	echo "Categories=Utility;AudioVideo;Audio;Video" >> np.desktop
 	echo "StartupWMClass=GUI" >> np.desktop
 	mv np.desktop "$HOME/.local/share/applications/np.desktop"
 	cp poster.png "$HOME/.local/share/applications/poster.png"
