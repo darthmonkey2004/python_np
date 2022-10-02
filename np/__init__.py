@@ -1,7 +1,6 @@
 import vlc
 import os
 import pathlib
-from np.utils.vlc_filters import create_vlc_filters
 from np.core.xrandr import xrandr
 from np.core.log import np_logger
 log = np_logger().log_msg

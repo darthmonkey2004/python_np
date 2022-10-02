@@ -1,49 +1,32 @@
 #!/usr/bin/python3
-
+import np
 from np.utils.pbdl.pbdl import start as start_pbdl
 from np.utils.pbdl.pbdl import pbdl
 from np.utils.cleandb import run as cleandb
 from np.core.gui import folder_browse_window, file_browse_window
 from threading import *
 import queue
-#import imwatchingyou
 import timeit
-import pafy
 import urllib.parse
 import PySimpleGUI as sg
 import os
 import subprocess
-import np
 querydb = np.querydb
 xrandr = np.xrandr
 import pickle
 import vlc
-import random
 import time
-import sys, traceback
+import sys
 from np.core.log import np_logger
 from np.ws.server import server
-from np.utils.vlc_filters import create_vlc_filters
-logger = np_logger().log_msg
+log = np_logger().log_msg
 update_ct = 5
 remote_com_q = queue.Queue()
 remote_ret_q = queue.Queue()
 server = server(remote_com_q, remote_ret_q)
 pbdl = pbdl()
-VLC_VIDEO_FILTERS = create_vlc_filters('video')
-VLC_AUDIO_FILTERS = create_vlc_filters('audio')
-
-
-def log(msg, _type=None):
-	if _type is None:
-		_type = 'info'
-	if _type == 'error':
-		exc_info = sys.exc_info()
-		logger(msg, _type, exc_info)
-		return
-	else:
-		logger(msg, _type)
-
+VLC_VIDEO_FILTERS = ['video:adjust', 'video:alphamask', 'video:anaglyph', 'video:antiflicker', 'video:audiobargraph_v', 'video:ball', 'video:blendbench', 'video:bluescreen', 'video:canvas', 'video:chain', 'video:colorthres', 'video:croppadd', 'video:deinterlace', 'video:edgedetection', 'video:erase', 'video:extract', 'video:fps', 'video:freeze', 'video:gaussianblur', 'video:gradfun', 'video:gradient', 'video:grain', 'video:hqdn3d', 'video:invert', 'video:logo', 'video:magnify', 'video:mirror', 'video:motionblur', 'video:motiondetect', 'video:oldmovie', 'video:posterize', 'video:postproc', 'video:psychedelic', 'video:puzzle', 'video:ripple', 'video:rotate', 'video:scene', 'video:sepia', 'video:sharpen', 'video:transform', 'video:vaapi_filters', 'video:vaapi_filters', 'video:vaapi_filters', 'video:vaapi_filters', 'video:vaapi_filters', 'video:vdpau_adjust', 'video:vdpau_deinterlace', 'video:vdpau_sharpen', 'video:vhs', 'video:wave']
+VLC_AUDIO_FILTERS = ['audio:audiobargraph_a', 'audio:chorus_flanger', 'audio:compressor', 'audio:equalizer', 'audio:gain', 'audio:headphone', 'audio:karaoke', 'audio:mono', 'audio:normvol', 'audio:param_eq', 'audio:remap', 'audio:scaletempo', 'audio:scaletempo_pitch', 'audio:spatialaudio', 'audio:spatializer', 'audio:stereo_widen']
 
 
 def run_server():
@@ -335,9 +318,6 @@ def set_debug(mode=None):
 def remote_handler(com, arg):
 	global server
 	remote_commands = ['create_viewer', 'help', 'commands', 'play', 'create_gui', 'close_gui', 'close_viewer', 'pause', 'stop', 'skip_next', 'skip_prev', 'vol_set', 'vol_up', 'vol_down', 'mute', 'unmute', 'quit', 'load', 'play_mode', 'play_type', 'seek', 'move_gui', 'move_player', 'get_pos', 'get_window_location', 'media_pick', 'media_get', 'debug']
-	#if com not in remote_commands:
-	#	np.log(f"REMOTE: ERROR: Command not found ({com})", 'error')
-	#	return False
 	global P, MP, UI
 	log(f"Command: '{com}', Argument: '{arg}'", 'info')
 	ret = None
@@ -594,7 +574,6 @@ def refresh_log_data():
 	try:
 		UI.WINDOW['-DEBUGGER-'].update(log_data)
 	except:
-		#np.log(f"Can't update log in GUI (window closed?)", 'info')
 		pass
 
 
@@ -614,8 +593,6 @@ def start():
 	playlist = np.create_media()
 	tab = '-player_control_layout-'
 	MP.conf = np.readConf()
-	#if MP.conf['debug'] == True:
-	#	imwatchingyou.show_debugger_window()
 	try:
 		DEBUG = MP.conf['debug']
 	except:
@@ -859,7 +836,6 @@ def start():
 						VPN = True
 					UI.toggle_vpn()
 				elif event == '-CURRENT_PLAYLIST-':
-					#MP.selected_playlist_item
 					val = None
 					_id = None
 					table = None
@@ -885,13 +861,10 @@ def start():
 							MP.play(val)
 					elif MP.play_mode == 'database':
 						if MP.conf['play_type'] == 'series':
-							#try:
 							val = values[event][0]
 							_id = val.split(':')[5]
 							table = val.split(':')[0]
 							playlist_click(_id, table)
-							#except Exception as e:
-							#	log(f"Error: Series list is empty! Details:{e}, {val}, {_id}, {table}", 'error')
 						elif MP.conf['play_type'] == 'movies':
 							try:
 								np.log(f"Playlist clicked: {val}")
@@ -1005,7 +978,6 @@ def start():
 								UI.WINDOW['-PLAY_MODE-'].update(MP.play_mode)
 						elif table == 'music':
 							log(f"TODO: querydb music", 'info')
-							#rows = querydb(table = 'music', column='id,title,accoustic_id,album,album_id,artist_id,year,artist,track,track_ct,filepath', query='isactive = 1')
 				elif event == '-PLAYLIST_ITEMS-':
 					if values['-table_series-'] == True:
 						table = 'series'
@@ -1013,8 +985,6 @@ def start():
 						table = 'music'
 					elif values['-table_movies-'] == True:
 						table = 'movies'
-					#MP.dbmgr_picked_items = values['-PLAYLIST_ITEMS-']
-					#UI.window['-DBMGR_SELECTED_ROWS-'].update(MP.dbmgr_picked_items)
 					try:
 						_list = values['-PLAYLIST_ITEMS-'][0]
 						_id = int(_list[0])
@@ -1091,7 +1061,6 @@ def start():
 				elif event == 'Pirate Bay Downloader':
 					pbdl_win = start_pbdl('dl')
 					log(f"Loaded pirate bay downloader!", 'info')
-					#pbdl.run()
 				elif event == '-PBDL_SEARCH-':
 					pbdl.results = pbdl.get_magnet(pbdl.pbdl_query, pbdl.category)
 					UI.pbdl_dl_win['-PBDL_RESULTS-'].update(pbdl.results)
@@ -1171,7 +1140,6 @@ def start():
 				elif event == 'Fix Scaling':
 					calculated_scale = np.calculate_scale(MP.conf['nowplaying']['filepath'])
 					current_scale = P.video_get_scale()
-					#MP.set_scale(MP.conf['nowplaying']['filepath'])
 					log(f"EVENT: Fix Scaling button: Previous:{current_scale}, New:{calculated_scale}", 'info')
 					P.video_set_scale(calculated_scale)
 				elif event == 'Screenshot':
@@ -1278,7 +1246,6 @@ def start():
 			# update elapsed time if there is a video loaded and the media is playing
 			if P.is_playing() and MP.is_url == False:
 				if MP.scale_needed == 1:
-					#MP.conf['scale'] = np.calculate_scale(MP.next)
 					calculated_scale = np.calculate_scale(MP.conf['nowplaying']['filepath'])
 					current_scale = P.video_get_scale()
 					P.video_set_scale(calculated_scale)
@@ -1325,10 +1292,6 @@ def start():
 			stop_timer = timeit.default_timer()
 			loop_time = stop_timer - start_timer
 			ts = str(loop_time).split('.')[0]
-			#if int(ts) >= 5 and UI.event != '__TIMEOUT__':
-			#	log(f"Loop took long! {loop_time}. DATA: {UI.event, UI.values}", 'warning')
-			#if MP.conf['debug'] == True:
-			#	log(f"Main loop cycle timer: {loop_time}", 'debug')
 		if readct > readmax:
 			refresh_log_data()
 			readct = 0

@@ -11,6 +11,5 @@ from .searchdb_all import search_all
 from .searchdb_table import search_table
 from .tadb_search import lookup as search_tadb
 from .tag_editor import  run as tag_editor
-from .vlc_filters import create_vlc_filters
 from .xrandr import xrandr
 from .ytdl import ytdl

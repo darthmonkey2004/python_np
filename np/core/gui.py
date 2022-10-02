@@ -1,5 +1,5 @@
+from np.core.core import create_media
 from np.core.nplayer import nplayer
-from np.utils.vlc_filters import create_vlc_filters
 from np.core.xrandr import xrandr
 import subprocess
 import os
@@ -8,7 +8,6 @@ import PySimpleGUI as sg
 from np.core.conf import readConf
 from np.core.nplayer_db import get_columns
 log = np_logger().log_msg
-
 
 
 #-----------main gui creation class------------#
@@ -171,7 +170,7 @@ class gui():
 		self.RESET = False
 		self.win_type = 'internal'
 		self.player = nplayer()
-		self.playlist = self.player.create_media()
+		self.playlist = create_media()
 		self.conf = readConf()
 		self.windows = []
 		self.conf['active_windows'] = self.windows
@@ -202,13 +201,11 @@ class gui():
 		self.viewer_win_w = self.conf['windows'][viewer_screen]['viewer']['w']
 		self.viewer_win_h = self.conf['windows'][viewer_screen]['viewer']['h']
 		log(f"Viewer window set: {self.viewer_win_x}, {self.viewer_win_y}, {self.viewer_win_w}, {self.viewer_win_h}", 'info')
-		#self.window = None
 		self.event = None
 		self.values = None
 		self.player_window_layout = []
 		self.uievent = None
 		self.uivalues = {}
-		#self.window = None
 		self.table = self.conf['play_type']
 		self.isactive = True
 		self.dbmgr_picked_items = []
@@ -236,8 +233,8 @@ class gui():
 
 
 	def create_gui_window(self):
-		VLC_VIDEO_FILTERS = create_vlc_filters('video')
-		VLC_AUDIO_FILTERS = create_vlc_filters('audio')
+		VLC_VIDEO_FILTERS = ['video:adjust', 'video:alphamask', 'video:anaglyph', 'video:antiflicker', 'video:audiobargraph_v', 'video:ball', 'video:blendbench', 'video:bluescreen', 'video:canvas', 'video:chain', 'video:colorthres', 'video:croppadd', 'video:deinterlace', 'video:edgedetection', 'video:erase', 'video:extract', 'video:fps', 'video:freeze', 'video:gaussianblur', 'video:gradfun', 'video:gradient', 'video:grain', 'video:hqdn3d', 'video:invert', 'video:logo', 'video:magnify', 'video:mirror', 'video:motionblur', 'video:motiondetect', 'video:oldmovie', 'video:posterize', 'video:postproc', 'video:psychedelic', 'video:puzzle', 'video:ripple', 'video:rotate', 'video:scene', 'video:sepia', 'video:sharpen', 'video:transform', 'video:vaapi_filters', 'video:vaapi_filters', 'video:vaapi_filters', 'video:vaapi_filters', 'video:vaapi_filters', 'video:vdpau_adjust', 'video:vdpau_deinterlace', 'video:vdpau_sharpen', 'video:vhs', 'video:wave']
+		VLC_AUDIO_FILTERS = ['audio:audiobargraph_a', 'audio:chorus_flanger', 'audio:compressor', 'audio:equalizer', 'audio:gain', 'audio:headphone', 'audio:karaoke', 'audio:mono', 'audio:normvol', 'audio:param_eq', 'audio:remap', 'audio:scaletempo', 'audio:scaletempo_pitch', 'audio:spatialaudio', 'audio:spatializer', 'audio:stereo_widen']
 		line = []
 		log_data = 'Nyuh-uh!'
 		scale = float(int(self.conf['scale']) * 10)
@@ -283,7 +280,6 @@ class gui():
 		]
 		dbitems = []
 		self.menu_def = [['&File', ['-&Load Directory-', '-&Load Playlist-', '-&Save Playlist-', 'E&xit']], ['&Tools', ['&Pirate Bay Downloader', '-&Database Editor-', '-ID3 Tag Editor-', '&Torrent Manager', '&Video Filters', [VLC_VIDEO_FILTERS], '&Audio Filters', [VLC_AUDIO_FILTERS]]], ['&Help', '&About...'], ['&Media', ['-Scan Movies-', '-Scan Series-', '-Scan Music-', '-Scan All-', '-Clean Database-']]]
-		#self.layout = [[sg.MenubarCustom(self.menu_def, tearoff=True, key='-menubar_key-'), sg.Button("Close")], [sg.TabGroup([[sg.Tab('MP Controls', self.player_control_layout, key='-player_control_layout-')], [sg.Tab('DB Manager', self.db_mgr_layout, key='-db_mgr_layout-')]], 	expand_x=True, expand_y=True, enable_events=True)]]
 		self.layout = [[sg.MenubarCustom(self.menu_def, tearoff=True, key='-menubar_key-'), sg.Button('Hide UI'), sg.Button("Close")], [sg.TabGroup([[sg.Tab('MP Controls', self.player_control_layout, key='-player_control_layout-')], line_window_ctl], expand_x=True, expand_y=True, enable_events=True)]]
 		if 'GUI' not in self.windows:
 			self.windows.append('GUI')
@@ -346,16 +342,16 @@ class gui():
 
 	def move_window(self, window, x=None, y=None):
 		try:
-			state = self.conf['windows'][screen]['visible_state']
 			screen = self.conf['screen']
+			state = self.conf['windows'][screen]['visible_state']
 			self.gui_win_w = self.conf['windows'][screen]['gui']['w']
 			self.gui_win_h = self.conf['windows'][screen]['gui']['h']
 			self.viewer_win_w = self.conf['windows'][screen]['viewer']['w']
 			self.viewer_win_h = self.conf['windows'][screen]['viewer']['h']
 		except:
 			self.conf = readConf()
-			state = self.conf['windows'][screen]['visible_state']
 			screen = self.conf['screen']
+			state = self.conf['windows'][screen]['visible_state']
 			self.gui_win_w = self.conf['windows'][screen]['gui']['w']
 			self.gui_win_h = self.conf['windows'][screen]['gui']['h']
 			self.viewer_win_w = self.conf['windows'][screen]['viewer']['w']

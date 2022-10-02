@@ -5,16 +5,11 @@ import datetime
 import os
 from np.core.xrandr import xrandr
 
-
-global conf, LOGFILE, CONFFILE
 home = os.path.expanduser("~")
 user = home.split('/')[2]
 DATA_DIR = (home + os.path.sep + ".np")
 LOGFILE = f"{DATA_DIR}/nplayer.log"
 CONFFILE = f"{DATA_DIR}/nplayer.conf"
-
-
-
 
 def readConf():
 	try:
@@ -26,12 +21,9 @@ def readConf():
 		print(f"log.py, Exception in readConf: {e}")
 		return None
 	
-
-
 def writeConf(data, CONFFILE=None):
 	if CONFFILE == None:
 		CONFFILE == f"{DATA_DIR}/nplayer.conf"
-
 	try:
 		logger = log().log
 	except:

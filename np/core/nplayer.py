@@ -1,51 +1,28 @@
 import subprocess
-import pathlib
 import os
-import pafy
-from PIL import Image, ImageTk
+from PIL import Image
 import requests
 import subprocess
-import eyed3
 from urllib.parse import quote, unquote
 import np
 import vlc
-import random
 import time
-import json
 from np.utils.playlist import get_next
 from np.core.log import np_logger
-logger = np_logger().log_msg
-import sys
 import PySimpleGUI as sg
+
+log = np_logger().log_msg
+
 
 def sqlite3(com):
 	path = os.path.join(os.path.expanduser("~"), '.np', 'nplayer.db')
 	com = f"sqlite3 \"{path}\" \"{com}\""
 	return subprocess.check_output(com, shell=True).decode().strip().split("\n")
 
-
-def log(msg, _type=None):
-	if _type is None:
-		_type = 'info'
-	if _type == 'error':
-		exc_info = sys.exc_info()
-		logger(msg, _type, exc_info)
-		return
-	else:
-		logger(msg, _type)
-
-
 #-------------main player class=------------#
 class nplayer():
 	def __init__(self):
-		self.loop = True
 		self.is_url = False
-		self.nowplaying = {}
-		self.nowplaying['pos'] = None
-		self.nowplaying['vw'] = None
-		self.nowplaying['vh'] = None
-		self.create_media = np.create_media
-		self.isplaying = False
 		self.conf = {}
 		self.conf['vlc'] = {}
 		try:
@@ -55,40 +32,25 @@ class nplayer():
 			self.conf = np.initConf()
 			self.conf['windows'] = np.init_window_position()
 		self.conf['grab_devices'] = ['/dev/input/event11']
-		#self.media = {}
-		#self.media = np.create_media(self.conf['play_type'])
 		self.history_pos = 0
-		self.btn = None
-		#self.KEY_EVENTS = self.init_events()
 		self.history = {}
 		self.history['history'] = []
 		self.history['pos'] = len(self.history['history']) - 1
 		self.history['playing_from_history'] = False
 		self.series_history = None
-		self.events_conf = 'events.conf'
 		self.play_needed = 1
 		log(f"play_needed set = 1: line46", 'info')
 		self.scale_needed = 0
 		self.playlist = np.create_media(self.conf['play_type'])
 		self.dbmgr_picked_items = []
-		self.target = {}
-		self.target['file'] = None
-		self.target['episode_number'] = None
-		self.target['series_name'] = None
-		self.target['season'] = None
-		self.target['title'] = None
 		self.next = None
 		self.ART_UPDATE_NEEDED = False
-		self.is_active = 1
-		self.screencaps = os.path.join(os.path.expanduser("~"), 'Pictures', 'nplayer_caps')
-		self.is_recording = False
 		self.vlcInstance = None
 		self.selected_playlist_item = None
 		self.play_mode = 'database'
 		self.playlist_last = None
 		self.playlist_loop_one = False
 		self.playlist_loop_all = True
-		self.remote_media = []
 		self.exit = False
 		self.conf['intro'] = {}
 		self.conf['intro']['start'] = None
@@ -100,7 +62,6 @@ class nplayer():
 		self.series_history = np.read_history()
 		self.resume = None
 		self.play_pos = self.conf['nowplaying']['play_pos']
-		self.server = None
 		self.viewer_win_w = 0
 		self.viewer_win_h = 0
 		self.viewer_win_scale = 0
@@ -130,7 +91,7 @@ class nplayer():
 		try:
 			opts = self.conf['vlc']['opts']
 		except:
-			opts = "--no-xlib"
+			opts = '--no-xlib --audio-filter=normvol --norm-buff-size=20 --norm-max-level=2'
 		self.vlcInstance = vlc.Instance(opts)
 		log(f"nplayer.py, init_vlc(): Instance created! Options: {opts}", 'info')
 		if uri == None:
@@ -164,7 +125,6 @@ class nplayer():
 					log(f"play_needed set = 1 (vlc_event[MediaMPEndReached]): line169, conf written", 'info')
 					self.playback_finished()
 				elif event == 'EventType.MediaMPStopped':
-					self.nowplaying['is_playing'] = self.player.is_playing()
 					self.is_playing = 0
 				elif event == 'EventType.MediaMPPaused':
 					pass
@@ -232,7 +192,6 @@ class nplayer():
 				log(f"skip_next, Not using history:{self.history['history']}", 'info')
 		elif self.history['playing_from_history'] == True:
 			try:
-				#self.history['pos'] = self.history['history'].index(self.next)
 				self.history['pos'] = self.history_next_pos()
 				self.next = self.history['history'][self.history['pos']]
 				
@@ -257,7 +216,6 @@ class nplayer():
 		self.continuous = 0
 		self.play_needed = 0
 		log(f"play_needed set = 0 (stop): line361", 'info')
-		#self.media['now_playing'] = {}
 		self.conf['nowplaying']['filepath'] = None
 
 
@@ -265,7 +223,6 @@ class nplayer():
 		self.history['playing_from_history'] = True
 		log(f"old history pos:Position={self.history['pos']}, Length={len(self.history['history'])}", 'info')
 		self.history['pos'] = self.history_prev_pos(self.history['pos'])
-		#self.history['pos'] = self.history['history'].index(self.next) - 1
 		log(f"new history pos:Position={self.history['pos']}, Length={len(self.history['history'])}", 'info')
 		try:
 			self.next = self.history['history'][self.history['pos']]
@@ -506,7 +463,6 @@ class nplayer():
 				log(f"Network uri set:{self.next}", 'info')
 		# attempt to set media path.
 		try:
-			#self.media['current_vlc_media_object'] = 
 			self.player.set_media(self.vlcInstance.media_new_path(self.next))
 			self.player.play()
 			self.is_url = False
@@ -514,8 +470,6 @@ class nplayer():
 			log(f"Unable to open media item:{e}, filepath={self.next}", 'error')
 			if self.conf['network_mode']['media_mode'] == 'remote':
 				self.mount_sftp()
-				#self.media['current_vlc_media_object'] = self.vlcInstance.media_new_path(self.next)
-				#self.player.set_media(self.media['current_vlc_media_object'])
 				self.player.set_media(self.vlcInstance.media_new_path(self.next))
 				self.player.play()
 				self.is_url = False
@@ -543,12 +497,8 @@ class nplayer():
 			log("Set play needed = 0 (play): line624", 'info')
 
 		if self.conf['play_type'] == 'music':
-			#try:
 			self.album_art = self.dl_img()
 			self.ART_UPDATE_NEEDED = True
-			#except:
-			#	self.ART_UPDATE_NEEDED = False
-
 		np.writeConf(self.conf)
 
 
