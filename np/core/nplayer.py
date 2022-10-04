@@ -65,6 +65,8 @@ class nplayer():
 		self.viewer_win_w = 0
 		self.viewer_win_h = 0
 		self.viewer_win_scale = 0
+		self.version = 1.0
+		self.update_needed = False
 		
 
 
@@ -476,6 +478,9 @@ class nplayer():
 		# set play position if greater than 0
 		if self.play_pos >= 0:
 			self.player.set_position(self.play_pos)
+			log(f"nplayer.play(): Skipped to position {self.play_pos}", 'info')
+			#set play_needed and play_pos to 0 to avoid loop duplicating action (delay?)
+			self.play_needed = 0
 			self.play_pos = 0
 			self.conf['nowplaying']['play_pos'] = 0
 		self.continuous = 1

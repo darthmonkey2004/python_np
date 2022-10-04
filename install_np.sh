@@ -57,6 +57,11 @@ write_desktop() {
 	add_to_favorites;
 }
 
+version() {
+	vfile=$(find $(pwd) -name "version.txt")
+	cp "$vfile" "$HOME/.np/version.txt"
+}
+
 np_setup() {
 	dir=$(pwd)
 	dname=$(basename "$dir")
@@ -75,6 +80,7 @@ np_setup() {
 	if [ ! -d "$HOME/.np" ]; then
 		mkdir "$HOME/.np"
 	fi
+	version;
 	cd $HOME/.np
 	if [ ! -f "$dbfile" ]; then
 		cd "$HOME/.local/lib/python3.8/site-packages/np"

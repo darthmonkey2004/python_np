@@ -4,6 +4,7 @@ import os
 import subprocess
 import pickle
 import os
+import requests
 from np.core.nplayer_db import querydb
 from np.core.log import np_logger
 from np.core.conf import readConf, writeConf
@@ -169,6 +170,40 @@ def create_media(play_type=None, rows=None):
 			string = (f"music:{artist}:{title}:{album}:{_id}")
 			playlist.append(string)
 	return playlist
+
+
+def get_version():
+	path = os.path.join(os.path.expanduser("~"), '.np', 'version.txt')
+	if os.path.exists(path):
+		with open(path, "r") as f:
+			version = f.read().strip()
+		f.close()
+	else:
+		log(f"Unable to get current version info from file! (Not installed from repo?) Setting default '1.0'...", 'warning')
+		version = 1.0
+	return version
+
+
+def match_repo_version():
+	# returns False if local install doesn't match repo version, indicating update is needed.
+	url = 'https://raw.githubusercontent.com/darthmonkey2004/python_np/master/version.txt'
+	r = requests.get(url)
+	if r.status_code == 200:
+		repo_version = float(r.text)
+	else:
+		# if unable to get version, return no match
+		log(f"Unable to retreive version from github: (Bad status code {r.status_code})!", 'error')
+		return False
+	version = float(get_version())
+	if repo_version > version:
+		log(f"A newer version of nplayer is available: {repo_version}. May wish to update...")
+		return False
+	elif repo_version < version:
+		log(f"Git push needed, somehow changes failed to push (repo_version={repo_version}, local_version={version})", "warning")
+		return False
+	elif repo_version == version:
+		log(f"Versions match! No action needed.", 'info')
+		return True
 
 def get_functions(pyfile):
 	with open(pyfile, 'r') as f:

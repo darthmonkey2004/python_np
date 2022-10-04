@@ -3,7 +3,6 @@ README
 install_np.sh
 poster.png
 setup.py
-dist/np
 np/__init__.py
 np/core/__init__.py
 np/core/conf.py
@@ -23,6 +22,7 @@ np/scripts/mkmedialist
 np/scripts/np.remote
 np/scripts/write_client_html
 np/utils/__init__.py
+np/utils/ck_pycode.py
 np/utils/cleandb.py
 np/utils/functions.py
 np/utils/guess_intro.py

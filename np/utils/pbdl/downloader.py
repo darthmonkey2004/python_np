@@ -1,3 +1,4 @@
+import sys
 from np.core.conf import readConf, writeConf
 import PySimpleGUI as sg
 from np.core.log import np_logger
@@ -33,19 +34,19 @@ def create_downloader():
 	]
 	try:
 		x, y = conf['locations']['dl']
-		w = conf['windows']['pbdl_dl']['w']
-		h = conf['windows']['pbdl_dl']['h']
+		w = conf['windows'][conf['screen']]['pbdl_dl']['w']
+		h = conf['windows'][conf['screen']]['pbdl_dl']['h']
 	except Exception as e:
 		log(f"Error: Unable to restore previous window location: {e}", 'error')
 		conf = readConf()
 		screen = conf['screen']
-		x, y = conf['screens'][screen]['pos_x'], conf['screens'][screen]['pos_y']
+		x, y = conf['windows'][conf['screen']]['pbdl_dl']['x'], conf['windows'][conf['screen']]['pbdl_dl']['y']
 		try:
 			test = conf['windows']
 		except:
 			pass
-		w = conf['windows']['pbdl_dl']['w']
-		h = conf['windows']['pbdl_dl']['h']
+		w = conf['windows'][conf['screen']]['pbdl_dl']['w']
+		h = conf['windows'][conf['screen']]['pbdl_dl']['h']
 		writeConf(conf)
 	win = sg.Window('PBDL Downloader', pbdl_search_layout, no_titlebar=False, location=(x,y), size=(w,h), keep_on_top=False, grab_anywhere=True, element_justification='center', finalize=True, resizable=True).Finalize()
 	return win

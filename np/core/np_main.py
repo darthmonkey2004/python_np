@@ -1,4 +1,5 @@
 #!/usr/bin/python3
+from np.core.core import shell, get_version, match_repo_version
 import np
 from np.utils.pbdl.pbdl import start as start_pbdl
 from np.utils.pbdl.pbdl import pbdl
@@ -83,7 +84,7 @@ def recenter_ui():
 			test = MP.conf['windows']
 		except Exception as e:
 			MP.conf['windows'] = np.init_window_position()
-			log(f"init_window_position running from 'recenter_ui', np.py, MP.conf['windows'] not initialized ({e})", 'warning')
+			log(f"init_window_position running from 'recenter_ui', np_main.py, MP.conf['windows'] not initialized ({e})", 'warning')
 			
 		gui_x = int(MP.conf['windows'][gui_screen]['gui']['x'])
 		gui_y = int(MP.conf['windows'][gui_screen]['gui']['y'])
@@ -239,7 +240,7 @@ def update_resume():
 	filepath = P.get_media().get_mrl().split("file://")[1]
 	MP.conf['nowplaying']['filepath'] = urllib.parse.unquote(filepath)
 	MP.conf['nowplaying']['play_pos'] = P.get_position()
-	log(f"np.py, update_resume: modified conf with play_pos and now_playing: play_pos={MP.conf['nowplaying']['play_pos']}, now_playing={MP.conf['nowplaying']['filepath']}, Play Type:{MP.conf['play_type']}", 'info')
+	log(f"np_main.py, update_resume: modified conf with play_pos and now_playing: play_pos={MP.conf['nowplaying']['play_pos']}, now_playing={MP.conf['nowplaying']['filepath']}, Play Type:{MP.conf['play_type']}", 'info')
 	np.writeConf(MP.conf)
 
 
@@ -628,7 +629,7 @@ def start():
 			test = MP.conf['windows']
 		except Exception as e:
 			MP.conf['windows'] = np.init_window_position()
-			log(f"init_window_position running from 'start', np.py, MP.conf['init'] != True, {e}", 'warning')
+			log(f"init_window_position running from 'start', np_main.py, MP.conf['init'] != True, {e}", 'warning')
 		np.writeConf(MP.conf)
 		ui_center()
 	set_video_out()
@@ -641,6 +642,9 @@ def start():
 	if MP.conf['remote']['server']['state'] == 1:
 		run_server()
 	recenter_ui()
+	MP.version = get_version()
+	MP.update_needed = match_repo_version()
+	log(f"Starting nplayer (V{MP.version})...", 'info')
 	while True:
 		readct += 1
 		start_timer = timeit.default_timer()
@@ -1188,9 +1192,9 @@ def start():
 				else:
 					if event is not None:
 						try:
-							log(f"np.py, function=uievents_handler(), Unhandled event and value received:{event}, {values[event]}", 'info')
+							log(f"np_main.py, function=uievents_handler(), Unhandled event and value received:{event}, {values[event]}", 'info')
 						except Exception as e:
-							log(f"np.py, function=uievents_handler(), Unhandled event received:{event}", 'info')
+							log(f"np_main.py, function=uievents_handler(), Unhandled event received:{event}", 'info')
 
 			if MP.conf['GUI_RESET'] == True:
 				log(f"reset executing: {MP.conf['play_type']}", 'info')
@@ -1200,16 +1204,16 @@ def start():
 				media = np.create_media()
 				MP.series_history = np.read_history()
 				UI = np.gui()
-				log("np.py: Created GUI from main loop ('GUI_RESET' = {MP.conf['GUI_RESET']}", 'info')
+				log("np_main.py: Created GUI from main loop ('GUI_RESET' = {MP.conf['GUI_RESET']}", 'info')
 				set_video_out()
 				MP.continuous = 1
 				UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.playlist)
 				UI.WINDOW['-PLAY_TYPE-'].update(MP.conf['play_type'])
-				log("np.py: Resuming from reset = True...", 'info')
+				log("np_main.py: Resuming from reset = True...", 'info')
 				MP.play()
 				time.sleep(0.5)
 				P.set_position(MP.conf['nowplaying']['play_pos'])
-				log(f"Skipped to {MP.conf['nowplaying']['play_pos']}", 'info')
+				log(f"np_main.start():RESUME:Skipped to {MP.conf['nowplaying']['play_pos']}", 'info')
 				MP.continuous = 1
 				MP.conf['GUI_RESET'] = False
 				log(f"np_main.py:Reset finished (Reset set to false)! Conf written.", 'info')
@@ -1224,7 +1228,7 @@ def start():
 					log(f"using resume from file:{filepath}", 'info')
 					MP.play(filepath)
 					P.set_position(play_pos)
-					log(f"np.py, Skipped to {play_pos} by play_needed = 1", 'info')
+					log(f"np_main.start():play_needed=1:Skipped to {play_pos}", 'info')
 				else:
 					log ("Not resuming, filepath is None", 'info')
 					if MP.play_mode == 'playlist':
@@ -1232,7 +1236,7 @@ def start():
 						MP.play(MP.next)
 					else:
 						MP.play()
-				play_needed = 0	
+				MP.play_needed = 0	
 			#if com or event handler set nplayer's 'exit' class attribute to True for any reason, stop main loop.
 			if MP.exit == True:
 				log(f"Exit (break)!", 'info')
@@ -1303,10 +1307,10 @@ def getpid():
 	lines = shell(com).split("\n")
 	ret = []
 	for line in lines:
-		if ' np' in line:
+		if 'np' in line:
 			pid=line.split(" ")[0]
 			ret.append(pid)
-	return ret
+	return ret 
 
 def ck_start():
 	pids = getpid()
@@ -1319,7 +1323,6 @@ def ck_start():
 		c = websocket.create_connection('ws://192.168.2.2:8000/')
 		c.send('create_gui')
 		c.close()
-		exit()
 	else:
 		print ("starting")
 		t = Thread(target = start)
