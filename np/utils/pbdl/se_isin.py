@@ -113,6 +113,6 @@ if __name__ == "__main__":
 	try:
 		filepath = sys.argv[1]
 	except:
-		print ("No filepath provided!")
+		log(f"No filepath provided!", 'error')
 	ret = se_isin(filepath)
-	print (ret)
+	log(ret, 'info')

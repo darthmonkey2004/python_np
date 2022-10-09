@@ -1,5 +1,6 @@
 #!/usr/bin/python3
-from np.core.core import shell, get_version, match_repo_version
+
+from np.core.core import shell, get_version, match_repo_version, get_local_ip
 import np
 from np.utils.pbdl.pbdl import start as start_pbdl
 from np.utils.pbdl.pbdl import pbdl
@@ -25,7 +26,6 @@ update_ct = 5
 remote_com_q = queue.Queue()
 remote_ret_q = queue.Queue()
 server = server(remote_com_q, remote_ret_q)
-pbdl = pbdl()
 VLC_VIDEO_FILTERS = ['video:adjust', 'video:alphamask', 'video:anaglyph', 'video:antiflicker', 'video:audiobargraph_v', 'video:ball', 'video:blendbench', 'video:bluescreen', 'video:canvas', 'video:chain', 'video:colorthres', 'video:croppadd', 'video:deinterlace', 'video:edgedetection', 'video:erase', 'video:extract', 'video:fps', 'video:freeze', 'video:gaussianblur', 'video:gradfun', 'video:gradient', 'video:grain', 'video:hqdn3d', 'video:invert', 'video:logo', 'video:magnify', 'video:mirror', 'video:motionblur', 'video:motiondetect', 'video:oldmovie', 'video:posterize', 'video:postproc', 'video:psychedelic', 'video:puzzle', 'video:ripple', 'video:rotate', 'video:scene', 'video:sepia', 'video:sharpen', 'video:transform', 'video:vaapi_filters', 'video:vaapi_filters', 'video:vaapi_filters', 'video:vaapi_filters', 'video:vaapi_filters', 'video:vdpau_adjust', 'video:vdpau_deinterlace', 'video:vdpau_sharpen', 'video:vhs', 'video:wave']
 VLC_AUDIO_FILTERS = ['audio:audiobargraph_a', 'audio:chorus_flanger', 'audio:compressor', 'audio:equalizer', 'audio:gain', 'audio:headphone', 'audio:karaoke', 'audio:mono', 'audio:normvol', 'audio:param_eq', 'audio:remap', 'audio:scaletempo', 'audio:scaletempo_pitch', 'audio:spatialaudio', 'audio:spatializer', 'audio:stereo_widen']
 
@@ -802,7 +802,7 @@ def start():
 					log(f"ACTION:seek_rev", 'info')
 				elif event == '-SET_SCREEN-':
 					MP.conf['screen'] = int(values[event])
-					MP.conf = UI.set_window_screen(MP.conf['screen'])
+					#MP.conf = UI.set_window_screen(MP.conf['screen'])
 					np.writeConf(MP.conf)
 					log(f"Active screen updated! Needs restart{MP.conf['screen']}", 'info')
 					gui_reset()	
@@ -941,7 +941,7 @@ def start():
 					season = None
 					table = UI.WINDOW['-PLAY_TYPE-'].Get()
 					query_string = values['-SEARCH_QUERY-']
-					is_active = MP.is_active
+					is_active = 1
 					if query_string is not None:
 						if table is None:
 							table = MP.conf['play_type']
@@ -1212,8 +1212,8 @@ def start():
 				log("np_main.py: Resuming from reset = True...", 'info')
 				MP.play()
 				time.sleep(0.5)
-				P.set_position(MP.conf['nowplaying']['play_pos'])
-				log(f"np_main.start():RESUME:Skipped to {MP.conf['nowplaying']['play_pos']}", 'info')
+				#P.set_position(MP.conf['nowplaying']['play_pos'])
+				#log(f"np_main.start():RESUME:Skipped to {MP.conf['nowplaying']['play_pos']}", 'info')
 				MP.continuous = 1
 				MP.conf['GUI_RESET'] = False
 				log(f"np_main.py:Reset finished (Reset set to false)! Conf written.", 'info')
@@ -1301,33 +1301,8 @@ def start():
 			readct = 0
 	UI.WINDOW.close()
 
-def getpid():
-	pid = None
-	com = "pgrep -af np | grep -v \"/bin/sh\""
-	lines = shell(com).split("\n")
-	ret = []
-	for line in lines:
-		if 'np' in line:
-			pid=line.split(" ")[0]
-			ret.append(pid)
-	return ret 
-
-def ck_start():
-	pids = getpid()
-	if len(pids) < 2:
-		isrunning = False
-	else:
-		isrunning = True
-	if isrunning:
-		import websocket
-		c = websocket.create_connection('ws://192.168.2.2:8000/')
-		c.send('create_gui')
-		c.close()
-	else:
-		print ("starting")
-		t = Thread(target = start)
-		t.start()	
+	
 
 if __name__ == "__main__":
-	ck_start()
+	start()
 

@@ -535,9 +535,12 @@ class nplayer():
 		self.art_w = self.conf['windows'][screen]['viewer']['w']
 		self.art_h = self.conf['windows'][screen]['viewer']['h']
 		com = ("convert 'poster.jpg' -resize " + str(self.art_w) + "x" + str(self.art_h) + " 'poster.png'")
-		ret = subprocess.check_output(com, shell=True)
-		self.album_art = 'poster.png'
-		return self.album_art
+		try:
+			ret = subprocess.check_output(com, shell=True)
+			self.album_art = 'poster.png'
+			return self.album_art
+		except:
+			return None
 
 
 	def load_playlist(self, filepath):
@@ -630,7 +633,7 @@ class nplayer():
 
 	def get_playlist_next(self):
 		self.play_mode = 'playlist'
-		items = self.playlist['items']
+		items = self.playlist
 		log(f"PLAYLIST_ITEMS/items:{items}", 'info')
 		idx = None
 		if self.playlist_last is None:

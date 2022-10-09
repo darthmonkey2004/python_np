@@ -2,6 +2,8 @@ import os
 from os.path import basename
 from np.core.conf import readConf
 from np.core.log import np_logger
+from np import get_columns
+from np import cleandb
 import subprocess
 import urllib
 import requests
@@ -18,6 +20,46 @@ def sqlite3(query):
 		log(f"SQLITE3 Query: {query}", 'info')
 		log(f"SQLITE3 Results: {out}", 'info')
 	return out
+
+
+def add_to_db(info):
+	varslist = []
+	outlist = []
+	schema = get_columns('series')
+	keys = list(schema.keys())
+	for column in info.keys():
+		if column in keys and column != 'id':
+			varslist.append(column)
+			val = info[column]
+			dtype = schema[column]['data_type']
+			if dtype == 'INTEGER' or dtype == 'BOOL':
+				outlist.append(str(val))
+			else:
+				outlist.append(f"\'{val}\'")
+	j = ", "
+	keys = j.join(varslist)
+	vals = j.join(outlist)
+	query = f"INSERT INTO series ({keys}) VALUES ({vals});"
+	ret = sqlite3(query)
+	if ret:
+		print("Query returned data (error???): {ret}")
+		input()
+		return False
+	return True
+
+
+def set_empty(filepath):
+	info = {}
+	schema = get_columns('series')
+	columns = list(schema.keys())
+	for column in columns:
+		dtype = schema[column]['data_type']
+		if dtype == 'INTEGER' or dtype == 'BOOL':
+			if column != '_id':
+				info[column] = 0
+		else:
+			info[column] = 'Unknown'
+	return info
 
 def query_series(filepath, series_name, season, episode_number):
 	info = {}
@@ -85,13 +127,14 @@ def query_series(filepath, series_name, season, episode_number):
 	info['description'] = info['description'].replace("'", "").replace('"', "")
 	info['series_name'] = info['series_name'].replace("'", "").replace('"', "")
 	info['episode_name'] = info['episode_name'].replace("'", "").replace('"', "")
-
 	return info
 
 def scan_series(target_dir=None):
 	type = 'series'
 	exts = ['mp4', 'mov', 'avi', 'flv', 'mkv']
-	test_db()
+	dbfile = os.path.join(os.path.expanduser("~"), '.np', 'nplayer.db')
+	if not os.path.exists(dbfile):
+		print("Friggin' database doesn't exist? Fix it, Matt...")
 	if target_dir == None:
 		target_dir = conf['media_directories']['series']
 	for ext in exts:
@@ -140,26 +183,22 @@ def scan_series(target_dir=None):
 					if episode_name is None or episode_name == '':
 						episode_name = 'Unknown'
 			
+				info = set_empty(filepath)
+				if series_name is not None:
+					info['series_name'] = series_name
+				if season is not None:
+					info['season'] = season
+				if episode_number is not None:
+					info['episode_number'] = episode_number
+				if episode_name is not None:
+					info['episode_name'] = episode_name
 				info = query_series(filepath, series_name, season, episode_number)
-				sql_string = (f"INSERT INTO series (isactive, series_name, tmdbid, season, episode_number, episode_name, description, air_date, still_path, filepath) VALUES('{info['isactive']}', '{info['series_name']}', '{info['tmdbid']}', '{info['season']}', '{info['episode_number']}', '{info['episode_name']}', '{info['description']}', '{info['air_date']}', '{info['still_path']}', '{info['filepath']}');")
-				if info['error'] == False:
-					out = (f"Added to series: Name - {info['series_name']}, S{info['season']}E{info['episode_number']}")
-					log(out, 'info')
-				else:
-					out = (f"Lookup failed for file '{info['filepath']}': Response='{info['response']}'. Adding generic values insteal...")
-					log(out, 'warning')
-					if series_name is not None:
-						info['series_name'] = series_name
-					if season is not None:
-						info['season'] = season
-					if episode_number is not None:
-						info['episode_number'] = episode_number
-					if episode_name is not None:
-						info['episode_name'] = episode_name
-				ret = addtodb('series', sql_string)
+				ret = add_to_db(info)
 				if ret is not True:
 					log(f"Error:{ret}, Data:{info}", 'error')
 					input("Press a key...")
+
+
 
 	log(f"Running cleandb: 'series'...", 'info')
 	cleandb('series')

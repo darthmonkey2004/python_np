@@ -8,21 +8,8 @@ from np.utils.tadb_search import lookup
 from np.utils.id3 import tag
 from np.core.log import np_logger
 from np.core.nplayer_db import get_columns
-logger = np_logger().log_msg
+log = np_logger().log_msg
 id3 = tag()
-
-
-def log(msg, _type=None):
-	if _type is None:
-		_type = 'info'
-	if _type == 'error':
-		exc_info = sys.exc_info()
-		logger(msg, _type, exc_info)
-		return
-	else:
-		logger(msg, _type)
-
-
 
 def set_empty(play_type):
 	pragma = get_columns(play_type)
@@ -65,7 +52,7 @@ def scan_music(target_dir=None):
 		pos = pos + 1
 		exists = test_exists(filepath)
 		if exists == True:
-			print (f"Already in database: '{filepath}'")
+			log(f"Already in database: '{filepath}'", 'info')
 		else:
 			info = set_empty('music')
 			hastag = True
@@ -74,7 +61,7 @@ def scan_music(target_dir=None):
 			artist = None
 			txt = ("Progress: (" + str(pos) + "/" + str(ct) + ", filepath:" + filepath)
 			audiofile = None
-			print (txt)
+			log(f"{txt}", 'info')
 			if filepath == '' or not os.path.exists(filepath):
 				log("Error: No file path provided (directory might be empty?)", 'info')
 				break
@@ -107,7 +94,7 @@ def scan_music(target_dir=None):
 							if tag.artist is None:
 								tag.artist = fname.split(s)[1].split('.')[0]
 						except:
-							print (f"File: '{filepath}' - Unable to parse info from path.")
+							log(f"File: '{filepath}' - Unable to parse info from path.", 'error')
 							tag.title = input("Enter artist name: ")
 							tag.artist = input("Enter song title: ")
 				info = lookup(tag.artist, tag.title)
@@ -148,12 +135,12 @@ def scan_music(target_dir=None):
 			sql_string = (f"INSERT INTO music (isactive, title, mbid, album, album_id, artist_id, artist, genre, track, filepath) VALUES({isactive}, '{title}', '{mbid}', '{album}', '{album_id}', '{artist_id}', '{artist}', '{genre}', {track}, '{filepath}');")
 			ret = addtodb('music', sql_string)
 			if conf['debug'] == True:
-				print (f"Add to db results: {ret}, filepath:{filepath}", 'info')
+				log(f"Add to db results: {ret}, filepath:{filepath}", 'info')
 			if ret is not True:
-				print (ret)
+				log(f"Add to db returned data: {ret}", 'warning')
 	log(f"Running cleandb: 'music'...", 'info')
 	cleandb('music')
 
 if __name__ == "__main__":
 	ret = scan_music()
-	print (ret)
+	log(f"Results: {ret}",'info')

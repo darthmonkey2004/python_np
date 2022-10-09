@@ -3,6 +3,8 @@ import subprocess
 import os
 from np.core.nplayer_db import get_columns
 from np.utils.pbdl.rotten_tomatoes import get_episode_data
+from np.core.log import np_logger
+log = np_logger().log_msg
 
 def sqlite3(com):
 	path = os.path.join(os.path.expanduser("~"), '.np', 'nplayer.db')
@@ -18,7 +20,7 @@ def get_series_list():
 	return _list
 
 def get_movies_list():
-	com = (f"select distinct title from movies order by title;")
+	com = (f"select id,title,year from movies order by title;")
 	_list = sqlite3(com).split('\n')
 	return _list
 
@@ -52,6 +54,7 @@ def get_table(values):
 		return 'movies'
 
 def edit_details(table, _id):
+	log(f"Edit Details: table:{table}, id:{_id}", 'info')
 	menu_def = [['&Tools', ['&Rotten Tomatoes Query']]]
 	global h, WINDOW, WINDOW2
 	ew, eh = WINDOW.CurrentLocation()
@@ -161,6 +164,7 @@ def db_editor():
 		except:
 			table = 'series'
 		if event is not None and event != '__TIMEOUT__':
+			log(f"DBEDITOR:EVENT:{event}", 'info')
 			if event ==  sg.WIN_CLOSED:
 				break
 			elif event == '-quit-':
@@ -200,7 +204,10 @@ def db_editor():
 						if len(items) > 1:
 							print ("More than one item selected, skipping grab additional info.")
 						else:
-							title = values[event][0]
+							string = values[event][0]
+							_id = string.split('|')[0]
+							title = string.split('|')[1]
+							year = string.split('|')[2]
 							print (f"Title: '{title}'")
 					elif table == 'series':
 						items = values[event]
@@ -272,13 +279,15 @@ def db_editor():
 					com = (f"select id from music where artist like \"%{artist}%\" and title = \"{title}\" order by artist, title;")
 					_id = sqlite3(com)[0]
 					print (f"ID: {_id}")
-					WINDOW2 = edit_details(table, _id)
+					WINDOW2 = edit_details('music', _id)
 				elif table == 'movies':
-					title = values['-db_items_0-'][0]
-					com = (f"select id from movies where title like \"%{title}%\" order by title;")
-					_id = sqlite3(com)[0]
+					string = values['-db_items_0-'][0]
+					_id = string.split('|')[0]
+					title = string.split('|')[1]
+					year = string.split('|')[2]
+					log(f"Opening editor: {title}", 'info')
 					print (f"ID: {_id}")
-					WINDOW2 = edit_details(table, _id)
+					WINDOW2 = edit_details('movies', _id)
 				WINDOWS.append(WINDOW2)
 			elif event == '-set_active-':
 				print (f"Setting active: Table='{table}', Series: '{series_name}', Season: {season}, Episode Number: {episode_number}")
@@ -366,8 +375,10 @@ def db_editor():
 				episode_number = None
 				episode_name = None
 			elif event == '-update-':
+				print("table:", table)
 				pragma = get_columns(table)
 				columns = list(pragma.keys())
+				print("Columns:", columns)
 				pos = -1
 				query = None
 				for column in columns:

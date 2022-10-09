@@ -141,7 +141,7 @@ def get_seasons(series_name):
 		seasons_data = json_data['containsSeason']
 		seasons = []
 		for season in seasons_data:
-			season = season['url'].split('/')[3].split('s')[1]
+			season = season['url'].split(os.path.sep)[3].split('s')[1]
 			if '0' in season:
 				try:
 					first = season[0]

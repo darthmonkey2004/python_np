@@ -99,11 +99,11 @@ def query_series(series_name, season, episode_number):
 	try:
 		tmdbid = json_data['results'][0]['id']
 	except Exception as e:
-		print ("Error getting tmdbid:", e)
+		log(f"Error getting tmdbid: {e}", 'error')
 	try:
 		still_path = json_data['results'][0]['backdrop_path']
 	except Exception as e:
-		print ("Still path was error:", e)
+		log("Still path was error: {e}", 'error')
 		try:
 			still_path = json_data['results'][0]['poster_path']
 		except:
@@ -176,5 +176,5 @@ if __name__ == "__main__":
 	import sys
 	filepath = str(sys.argv[1])
 	data = lookup(filepath)
-	print (data)
+	log(f"Query Series Results: {data}", 'info')
 	exit()

@@ -43,4 +43,4 @@ def guess_intro(_file):
 if __name__ == "__main__":
 	import sys
 	_file = sys.argv[1]
-	print (guess_intro(_file))
+	log(f"Intro: {guess_intro(_file)}", 'info')

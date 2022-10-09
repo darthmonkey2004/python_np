@@ -31,7 +31,7 @@ def create_torrentmgr_ui():
 	[sg.Text('Ratio:'), sg.Text('', expand_x=True, key='ratio')],
 
 	]
-	title_bar_layout = [sg.MenubarCustom(menu_def, tearoff=False, key='-menubar_key-'), sg.Combo(['series', 'movies', 'music'], conf['play_type'] , enable_events=True,key='-MEDIA_TYPE-'), sg.Button("Quit!", key='-QUIT-')],
+	title_bar_layout = [sg.MenubarCustom(menu_def, tearoff=False, key='-menubar_key-'), sg.Combo(['series', 'movies', 'music'], conf['play_type'] , enable_events=True,key='-MEDIA_TYPE-'), sg.Button("Quit!", key='-QUIT_PBDL-')],
 	title_bar_frame = sg.Frame(title='', layout = title_bar_layout, key='title_bar_frame', expand_x=True, grab=True, element_justification="center", vertical_alignment="top")
 	media_info_layout = build_column_table(play_type)
 	media_info_layout.append([sg.Listbox([], size=(10,10), expand_x=True, expand_y=False, enable_events=True, select_mode='multiple', key='-TORRENT_FILES-')])
@@ -40,18 +40,23 @@ def create_torrentmgr_ui():
 	info_frame = sg.Frame(title='Torrent Data', layout=pbdl_layout, key='info_frame', expand_x=True, grab=True, element_justification="left", vertical_alignment="top")
 	media_info_frame = sg.Frame(title='Media Info', layout=media_info_layout, key='media_info_frame', expand_x=True, grab=True, element_justification="right", vertical_alignment="top")
 	layout = [[title_bar_frame], [info_frame, [media_info_frame, sg.Sizegrip(key='-gui_size-')]]]
+	screen = conf['screen']
+	if screen == 0:
+		screen = 1
+	elif screen == 1:
+		screen = 0
 	try:
-		x = int(conf['windows']['pbdl']['x'])
-		y = int(conf['windows']['pbdl']['y'])
-		w = int(conf['windows']['pbdl']['w'])
-		h = (int(conf['windows']['pbdl']['h']) + 100)
+		x = int(conf['windows'][screen]['pbdl']['x'])
+		y = int(conf['windows'][screen]['pbdl']['y'])
+		w = int(conf['windows'][screen]['pbdl']['w'])
+		h = (int(conf['windows'][screen]['pbdl']['h']) + 100)
 	except:
 		conf = readConf()
 		screen = conf['screen']
-		x, y = conf['screens'][screen]['pos_x'], conf['screens'][screen]['pos_y']
-		w = conf['windows']['pbdl_dl']['w']
-		h = conf['windows']['pbdl_dl']['h']
-	pbdl_win = sg.Window('PBDL Downloader', layout, no_titlebar=False, location=(x,y), size=(1024,900), keep_on_top=False, grab_anywhere=True, element_justification='center', finalize=True, resizable=True).Finalize()
+		x, y = conf['windows'][screen]['pbdl']['x'], conf['windows'][screen]['pbdl']['y']
+		w = conf['windows'][screen]['pbdl']['w']
+		h = conf['windows'][screen]['pbdl']['h']
+	pbdl_win = sg.Window('Torrent Manager', layout, no_titlebar=False, location=(x,y), size=(1024,900), keep_on_top=False, grab_anywhere=True, element_justification='center', finalize=True, resizable=True).Finalize()
 	return pbdl_win
 
 

@@ -3,16 +3,7 @@ import datetime
 from np.core.log import np_logger 
 import sys, traceback
 
-logger = np_logger().log_msg
-def log(msg, _type=None):
-	if _type is None:
-		_type = 'info'
-	if _type == 'error':
-		exc_info = sys.exc_info()
-		logger(msg, _type, exc_info)
-		return
-	else:
-		logger(msg, _type)
+log = np_logger().log_msg
 
 
 def build_year_list():
@@ -70,4 +61,4 @@ def parse_title(filepath):
 if __name__ == "__main__":
 	filepath = 'South.Park.The.Streaming.Wars.2022.1080p.WEBRip.x264.AAC5.1-[YTS.MX].mp4'
 	title, year = parse_title(filepath)
-	print (f"title:{title}, year:{year}")
+	log(f"title:{title}, year:{year}", 'info')

@@ -9,24 +9,15 @@ from np.utils.pbdl.ty_isin import ty_isin
 from np.core.core import shell
 from np.utils.pbdl.rotten_tomatoes import get_episode_data, get_season_data, get_all_series_data, get_seasons, get_movie_data
 from np.utils.pbdl.query_series import query_series
+from np.utils.pbdl.query_movies import query_movies
 import os
 import pickle
 
-logger = np_logger().log_msg
+log = np_logger().log_msg
 conf = readConf()
-DATA_DIR = conf['DATA_DIR']
-SFTP_DIR = conf['SFTP_DIR']
+DATA_DIR = os.path.join(os.path.expanduser("~"), '.np')
+SFTP_DIR = os.path.join(DATA_DIR, 'sftp')
 HOME = os.path.expanduser("~")
-
-def log(msg, _type=None):
-	if _type is None:
-		_type = 'info'
-	if _type == 'error':
-		exc_info = sys.exc_info()
-		logger(msg, _type, exc_info)
-		return
-	else:
-		logger(msg, _type)
 
 
 def set_empty(table='movies'):
@@ -123,14 +114,12 @@ def refresh_info(torrents, tid):
 		torrents[tid]['files'][filepath]['info']['play_type'] = play_type
 		if play_type == 'series':
 			series_name, season, episode_number = test_media(filepath, True)
-			#print ("name:", series_name, "s:", season, "e:", episode_number)
 			info = set_empty('series')
 			info['series_name'] = series_name
 			info['season'] = season
 			info['episode_number'] = episode_number
 		elif play_type == 'movies':
 			title, year = test_media(filepath, True)
-			#print("title:", title, "year:", year)
 			info = set_empty('movies')
 			info['title'] = title
 			info['year'] = year
@@ -162,7 +151,8 @@ def add_to_db(torrents):
 			except:
 				play_type = test_media(filepath)
 			exists = None
-			com = f"sqlite3 \"{DATA_DIR}/nplayer.db\" \"select id from {play_type} where filepath like \'%{fname}%\';\""
+			dbfile = os.path.join(DATA_DIR, 'nplayer.db')
+			com = f"sqlite3 \"{dbfile}\" \"select id from {play_type} where filepath like \'%{fname}%\';\""
 			exists = subprocess.check_output(com, shell=True).decode().strip()
 			if exists is not None and exists != '':
 				log(f"File already exists with id {exists} ({filepath}). Aborting...", 'warning')
@@ -207,7 +197,8 @@ def add_to_db(torrents):
 			kstring = j.join(keys)
 			vstring = j.join(vals)
 			qstring = (f"INSERT INTO {play_type} ({kstring}) VALUES({vstring});")
-			com = f"sqlite3 \"{DATA_DIR}/nplayer.db\" \"{qstring}\""
+			dbfile = os.path.join(DATA_DIR, 'nplayer.db')
+			com = f"sqlite3 \"{dbfile}\" \"{qstring}\""
 			ret = subprocess.check_output(com, shell=True).decode().strip()
 			if ret:
 				log(f"Error: Add to database failed for file '{filepath}': {ret}", 'error')
@@ -218,7 +209,7 @@ def add_to_db(torrents):
 def migrate_series():
 	conf = readConf()
 	media_dir = conf['media_directories']['series']
-	db = f"{DATA_DIR}/nplayer.db"
+	db = os.path.join(DATA_DIR, 'nplayer.db')
 	com = (f"sqlite3 {db} \"select id,series_name,season,episode_number,episode_name,filepath from series where filepath like \'%{SFTP_DIR}%\';\"")
 	results = subprocess.check_output(com, shell=True).decode().strip().split("\n")
 	for item in results:
@@ -254,7 +245,7 @@ def migrate_series():
 def migrate_movies():
 	conf = readConf()
 	media_dir = conf['media_directories']['movies']
-	db = f"{DATA_DIR}/nplayer.db"
+	db = os.path.join(DATA_DIR, 'nplayer.db')
 	com = (f"sqlite3 {db} \"select id,title,year,filepath from movies where filepath like \'%{SFTP_DIR}%\';\"")
 	results = subprocess.check_output(com, shell=True).decode().strip().split("\n")
 	for item in results:
@@ -263,13 +254,13 @@ def migrate_movies():
 			filepath = filepath.replace("%27", "'")
 		l = len(filepath) - 4
 		ext = filepath[l:]
-		newdir = (f"{media_dir}/{title} ({year})")
+		newdir = os.path.join(media_dir, f"{title} ({year})")
 		com = (f"mkdir -p \"{newdir}\"")
 		ret = subprocess.check_output(com, shell=True).decode().strip()
 		if ret:
 			log(f"Error creating directory: {newdir}. ({ret})", 'error')
 			break
-		newpath = (f"{newdir}/{title} ({year}){ext}").replace("'", "")
+		newpath = os.path.join(newdir, f"{title} ({year}){ext}").replace("'", "")
 		log(f"Migrating file '{filepath}' to '{newpath}'..", 'info')
 		com = (f"cp \"{filepath}\" \"{newpath}\"")
 		ret = subprocess.check_output(com, shell=True).decode().strip()
@@ -278,7 +269,7 @@ def migrate_movies():
 			break
 		else:
 			log(f"File moved!", 'info')
-		com = (f"sqlite3 {db} \"update series set filepath = \'{newpath}\' where id = {_id};\"")
+		com = (f"sqlite3 {db} \"update movies set filepath = \'{newpath}\' where id = {_id};\"")
 		ret = subprocess.check_output(com, shell=True).decode().strip()
 		if ret:
 			log(f"Error renaming file in database: id={_id}", 'error')
@@ -327,7 +318,7 @@ def get_torrents():
 	return torrents
 
 def get_files(tid):
-	com = (f"transmission-remote {conf['pbdl']['remote_ip']} -t{tid} -f | grep -v \'files):\' | grep -v \'#\' | grep -v \".jpg\" | grep -v \"sample\" | grep -v \".srt\" | grep -v \".nfo\" | grep -v \".txt\" | cut -d \"/\" -f 2")
+	com = (f"transmission-remote {conf['pbdl']['remote_ip']} -t{tid} -f | grep -v \'files):\' | grep -v \'#\' | grep -v \".jpg\" | grep -v \"sample\" | grep -v \".srt\" | grep -v \".nfo\" | grep -v \".txt\" | cut -d \"{os.path.sep}\" -f 2")
 	data = send_command(com).split("\n")
 	files = []
 	for filepath in data:
@@ -379,9 +370,9 @@ def parse_series(filepath):
 	media_dir = conf['media_directories']['main']
 	if media_dir in filepath:
 		try:
-			n = filepath.split(media_dir)[1].split('/Series/')[1].split('/')[0]
-			s = filepath.split(media_dir)[1].split('/Series/')[1].split('/')[1].split('S')[1]
-			e = filepath.split(media_dir)[1].split('/Series/')[1].split('/')[2].replace('.', ' ').split(f"S{s}E")[1].split(' ')[0]
+			n = filepath.split(media_dir)[1].split(f"{os.path.sep}Series{os.path.sep}")[1].split(os.path.sep)[0]
+			s = filepath.split(media_dir)[1].split(f"{os.path.sep}Series{os.path.sep}")[1].split(os.path.sep)[1].split('S')[1]
+			e = filepath.split(media_dir)[1].split(f"{os.path.sep}Series{os.path.sep}")[1].split(os.path.sep)[2].replace('.', ' ').split(f"S{s}E")[1].split(' ')[0]
 			return [n, s, e]
 		except Exception as e:
 			log(f"Error: Unknown issue! Structured filesystem wasn't parseable: {e}", 'error')
@@ -394,8 +385,8 @@ def parse_series(filepath):
 		play_type = 'series'
 		length = len(filepath.split(sinfo)) - 1
 		series_name = filepath.split(sinfo)[0].replace('.', ' ').strip()
-		if '/' in series_name:
-			series_name = series_name.split('/')[1]
+		if os.path.sep in series_name:
+			series_name = series_name.split(os.path.sep)[1]
 		return [series_name, season, episode_number]
 	
 	
@@ -424,26 +415,22 @@ def lookup(args):
 	lookup_type = args['lookup_type']
 	if play_type == 'series':
 		if lookup_type == '-rotten tomatoes-':
-			#print("get_episode_data", args['series_name'], args['season'], args['episode_number'])
 			data = get_episode_data(args['series_name'], args['season'], args['episode_number'])
 			if data['results'] == True:
 				log("Lookup successful!", 'info')
 				return data
 		elif lookup_type == '-TMDB-':
-			#print("query_series", args['series_name'], args['season'], args['episode_number'])
 			data = query_series(args['series_name'], args['season'], args['episode_number'])
 			if data['results'] == True:
 				log("Lookup successful!", 'info')
 				return data
 	elif play_type == 'movies':
 		if lookup_type == '-rotten tomatoes-':
-			#print("get_movie_data", args['title'])
 			data = get_movie_data(args['title'])
 			if data['results'] == True:
 				log("Lookup successful!", 'info')
 				return data
 		elif lookup_type == '-TMDB-':
-			#print("query_movies", args['title'])
 			data = query_movies(args['title'])
 			if data['results'] == True:
 				log("Lookup successful!", 'info')
@@ -451,8 +438,8 @@ def lookup(args):
 
 
 def verify_series_name(series_name):
-	from np.core.core import DATA_DIR
-	com = (f"sqlite3 \"{DATA_DIR}/nplayer.db\" \"select distinct series_name from series where upper(series_name) like upper('%{series_name}%');\"")
+	db = os.path.join(DATA_DIR, 'nplayer.db')
+	com = (f"sqlite3 \"{db}\" \"select distinct series_name from series where upper(series_name) like upper('%{series_name}%');\"")
 	series_exists = None
 	series_exists = subprocess.check_output(com, shell=True).decode().strip()
 	if series_exists is None or series_exists == '':
@@ -461,7 +448,8 @@ def verify_series_name(series_name):
 		if hasyear:
 			#retest if year in series_name (like 'Archer 2009')
 			series_name, _ = ty_isin(series_name, True)
-			com = (f"sqlite3 \"{DATA_DIR}/nplayer.db\" \"select distinct series_name from series where upper(series_name) like upper('%{series_name}%');\"")
+			db = os.path.join(DATA_DIR, 'nplayer.db')
+			com = (f"sqlite3 \"{db}\" \"select distinct series_name from series where upper(series_name) like upper('%{series_name}%');\"")
 			series_exists = subprocess.check_output(com, shell=True).decode().strip()
 			if series_exists is not None and series_exists != '':
 				return series_exists
@@ -535,7 +523,7 @@ def set_api_key_tmdb():
 
 
 def clear_data():
-	savefile = (f"{DATA_DIR}/pbdl.dat")
+	savefile = os.path.join(DATA_DIR, 'pbdl.dat')
 	if os.path.exists(savefile):
 		com = f"rm \"{savefile}\""
 		ret = shell(com)
@@ -551,7 +539,7 @@ def clear_data():
 
 def save_data(torrents):
 	log(f"Saving current data!", 'info')
-	savefile = (f"{DATA_DIR}/pbdl.dat")
+	savefile = os.path.join(DATA_DIR, 'pbdl.dat')
 	try:
 		with open(savefile, "wb") as f:
 			pickle.dump(torrents, f)
@@ -565,7 +553,7 @@ def save_data(torrents):
 
 def load_saved_data():
 	#returns all previously saved data. Does not check to ensure more torrents added, use with resume only.
-	savefile = (f"{DATA_DIR}/pbdl.dat")
+	savefile = os.path.join(DATA_DIR, 'pbdl.dat')
 	if os.path.exists(savefile):
 		bakdata = {}
 		log("Restoring backup...")
@@ -620,8 +608,7 @@ def build_data(rebuild=False, lookup_type=None):
 			try:
 				results = torrents[tid]['files'][filepath]['info']['results']
 			except Exception as e:
-				print (f"Results tag not found: {e}", 'warning')
-
+				log(f"Results tag not found: {e}", 'warning')
 				results = None
 			if results is None:
 				torrents[tid]['files'][filepath] = {}
@@ -653,5 +640,5 @@ def build_data(rebuild=False, lookup_type=None):
 
 if __name__ == "__main__":
 	data = build_torrents()
-	print (data)
+	log(data, 'info')
 	

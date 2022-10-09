@@ -1,3 +1,4 @@
+from np.core.db_editor import db_editor
 from np.core.core import create_media
 from np.core.nplayer import nplayer
 from np.core.xrandr import xrandr
@@ -76,11 +77,6 @@ def folder_browse_window(cwd=None):
 				break
 	return path
 
-
-def db_editor():
-	com = (f"python3 -c \"import np; np.db_editor()\"&")
-	subprocess.call(com, shell=True)
-	return True
 
 def tag_editor():
 	com = (f"python3 -c \"import np; np.tag_editor()\"&")

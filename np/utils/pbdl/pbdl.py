@@ -15,10 +15,7 @@ from np.core.log import np_logger
 from np.utils.pbdl.torrentmgr_ui import *
 from np.utils.pbdl.downloader import start as start_downloader
 from np.utils.pbdl.downloader import create_downloader, get_location
-
-user = os.path.expanduser("~")
-DATA_DIR = (user + os.path.sep + ".np")
-logger = np_logger().log_msg
+log = np_logger().log_msg
 	
 
 
@@ -34,17 +31,6 @@ def set_empty(table='movies'):
 			info[key] = 'Unknown'
 	return info
 
-def log(msg, _type=None):
-	if _type is None:
-		_type = 'info'
-	if _type == 'error':
-		exc_info = sys.exc_info()
-		logger(msg, _type, exc_info)
-		return
-	else:
-		logger(msg, _type)
-
-
 
 def crash_detected():
 	log(f"Previous crash detected!", 'warning')
@@ -57,7 +43,7 @@ class pbdl():
 		self.music_dir = self.conf['media_directories']['music']
 		self.series_dir = self.conf['media_directories']['series']
 		self.movies_dir = self.conf['media_directories']['movies']
-		self.data_dir = DATA_DIR
+		self.data_dir = os.path.join(os.path.expanduser("~"), '.np')
 		self.play_type = self.conf['play_type']
 		self.windows = {}
 		self.win = None
@@ -97,7 +83,7 @@ class pbdl():
 		try:
 			return columns[int(key.split('column')[1])]
 		except Exception as e:
-			print(f"Error: Couldn't get field from key: {e}, key:{key}", 'error')
+			log(f"Error: Couldn't get field from key: {e}, key:{key}", 'error')
 			return None
 
 
@@ -116,19 +102,21 @@ class pbdl():
 		self.conf['locations']['mgr'] = self.mgr_location
 		self.conf['locations']['dl'] = self.dl_location
 		self.save_data(self.torrents)
-		self.mgr_location = self.windows[title].current_location()
+		try:
+			self.mgr_location = self.windows['Torrent Manager'].current_location()
+		except:
+			self.mgr_location = self.conf['locations']['mgr']
 		for win in self.windows.keys():
 			self.windows[win].close()
 		self.conf['locations']['mgr'] = self.mgr_location
 
 		writeConf(self.conf)
-		exit()
 
 	def save_data(self, torrents=None):
 		if torrents == None:
 			torrents = self.torrents
 		log(f"Saving current data!", 'info')
-		savefile = (f"{self.data_dir}/pbdl.dat")
+		savefile = os.path.join(self.data_dir, 'pbdl.dat')
 		try:
 			with open(savefile, "wb") as f:
 				pickle.dump(torrents, f)
@@ -172,6 +160,7 @@ class pbdl():
 		#creates pbdl ui (runs in main loop)
 		win = create_torrentmgr_ui()
 		self.mgr_location = win.current_location()
+		log(f"Created torrent manager: ({win.Title})", 'info')
 		self.windows[win.Title] = win
 
 	def read_windows(self):
@@ -190,7 +179,7 @@ class pbdl():
 			name = self.torrents[tid]['name']
 			string = f"{tid}:{name}"
 			self.active_torrents.append(string)
-		self.windows['PBDL Downloader']['-TORRENT_SELECT-'].update(self.active_torrents)
+		self.windows['Torrent Manager']['-TORRENT_SELECT-'].update(self.active_torrents)
 
 
 	def refresh(self):
@@ -212,7 +201,7 @@ def start(t='mgr'):
 			window, event, values = p.window, p.event, p.values
 			if event == '__TIMEOUT__':
 				pass
-			elif p.exit == True or event == '-QUIT-' or event == 'Exit':
+			elif p.exit == True or event == '-QUIT_PBDL-' or event == 'Exit':
 				log(f"EVENT:{event}", 'info')
 				p.quit()
 				break
@@ -274,14 +263,12 @@ def start(t='mgr'):
 					if hasinfo is False:
 						if p.play_type == 'series':
 							series_name, season, episode_number = test_media(filepath, True)
-							#print ("name:", series_name, "s:", season, "e:", episode_number)
 							p.info = set_empty('series')
 							p.info['series_name'] = series_name
 							p.info['season'] = season
 							p.info['episode_number'] = episode_number
 						elif p.play_type == 'movies':
 							title, year = test_media(filepath, True)
-								#print("title:", title, "year:", year)
 							p.info = set_empty('movies')
 							p.info['title'] = title
 							p.info['year'] = year
@@ -290,7 +277,7 @@ def start(t='mgr'):
 						if item in columns:
 							k = f"dbcolumn{columns.index(item)}"
 							d[k] = p.info[item]
-							print(f"item:{item}, k:{k}")
+							log(f"item:{item}, k:{k}", 'info')
 					sg.fill_form_with_values(p.win, d)
 					p.win['dbcolumn0'].update(p.tid)
 					p.win[f"dbcolumn{columns.index('filepath')}"].update(filepath)

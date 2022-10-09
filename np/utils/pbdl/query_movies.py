@@ -3,28 +3,53 @@ import urllib
 import requests
 import json
 from np.core.log import np_logger
-logger = np_logger().log_msg
+log = np_logger().log_msg
 import time
 from np.core.nplayer_db import get_columns
-from np.utils.pbdl.utils import set_api_key_tmdb
+
 from np.core.conf import readConf
 conf = readConf()
+
+def set_api_key_tmdb():
+	conf = readConf()
+	api_key = get_user_input("Enter TMDB api key:")
+	try:
+		haskeys = conf['api_keys']
+	except:
+		conf['api_keys'] = {}
+		log(f"Api keys not found in conf! Adding...", 'warning')
+	conf['api_keys']['TMDB'] = api_key
+	writeConf(conf)
+	log(f"Updated TMDB API Key: {api_key}", 'info')
+	return api_key
+
+
+def get_user_input(window_title='User Input', txt=None):
+	user_input = None
+	input_box = sg.Input(default_text='', enable_events=True, change_submits=True, do_not_clear=True, key='-USER_INPUT-', expand_x=True)
+	input_btn = sg.Button(button_text='Ok', auto_size_button=True, pad=(1, 1), key='-OK-')
+	if txt is not None:
+		input_txt = sg.Text(txt)
+		layout = [[input_box], [input_txt], [input_btn]]
+	else:
+		layout = [[input_box], [input_btn]]
+	input_window = sg.Window(window_title, layout, keep_on_top=False, element_justification='center', finalize=True)
+	while True:
+		event, values = input_window.read()
+		if event == sg.WIN_CLOSED:
+			break
+		elif event == '-OK-':
+			input_window.close()
+		elif event == '-USER_INPUT-':
+			user_input = values[event]
+	return user_input
+
+
 try:
 	haskeys = conf['api_keys']
 	API_KEY = conf['api_keys']['TMDB']
 except:
 	API_KEY = set_api_key_tmdb()
-
-def log(msg, _type=None):
-	if _type is None:
-		_type = 'info'
-	if _type == 'error':
-		exc_info = sys.exc_info()
-		logger(msg, _type, exc_info)
-		return
-	else:
-		logger(msg, _type)
-
 
 
 def set_empty():
@@ -78,7 +103,7 @@ if __name__ == "__main__":
 	try:
 		title = sys.argv[1]
 	except:
-		print ("no title provided!")
+		log("no title provided!", 'error')
 		exit()
 	info = query_imdb(title)
-	print (info)
+	log(f"Query Movies Results: {info}", 'info')

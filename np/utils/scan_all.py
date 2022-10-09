@@ -3,6 +3,9 @@ from np.utils.scan_movies import scan_movies
 from np.utils.scan_series import scan_series
 from np.core.conf import readConf
 from np.core.nplayer_db import create_db
+from np.core.log import np_logger
+from np.utils import cleandb
+log = np_logger().log_msg
 import subprocess
 import os
 import datetime
@@ -18,24 +21,24 @@ def backup_db():
 	else:
 		return True
 
-def scan_all(dir=None):
+def scan_all(path=None):
 	conf = readConf()
 	dbfile = f"{data_dir}/nplayer.db"
-	if dir == None:
+	if path is None:
 		series_dir = conf['media_directories']['series']
 		music_dir = conf['media_directories']['music']
 		movies_dir = conf['media_directories']['movies']
 	else:
-		series_dir = (f"{dir}{os.path.sep}series")
-		music_dir = (f"{dir}{os.path.sep}music")
-		movies_dir = (f"{dir}{os.path.sep}movies")
+		series_dir = os.path.join(path, 'series')
+		music_dir = os.path.join(path, 'music')
+		movies_dir = os.path.join(path, 'movies')
 	if os.path.exists(dbfile):
-		np.log("Backing up database...", 'info')
+		log("Backing up database...", 'info')
 		result = backup_db()
 		if result is not True:
 			yn = input(f"Warning: database backup encountered an issue: {result}. Continue? (y/n)")
 			if yn != 'y':
-				np.log("Aborting...", 'error')
+				log("Aborting...", 'error')
 				exit()
 	create_db()
 	log("Scanning for Music...", 'info')
@@ -51,8 +54,8 @@ def scan_all(dir=None):
 	else:
 		log("Exiting...", 'info')
 		exit()
-	np.log(f"Running cleandb: All...", 'info')
-	np.cleandb()
+	log(f"Running cleandb: All...", 'info')
+	cleandb()
 
 
 if __name__ == "__main__":

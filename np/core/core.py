@@ -11,7 +11,7 @@ from np.core.conf import readConf, writeConf
 log = np_logger().log_msg
 
 def get_local_ip():
-	com = "ip -o -4 a s | awk -F'[ /]+' '$2!~/lo/{print $4}'"
+	com = "ip -o -4 a s | awk -F'[ /]+' '$2!~/lo/{print $4}' | grep \"192.168\""
 	return sg.subprocess.check_output(com, shell=True).decode().strip()
 
 def shell(com, wait=False, cwd=None):

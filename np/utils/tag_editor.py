@@ -3,33 +3,39 @@ import os
 from bs4 import BeautifulSoup
 import requests
 import PySimpleGUI as sg
-import np
+from np.core.conf import readConf
+from np.core.core import shell
+from np.utils.id3 import tag
+from np.core.gui import file_browse_window
+from np.core.log import np_logger
+id3 = tag()
+log = np_logger().log_msg
 
 def delete_file(win, filepath):
 	choice, _ = sg.Window("Delete?", [[sg.T(f"Really delete file \"{filepath}\"?", auto_size_text=True)], [sg.Yes(s=10), sg.No(s=10)]], disable_close=True).read(close=True)
 	if choice == 'Yes':
 		com = f"rm \"{filepath}\""
-		ret = np.shell(com)
+		ret = shell(com)
 		if ret != '':
-			print (ret)
+			log("Delete action returned data: {ret}", 'warning')
 		else:
-			print ("Deleted!")
+			log("Deleted!", 'info')
 	music_files = list_files(win)
 	return True
 
 def list_files(win, path=None):
 	if path == None:
-		conf = np.readConf()
+		conf = readConf()
 		path = conf['media_directories']['music']
 	com = f"find \"{path}\" -name \"*.mp3\""
-	files = np.shell(com).split("\n")
+	files = shell(com).split("\n")
 	files = sorted(files)
 	win['-music_list_select-'].update(files)
 	return files
 
 def read_tag(win, filepath):
-	print (f"Reading file: {filepath}")
-	tag = np.tag().read(filepath)
+	log(f"Reading file: {filepath}", 'info')
+	tag = id3.read(filepath)
 	d = {}
 	d['album'] = tag.album
 	d['filepath'] = tag.filepath
@@ -58,7 +64,7 @@ def find_album(artist, title):
 		album = sr.find("div", class_='BNeawe').text
 		return album
 	else:
-		print ("Error: Bad status code!")
+		log(f"Error: Bad status code! {r.status_code}", 'error')
 		return None
 
 
@@ -87,11 +93,11 @@ def run():
 		if event == '__TIMEOUT__':
 			pass
 		else:
-			print (event)
+			log(f"EVENT: {event}", 'info')
 			if event == 'Pick File':
-				conf = np.readConf()
+				conf = readConf()
 				music_dir = conf['media_directories']['music']
-				path = np.file_browse_window(music_dir)
+				path = file_browse_window(music_dir)
 				if path:
 					win['filepath'].update(path)
 					tag = read_tag(win, path)
@@ -99,18 +105,18 @@ def run():
 					string = f"file://{tag.filepath}"
 					p = vlc.MediaPlayer(string)
 			elif event == 'Pick Folder':
-				conf = np.readConf()
+				conf = readConf()
 				music_dir = conf['media_directories']['music']
-				path = np.file_browse_window(music_dir)
+				path = file_browse_window(music_dir)
 			elif event == '-LOAD-':
 				p = values['filepath']
 				if p != '':
 					path = p
-					print (f"Path:'{path}'")
+					log(f"Path:'{path}'", 'info')
 				else:
-					conf = np.readConf()
+					conf = readConf()
 					music_dir = conf['media_directories']['music']
-					path = np.file_browse_window(music_dir)
+					path = file_browse_window(music_dir)
 				if path:
 					win['filepath'].update(path)
 					tag = read_tag(win, path)
@@ -152,30 +158,30 @@ def run():
 							newpath = f"{dirname}{os.path.sep}{tag.artist} - {tag.title} - {tag.album}{ext}"
 						else:
 							newpath = f"{dirname}{os.path.sep}{tag.artist} - {tag.title}{ext}"
-						print (f"Auto renaming file: {tag.filepath} > {newpath}")
+						log(f"Auto renaming file: {tag.filepath} > {newpath}", 'info')
 						if tag.filepath != newpath:
 							com = f"mv \"{tag.filepath}\" \"{newpath}\""
-							ret = np.shell(com)
+							ret = shell(com)
 							if ret:
-								print (f"Error moving file: {ret}", 'error')
+								log(f"Error moving file: {ret}", 'error')
 							else:
-								print ("Ok!")
+								log("Ok!", 'info')
 								tag.filepath = newpath
 								win['filepath'].update(tag.filepath)
 								music_files = list_files(win)
 								win.refresh()
 						else:
-							print (f"Autorename: Skipping (filepath and newpath match!)")
+							log(f"Autorename: Skipping (filepath and newpath match!)", 'info')
 					ret = tag.save(tag.filepath)
-					print(ret)
+					log(f"Tag Save Results: {ret}", 'info')
 			elif event == 'Lookup Album':
 				if tag is not None:
 					album = find_album(tag.artist, tag.title)
 					if album is not None:
 						tag.album = album
-						print (f"Album found: '{album}'")
+						log(f"Album found: '{album}'", 'info')
 					else:
-						print ("Unable to find album!")
+						log("Unable to find album!", 'warning')
 						tag.album = "Unknown"
 					win['album'].update(tag.album)
 			elif event == '-music_list_select-':
@@ -189,12 +195,12 @@ def run():
 				try:
 					p.play()
 				except:
-					print ("Please select a file first!")
+					log("Please select a file first!", 'error')
 			elif event == 'stop':
 				try:
 					p.stop()
 				except:
-					print ("Please select a file first!")
+					log("Please select a file first!", 'error')
 			elif event == 'delete':
 				delete_file(win, tag.filepath)
 			elif event == 'sg.WIN_CLOSED' or event == 'Close':
