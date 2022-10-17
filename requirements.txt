@@ -22,7 +22,7 @@ fasteners==0.14.1
 filetype==1.0.13
 future==0.18.2
 get-video-properties==0.1.1
-httplib2==0.14.0
+httplib2==0.19.0
 idna==2.8
 importlib-resources==5.7.1
 keyring==18.0.1
