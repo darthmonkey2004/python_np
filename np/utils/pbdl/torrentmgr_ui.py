@@ -35,7 +35,7 @@ def create_torrentmgr_ui():
 	title_bar_frame = sg.Frame(title='', layout = title_bar_layout, key='title_bar_frame', expand_x=True, grab=True, element_justification="center", vertical_alignment="top")
 	media_info_layout = build_column_table(play_type)
 	media_info_layout.append([sg.Listbox([], size=(10,10), expand_x=True, expand_y=False, enable_events=True, select_mode='multiple', key='-TORRENT_FILES-')])
-	media_info_actions = [sg.Combo(['-rotten tomatoes-', '-TMDB-', '-IMDB-'], '-rotten tomatoes-' , enable_events=True, key='-LOOKUP_TYPE-'), sg.Button('Lookup!', key='-LOOKUP-'), sg.Button('Migrate Files', key='-Migrate Files-'), sg.Button('Remove'), sg.Button('Remove+Delete'), sg.Button('Exclude')]
+	media_info_actions = [sg.Combo(['-rotten tomatoes-', '-TMDB-', '-IMDB-'], '-TMDB-' , enable_events=True, key='-LOOKUP_TYPE-'), sg.Button('Lookup!', key='-LOOKUP-'), sg.Button('Migrate Files', key='-Migrate Files-'), sg.Button('Remove'), sg.Button('Remove+Delete'), sg.Button('Exclude')]
 	media_info_layout.append(media_info_actions)
 	info_frame = sg.Frame(title='Torrent Data', layout=pbdl_layout, key='info_frame', expand_x=True, grab=True, element_justification="left", vertical_alignment="top")
 	media_info_frame = sg.Frame(title='Media Info', layout=media_info_layout, key='media_info_frame', expand_x=True, grab=True, element_justification="right", vertical_alignment="top")

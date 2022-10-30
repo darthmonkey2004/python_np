@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 
+import random
 from np.core.core import shell, get_version, match_repo_version, get_local_ip
 import np
 from np.utils.pbdl.pbdl import start as start_pbdl
@@ -290,6 +291,8 @@ def load_playlist(filepath=None):
 	else:
 		if ".txt" in filepath:
 			MP.playlist = sorted(MP.load_playlist(filepath))
+			if MP.shuffle is True:
+				random.shuffle(MP.playlist)
 			UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.playlist)
 			MP.play_mode = 'playlist'
 			UI.WINDOW['-PLAY_MODE-'].update(MP.play_mode)
@@ -680,6 +683,7 @@ def start():
 			if UI.uievent is not None and UI.uievent != '__TIMEOUT__':
 				needspacer = 1
 				event = UI.uievent
+				log(f"np:start():EVENT={event}", 'info')
 				if UI.uivalues is not None:
 					values = UI.uivalues
 				if MP.conf['debug'] == True:
@@ -1110,12 +1114,15 @@ def start():
 								MP.play_mode = 'playlist'
 								UI.WINDOW['-PLAY_MODE-'].update(MP.play_mode)
 								filepath = MP.playlist[0]
+								log(f"np.event:Load Directory: Starting playback (file={filepath})", 'info')
 								MP.play(filepath)
+								log(f"np.event:Load Directory: Play function exited! is_playing = {MP.player.is_playing()}", 'info')
 						except Exception as e:
 							log(f"Error: No user input provided: {e}", 'error')
 					else:	
-						np.log(f"Failed to load directory '{path}'.", 'error')
+						np.log(f"np.start():Failed to load directory '{path}'.", 'error')
 						MP.play_needed = 1
+						np.log(f"np.start(): set play_needed=1", 'info')
 				elif event == "-Database Editor-":
 					UI.db_editor()
 				elif event == '-ID3 Tag Editor-':
@@ -1125,7 +1132,7 @@ def start():
 					log(f"Play mode changed:{MP.play_mode}", 'info')
 					if MP.play_mode == 'database':
 						MP.media = np.create_media()
-						UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.PLAYLIST_ITEMS)
+						UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.playlist)
 						MP.skip_next()
 				elif event == '-Set Active-':
 					log(f"TODO: Set active:{MP.dbmgr_picked_items}", 'info')
@@ -1228,7 +1235,7 @@ def start():
 					log(f"using resume from file:{filepath}", 'info')
 					MP.play(filepath)
 					P.set_position(play_pos)
-					log(f"np_main.start():play_needed=1:Skipped to {play_pos}", 'info')
+					log(f"np_main.start():play_needed=1:Skipped to {play_pos}, object={MP}", 'info')
 				else:
 					log ("Not resuming, filepath is None", 'info')
 					if MP.play_mode == 'playlist':
@@ -1236,6 +1243,7 @@ def start():
 						MP.play(MP.next)
 					else:
 						MP.play()
+				log(f"np.start():set play_needed = 0!", 'info')
 				MP.play_needed = 0	
 			#if com or event handler set nplayer's 'exit' class attribute to True for any reason, stop main loop.
 			if MP.exit == True:
@@ -1250,6 +1258,7 @@ def start():
 			# update elapsed time if there is a video loaded and the media is playing
 			if P.is_playing() and MP.is_url == False:
 				if MP.scale_needed == 1:
+					log(f"np.start(): scale_needed is set, calculating scale...", 'info')
 					calculated_scale = np.calculate_scale(MP.conf['nowplaying']['filepath'])
 					current_scale = P.video_get_scale()
 					P.video_set_scale(calculated_scale)

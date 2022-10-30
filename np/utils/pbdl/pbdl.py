@@ -55,12 +55,21 @@ class pbdl():
 		self.values = {}
 		self.torrents = build_data()
 		tids = list(self.torrents.keys())
-		self.tid = tids[0]
-		self.torrent = self.torrents[self.tid]
-		self.name = self.torrent['name']
+		try:
+			self.tid = tids[0]
+		except:
+			self.tid = 0
+		try:
+			self.torrent = self.torrents[self.tid]
+		except:
+			self.torrent = None
+		try:
+			self.name = self.torrent['name']
+		except:
+			self.name = None
 		self.selected_files = []
 		self.vpn_status = self.mgr.vpn_status()
-		self.lookup_type = '-rotten tomatoes-'
+		self.lookup_type = '-TMDB-'
 		self.filepath = None
 		if not self.exit_ok:
 			crash_detected()
@@ -179,7 +188,10 @@ class pbdl():
 			name = self.torrents[tid]['name']
 			string = f"{tid}:{name}"
 			self.active_torrents.append(string)
-		self.windows['Torrent Manager']['-TORRENT_SELECT-'].update(self.active_torrents)
+		try:
+			self.windows['Torrent Manager']['-TORRENT_SELECT-'].update(self.active_torrents)
+		except Exception as e:
+			log(f"pbdl.display_torrents():Unable to update torrent list! (empty???). Details: {e}", 'warning')
 
 
 	def refresh(self):
@@ -290,7 +302,13 @@ def start(t='mgr'):
 				p.info['lookup_type'] = p.lookup_type
 				p.info['play_type'] = p.play_type
 				ret = lookup(p.info)
-				if ret['results'] == True:
+				if ret is None:
+					log(f"Lookup failed for {p.info}", 'info')
+				try:
+					worked = ret['results']
+				except:
+					worked = False
+				if worked:
 					p.info = ret
 					columns = list(get_columns(p.play_type).keys())
 					for k in list(p.info.keys()):
@@ -339,7 +357,7 @@ def start(t='mgr'):
 				ret = p.mgr.remove(p.tid)
 				if ret:
 					log(f"TORRENTMGR:Remove (no delete):{ret}", 'info')
-			elif event == 'Remove and Delete':
+			elif event == 'Remove and Delete' or event == 'Remove+Delete':
 				log(f"EVENT:{event}", 'info')
 				ret = p.mgr.remove_and_delete(p.tid)
 				if ret:
@@ -373,7 +391,7 @@ def start(t='mgr'):
 				set_api_key_rt()
 			elif event == 'Set Api Key:Search TMDB':
 				set_api_key_tmdb()
-			elif event == '-Migrate Files-':
+			elif event == '-Migrate Files-' or event == 'Migrate Data':
 				log(f"Migrating series files...", 'info')
 				migrate_series()
 				log(f"Migrating movie files...", 'info')
@@ -387,6 +405,8 @@ def start(t='mgr'):
 				except:
 					val = None
 				log(f"values: {val}", 'info')
+		merge_saved_data()
+		p.display_torrents()
 	elif t == 'dl':
 		p.start_downloader()
 

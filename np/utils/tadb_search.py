@@ -4,11 +4,13 @@ import json
 #gotta be doing something wrong, but i'm ready to move on here.
 
 def lookup(artist, title):
+	#"TiV3k10QNXmshRyyCcCXPKyq1gYJp1oKBNKjsn3ICR7bpX3yAB"
+	api_key = 'bNgpjPVaAimshd3vhxMBzObPOgKzp1BFdtfjsnlL3MUwEEOI0d'
 	j = '+'
 	querystring = {"s":artist,"t":title}
 	url = "https://theaudiodb.p.rapidapi.com/searchtrack.php"
 	headers = {
-		"X-RapidAPI-Key": "TiV3k10QNXmshRyyCcCXPKyq1gYJp1oKBNKjsn3ICR7bpX3yAB",
+		"X-RapidAPI-Key": api_key,
 		"X-RapidAPI-Host": "theaudiodb.p.rapidapi.com"
 	}
 	r = requests.request("GET", url, headers=headers, params=querystring)

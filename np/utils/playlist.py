@@ -36,6 +36,7 @@ def get_info_string(filepath):
 
 
 def get_next():
+	next = None
 	global history
 	conf = readConf()
 	if conf['play_type'] == 'series':

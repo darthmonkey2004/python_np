@@ -39,7 +39,7 @@ class nplayer():
 		self.history['playing_from_history'] = False
 		self.series_history = None
 		self.play_needed = 1
-		log(f"play_needed set = 1: line46", 'info')
+		log(f"nplayer.init():play_needed set = 1", 'info')
 		self.scale_needed = 0
 		self.playlist = np.create_media(self.conf['play_type'])
 		self.dbmgr_picked_items = []
@@ -67,6 +67,7 @@ class nplayer():
 		self.viewer_win_scale = 0
 		self.version = 1.0
 		self.update_needed = False
+		self.shuffle = True
 		
 
 
@@ -114,7 +115,7 @@ class nplayer():
 		self.conf['nowplaying']['filepath'] = None
 		np.writeConf(self.conf)
 		self.play_needed = 1
-		log(f"play_needed set = 1 (playback_finished), conf updated(nowplaying=None)", 'info')
+		log(f"nplayer.playback_finished():play_needed set = 1", 'info')
 
 
 	def vlc_event(self, event):
@@ -124,7 +125,7 @@ class nplayer():
 				event = event.split(':')[1]
 				if event == 'EventType.MediaMPEndReached':
 					self.play_needed = 1
-					log(f"play_needed set = 1 (vlc_event[MediaMPEndReached]): line169, conf written", 'info')
+					log(f"nplayer.vlc_event():play_needed set = 1 (vlc_event[MediaMPEndReached])", 'info')
 					self.playback_finished()
 				elif event == 'EventType.MediaMPStopped':
 					self.is_playing = 0
@@ -134,7 +135,7 @@ class nplayer():
 					self.is_playing = self.player.is_playing()
 					self.play_needed = 0
 					self.scale_needed = 1
-					log(f"play_needed set = 0 (vlc_event[MediaMPPlaying]: line202", 'info')
+					log(f"play_needed set = 0 (vlc_event[MediaMPPlaying]", 'info')
 
 #------------playlist/dbmgr functions----------------#
 
@@ -302,7 +303,7 @@ class nplayer():
 	def screenshot(self, src=0, dest_dir=None, w=0, h=0):
 		ts = time.time()
 		if dest_dir == None:
-			dest_dir = f"{np.DATA_DIR}/cap.{ts}.png"
+			dest_dir = os.path.join(os.path.expanduser("~"), '.np', f"cap.{ts}.png")
 		try:
 			if self.conf['debug'] == True:
 				log(f"snapshot: out_dir:{dest_dir}, w:{w}, h:{h}", 'info')
@@ -316,12 +317,12 @@ class nplayer():
 
 
 
-	def get_scaling(self):
-		# called before window created
-		root = sg.tk.Tk()
-		self.viewer_win_scale = root.winfo_fpixels('1i')/72
-		root.destroy()
-		return self.viewer_win_scale
+	#def get_scaling(self):
+	#	# called before window created
+	#	root = sg.tk.Tk()
+	#	self.viewer_win_scale = root.winfo_fpixels('1i')/72
+	#	root.destroy()
+	#	return self.viewer_win_scale
 
 
 
@@ -332,25 +333,36 @@ class nplayer():
 			return float(scale)#force to float if already in 1-10 scale
 
 	def set_scale(self, filepath=None):
-		if filepath == None:
-			filepath = self.next
-			log(f"set_scale: Filepath not provided, using self.next ({self.next}).", 'info')
-		else:
-			log(f"set scale: Filepath provided: {filepath}", 'info')
-		prescale = self.player.video_get_scale()
-		self.viewer_win_scale = self.get_scaling()
-
-		w, h = self.viewer_win_w, self.viewer_win_h
-		scale = np.calculate_scale(filepath)
-		scale = self.constrain_scale(scale)
-		self.player.video_set_scale(scale)
-		if prescale != scale:
-			self.scale_needed = 1
-			log(f"Calculated scale != set scale, setting scale_needed=1.  Previous:{prescale}, Set:{scale}", 'info')
-		elif prescale == scale:
-			log(f"Scales match, skipping scale_needed. Previous:{prescale}, New:{scale}", 'info')
+		try:
+			if filepath == None:
+				filepath = self.next
+				log(f"nplayer.set_scale(): Filepath not provided, using self.next ({self.next}).", 'info')
+			else:
+				log(f"nplayer.set_scale(): Filepath provided: {filepath}", 'info')
+			log(f"Getting prescale ratio...", 'info')
+			prescale = self.player.video_get_scale()
+			log(f"Prescale={prescale}", 'info')
+			#self.viewer_win_scale = self.get_scaling()
+			w, h = self.viewer_win_w, self.viewer_win_h
+			log(f"calculating scale...", 'info')
+			s = np.calculate_scale(filepath)
+			log(f"scale calculated: {s}", 'info')
+			scale = self.constrain_scale(s)
+			self.player.video_set_scale(scale)
+			#log(f"nplayer.set_scale(): Scale set! scale={scale}, prescale={prescale}", 'info')
+			if prescale != scale:
+				log(f"prescale and scale don't match! Details: prescale={prescale} ({type(prescale)}), scale={scale} ({type(scale)})", 'error')
+				#self.scale_needed = 1
+				#log(f"nplayer.set_scale():setting scale_needed=1.  Previous:{prescale}, Set:{scale}", 'info')
+			elif prescale == scale:
+				log(f"Scales match, skipping scale_needed. Previous:{prescale}, New:{scale}", 'info')
 			self.scale_needed = 0
-		self.scale = scale
+			self.scale = scale
+			#log(f"nplayer.set_scale(): Scale set: {self.scale}", 'info')
+		except Exception as e:
+			log("nplayer.set_scale(): Unable to set scale: {e}", 'error')
+			self.scale = 0
+			self.scale_needed = 1
 
 						
 
@@ -414,8 +426,9 @@ class nplayer():
 					series_name = np.querydb('series', 'series_name', query_string)[0][0]
 					self.series_history[series_name] = self.next
 					np.write_history(self.series_history)
-				except:
-					log(f"Couldn't find series db or history...(playlist?)", 'error')
+				except Exception as e:
+					log(f"Couldn't find series db or history...(playlist?)", 'warning')
+					pass
 
 		elif self.play_mode == 'database':
 			series_name = None		
@@ -441,7 +454,7 @@ class nplayer():
 			self.conf['intro'] = {}
 			self.conf['intro']['start'] = None
 			self.conf['intro']['end'] = None
-			log("No intro found for '{self.next}'", 'info')
+			log(f"No intro found for '{self.next}'", 'info')
 		# check for vlc instance
 		if self.vlcInstance is None:
 			try:
@@ -461,12 +474,17 @@ class nplayer():
 			# test if remote uri in next string
 			if '/.np/sftp' not in self.next:
 				fpath = self.next.split(np.MEDIA_DIR)[1]
-				self.next = (np.SFTP_DIR + os.path.sep + fpath)
+				self.next = (os.path.expanduser("~"), '.np', 'sftp', fpath)
 				log(f"Network uri set:{self.next}", 'info')
 		# attempt to set media path.
 		try:
+			log(f"nplayer.py.play(): Setting media path:{self.next}", 'info')
 			self.player.set_media(self.vlcInstance.media_new_path(self.next))
+			log(f"nplayer.py.play(): Starting playback...", 'info')
 			self.player.play()
+			#log(f"nplayer.play(): Waiting 2 secs...is_playing={self.player.is_playing()}", 'info')
+			time.sleep(2)
+			#log(f"nplayer.play(): Wait over.", 'info')
 			self.is_url = False
 		except Exception as e:
 			log(f"Unable to open media item:{e}, filepath={self.next}", 'error')
@@ -476,7 +494,7 @@ class nplayer():
 				self.player.play()
 				self.is_url = False
 		# set play position if greater than 0
-		if self.play_pos >= 0:
+		if self.play_pos > 0:
 			self.player.set_position(self.play_pos)
 			log(f"nplayer.play(): Skipped to position {self.play_pos}", 'info')
 			#set play_needed and play_pos to 0 to avoid loop duplicating action (delay?)
@@ -487,24 +505,44 @@ class nplayer():
 		if self.conf['play_type'] == 'series' or  self.conf['play_type'] == 'movies':
 			if self.is_url == False:
 				if self.next is not None:
-					self.set_scale(self.next)
+					try:
+						#log("nplayer.play(): set scale started!", 'info')
+						self.set_scale(self.next)
+						#log("nplayer.play(): set scale exited!", 'info')
+					except Exception as e:
+						log(f"nplayer.play(): Couldn't set scale! {e}", 'error')
+						self.scale_needed = 1
 				else:
 					log(f"WARNING:next not set! {self.next}. Retrying...", 'warning')
 					self.next == self.get_next()
-					ret = self.set_scale(self.next)
+					try:
+						#log("nplayer.play(): set scale started!", 'info')
+						self.set_scale(self.next)
+						#log("nplayer.play(): set scale exited!", 'info')
+					except Exception as e:
+						log(f"nplayer.play(): Couldn't set scale! {e}", 'error')
+						self.scale_needed = 1
 		#set volume
-		self.volume = self.player.audio_get_volume()
+		try:
+			self.volume = self.player.audio_get_volume()
+			log(f"nplayer.play(): Retreived volume({self.volume})", 'info')
+		except Exception as e:
+			log(f"Unable to set volume: {e}", 'error')
 		self.is_playing = self.player.is_playing()
 		if self.is_playing == 1 or self.is_playing == True:
 			self.conf['nowplaying']['filepath'] = self.next
 			self.conf['nowplaying']['play_pos'] = self.play_pos
 			self.play_needed = 0
-			log("Set play needed = 0 (play): line624", 'info')
+			log(f"nplayer.play():Playback started ({self.next})! Setting play needed=0", 'info')
+		else:
+			log(f"nplayer.play():set play_needed = 1, not started!(???) next={self.next}, is_playing={self.player.is_playing()}", 'error')
+			self.play_needed = 1
 
 		if self.conf['play_type'] == 'music':
 			self.album_art = self.dl_img()
 			self.ART_UPDATE_NEEDED = True
 		np.writeConf(self.conf)
+		log(f"nplayer.play(): Exited! (play_needed={self.play_needed}), object={self}", 'info')
 
 
 	def dl_img(self, filepath=None):
@@ -546,7 +584,7 @@ class nplayer():
 	def load_playlist(self, filepath):
 		if self.conf['network_mode']['media_mode'] == 'remote':
 			fpath = filepath.split('/var/storage/')[1]
-			filepath = (np.SFTP_DIR + os.path.sep + fpath)
+			filepath = (os.path.expanduser("~"), '.np', 'sftp', fpath)
 		if os.path.exists(filepath):
 			try:
 				results = []
@@ -590,7 +628,7 @@ class nplayer():
 			ret = subprocess.check_output(com, shell=True).decode().strip()
 			if ret:
 				log(f"Error: {ret}", 'error')
-			playlist = (f"{path}{os.path.sep}medialist.txt")
+			playlist = os.path.join(path, 'medialist.txt')
 			items = self.load_playlist(playlist)
 			return items
 		except Exception as e:
@@ -634,6 +672,10 @@ class nplayer():
 	def get_playlist_next(self):
 		self.play_mode = 'playlist'
 		items = self.playlist
+		for item in items:
+			if '.part.' in item:
+				log(f"Partial download encountered! Removing...", 'warning')
+				items.remove(item)
 		log(f"PLAYLIST_ITEMS/items:{items}", 'info')
 		idx = None
 		if self.playlist_last is None:

@@ -1,3 +1,4 @@
+from np.utils.pbdl.utils import lookup
 import PySimpleGUI as sg
 import subprocess
 import os
@@ -82,7 +83,7 @@ def edit_details(table, _id):
 			layout.append(txtinput)
 		except:
 			pass
-	btns = [[sg.Button('-update-'), sg.Button('-cancel-')]]
+	btns = [[sg.Button('-update-'), sg.Button('-cancel-'), sg.Button('-lookup-')]]
 	layout.append(btns)
 	WINDOW2 = sg.Window('Edit details', layout, location=(ew,eh), size=(640, 400), keep_on_top=False, grab_anywhere=True, element_justification='center', finalize=True, resizable=True).Finalize()
 	return WINDOW2
@@ -374,6 +375,23 @@ def db_editor():
 				season = None
 				episode_number = None
 				episode_name = None
+			elif event == '-lookup-':
+				info = None
+				if table == 'series':
+					series_name = values['-series_name-']
+					season = values['-season-']
+					episode_number['-episode_number-']
+					info = lookup(play_type=table, lookup_type='-TMDB-', series_name=series_name, season=season, episode_number=episode_number)
+				elif table == 'movies':
+					title = values['-title-']
+					info = lookup(play_type=table, lookup_type='-TMDB-', title=title)
+				if info is not None:
+					for key in info.keys():
+						k = f"-{key}-"
+						try:
+							WINDOW2[k].update(info[key])
+						except:
+							log(f"Bad key: {k}", 'info')
 			elif event == '-update-':
 				print("table:", table)
 				pragma = get_columns(table)

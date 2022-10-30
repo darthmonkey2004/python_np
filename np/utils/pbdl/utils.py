@@ -249,7 +249,12 @@ def migrate_movies():
 	com = (f"sqlite3 {db} \"select id,title,year,filepath from movies where filepath like \'%{SFTP_DIR}%\';\"")
 	results = subprocess.check_output(com, shell=True).decode().strip().split("\n")
 	for item in results:
-		_id, title, year, filepath = item.split('|')
+		try:
+			_id, title, year, filepath = item.split('|')
+		except Exception as e:
+			log(f"Unable to get info from movie: {e}. Data={item}")
+			input("Press enter to continue")
+			return
 		if '%27' in filepath:
 			filepath = filepath.replace("%27", "'")
 		l = len(filepath) - 4
@@ -275,7 +280,7 @@ def migrate_movies():
 			log(f"Error renaming file in database: id={_id}", 'error')
 			break
 
-def get_torrents():
+def get_torrents_old():
 	torrents = {}
 	com = (f"transmission-remote {conf['pbdl_url']} -l")
 	data = subprocess.check_output(com, shell=True).decode().strip().split('\n')
@@ -296,6 +301,7 @@ def get_torrents():
 					if cpos == 0:
 						tid = int(chunk)
 						torrents[tid] = {}
+						torrents[tid]['files'] = get_files(tid)
 						torrents[tid]['tid'] = tid
 					elif cpos == 1:
 						torrents[tid]['percent'] = chunk
@@ -315,11 +321,67 @@ def get_torrents():
 						torrents[tid]['status'] = chunk
 						name = line.split(torrents[tid]['status'])[1].strip()
 						torrents[tid]['name'] = name
+			
+	return torrents
+
+def get_torrents():
+	com = "transmission-remote -l | grep -v \"ID\" | grep -v \"Sum\""
+	try:
+		lines = subprocess.check_output(com, shell=True).decode().strip().split("\n")
+	except:
+		return {}
+	torrents = {}
+	for line in lines:
+		tid = int(line.strip().split(' ')[0])
+		torrents[tid] = {}
+		if 'n/a' in line:
+			torrents[tid]['percent'] = 0
+			s = 'n/a'
+		else:
+			torrents[tid]['percent'] = line.split(f"{tid} ")[1].split('%')[0].strip()
+			s = f"{torrents[tid]['percent']}%"
+		torrents[tid]['have'] = line.split(s)[1].strip().split('B ')[0].split(' ')[0]
+		if torrents[tid]['percent'] == 0:
+			size_unit = 'M'
+		else:
+			size_unit = line.split(s)[1].strip().split('B ')[0].split(' ')[1]
+		torrents[tid]['size_unit'] = f"{size_unit}B"
+		try:
+			torrents[tid]['eta'] = line.split(f"{torrents[tid]['size_unit']}")[1].strip().split(' ')[0]
+		except:
+			torrents[tid]['eta'] = 'Unknown'
+		if 'Finished' in line:
+			status = 'Finished'
+		elif 'Stopped' in line:
+			status = 'Stopped'
+		elif 'Downloading' in line:
+			status = 'Downloading'
+		torrents[tid]['status'] = status
+		torrents[tid]['name'] = line.split(status)[1].strip()
+		com = f"transmission-remote -t{tid} -f | grep -v \"Done\" | grep -v \"files):\""
+		try:
+			file_lines = subprocess.check_output(com, shell=True).decode().strip().split("\n")
+			torrents[tid]['files'] = []
+			for fline in file_lines:
+				if 'MB' in fline:
+					s = 'MB'
+				elif 'KB' in fline:
+					s = 'KB'
+				elif 'GB' in fline:
+					s = 'GB'
+				elif 'TB' in fline:
+					s = 'TB'
+				torrents[tid]['files'].append(fline.split(s)[1].strip())
+		except:
+			torrents[tid]['files'] = []
 	return torrents
 
 def get_files(tid):
 	com = (f"transmission-remote {conf['pbdl']['remote_ip']} -t{tid} -f | grep -v \'files):\' | grep -v \'#\' | grep -v \".jpg\" | grep -v \"sample\" | grep -v \".srt\" | grep -v \".nfo\" | grep -v \".txt\" | cut -d \"{os.path.sep}\" -f 2")
-	data = send_command(com).split("\n")
+	try:
+		data = send_command(com).split("\n")
+	except:
+		return []
 	files = []
 	for filepath in data:
 		if filepath != '':
@@ -573,7 +635,7 @@ def merge_saved_data():
 	#torrents = build_data()
 	old = load_saved_data()
 	if old is not None:
-		log(f"Saved data found! Merging...", 'info')
+		#log(f"Saved data found! Merging...", 'info')
 		for tid in torrents:
 			if tid in old:
 				torrents[tid]['files'] = old[tid]['files']

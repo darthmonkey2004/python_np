@@ -94,7 +94,7 @@ def downloader_loop(win=None, mgr=None):
 				break
 		else:
 			if event == '-PBDL_SEARCH-':
-				log("searching...", 'info')
+				log(f"searching {pbdl_query}...", 'info')
 				results = search(pbdl_query)
 				window['-PBDL_RESULTS-'].update(results)
 

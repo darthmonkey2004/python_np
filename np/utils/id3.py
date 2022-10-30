@@ -33,7 +33,7 @@ class tag(id3):
 			log(f"File not found: {filepath}", 'error')
 			self.filepath = None
 			return False
-		com = (f"id3 -t \"{self.title}\" -a \"{self.artist}\" -A \"{self.album}\" -y \"{self.year}\" -T \"{self.track}\" \"{self.filepath}\"")
+		com = (f"id3 -t \"{self.title}\" -a \"{self.artist}\" -A \"{self.album}\" -y \"{self.year}\" -T \"{self.track}\" -c \"{self.comment}\" \"{self.filepath}\"")
 		ret = subprocess.check_output(com, shell=True)
 		if ret:
 			log(ret, 'info')

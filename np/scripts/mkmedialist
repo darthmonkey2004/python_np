@@ -14,6 +14,9 @@ else
 	method="normal"
 fi
 medialist="$dir/medialist.txt"
+if [ -f "$medialist" ]; then
+	rm "$medialist"
+fi
 if [ "$method" = "normal" ]; then
 	movies="$dir/Movies"
 	series="$dir/Series"

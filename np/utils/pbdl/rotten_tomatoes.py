@@ -68,6 +68,7 @@ def rt_series(series_name=None, season=None, episode_number=None):
 
 
 def get_episode_data(series_name, season, episode_number, filepath=None):
+	log(f"Series: {series_name}, season: {season}, Episode number: {episode_number}, filepath: {filepath}", 'info')
 	info = set_empty('series')
 	info['series_name'] = series_name
 	info['season'] = int(season)

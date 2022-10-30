@@ -131,7 +131,7 @@ def query_series(filepath, series_name, season, episode_number):
 
 def scan_series(target_dir=None):
 	type = 'series'
-	exts = ['mp4', 'mov', 'avi', 'flv', 'mkv']
+	exts = ['mp4', 'mov', 'avi', 'flv', 'mkv', 'm4v']
 	dbfile = os.path.join(os.path.expanduser("~"), '.np', 'nplayer.db')
 	if not os.path.exists(dbfile):
 		print("Friggin' database doesn't exist? Fix it, Matt...")
