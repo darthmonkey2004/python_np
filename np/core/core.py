@@ -101,10 +101,13 @@ def get_scaling():
 	return scaling
 
 
-def calculate_scale(_file, _type='file'):
+def calculate_scale(_file, win_size=None, _type='file'):
 	conf = readConf()
-	screen = conf['screen']
-	w, h = int(conf['xrandr'][screen]['w']), int(conf['xrandr'][screen]['h'])
+	if win_size is not None:
+		w, h = win_size
+	else:
+		screen = conf['screen']
+		w, h = int(conf['xrandr'][screen]['w']), int(conf['xrandr'][screen]['h'])
 	if _file == None:
 		return 0
 	log(f"ACTION:calculate_scale, file='{_file}', type='{type(_file)}'", 'info')

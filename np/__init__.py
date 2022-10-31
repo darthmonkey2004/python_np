@@ -45,6 +45,7 @@ from np.ws import server
 from np.ws import client
 from np.ws import thread
 from np.utils.insert_intro import fix3d
+from np.core.conf import init_window_position
 
 
 

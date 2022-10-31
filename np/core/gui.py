@@ -212,7 +212,8 @@ class gui():
 		self.WINDOW = self.create_gui_window()
 		if self.win_type == 'internal':
 			self.WINDOW2 = sg.Window('Viewer', self.player_window_layout, no_titlebar=True, location=(int(self.viewer_win_x), int(self.viewer_win_y)), size=(int(self.viewer_win_w), int(self.viewer_win_h)), grab_anywhere=True, keep_on_top=False, element_justification='center', finalize=True, resizable=True).Finalize()
-			self.WINDOW2['-VID_OUT-'].expand(True, True)
+			self.WINDOW2.set_min_size((550, 300))
+			#self.WINDOW2['-VID_OUT-'].expand(True, True)
 		title = self.WINDOW2.Title
 		if title not in self.windows:
 			self.windows.append(title)
@@ -221,6 +222,7 @@ class gui():
 			log(f"Warning: {title} already in self.windows! ({self.windows})", 'warning')
 		self.RESET = False
 		self.icon_path = os.path.join(os.path.expanduser("~"), ".local", "poster.png")
+		self.maximized = True
 		sg.set_global_icon(self.icon_path)
 
 
@@ -250,7 +252,7 @@ class gui():
 			play_pos = 0
 			self.conf['nowplaying']['play_pos'] = play_pos
 		slider_scale = [sg.Slider(range=(0,1), resolution=0.01, default_value=play_pos, orientation='h', expand_x = True, enable_events = True, change_submits = True, key='-PLAY_POS-')]
-		line_window_ctl = [self.create_old('btn', ['store window location']), self.create_old('btn', ['Recenter UI']), self.create_old('btn', ['Fix Focus']), self.create_old('btn', ['Fix Scaling'])]
+		line_window_ctl = [self.create_old('btn', ['store window location']), self.create_old('btn', ['Recenter UI']), self.create_old('btn', ['Fix Focus']), self.create_old('btn', ['Fix Scaling']), self.create_old('btn', ['Toggle Window Size'])]
 		default_poster = os.path.join(os.path.expanduser("~"), '.local', 'poster.png')
 		self.video_temp_img = self.create_old('image', [default_poster, '-VID_OUT-'])
 		

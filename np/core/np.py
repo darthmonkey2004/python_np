@@ -63,7 +63,37 @@ def get_media(table=None, isactive=1):
 		table = MP.conf['play_type']
 	query_string = (f"select filepath from {table} where isactive = {isactive};")
 	return sqlite3(query_string)
-					
+
+
+def viewer_reset():
+	MP.conf = np.init_window_position()
+	np.writeConf(MP.conf)
+	gui_reset()
+
+
+def viewer_minimize():
+	viewer_screen = MP.conf['screen']
+	UI.viewer_win_w, UI.viewer_win_h, UI.viewer_win_x, UI.viewer_win_y = 550, 300, int(MP.conf['windows'][viewer_screen]['viewer']['x']), int(MP.conf['windows'][viewer_screen]['viewer']['y'])
+	MP.conf['windows'][viewer_screen]['viewer']['x'], MP.conf['windows'][viewer_screen]['viewer']['y'], MP.conf['windows'][viewer_screen]['viewer']['w'], MP.conf['windows'][viewer_screen]['viewer']['h'] = UI.viewer_win_x, UI.viewer_win_y, UI.viewer_win_w, UI.viewer_win_h
+	np.writeConf(MP.conf)
+	UI.WINDOW2.size = UI.viewer_win_w, UI.viewer_win_h				
+	UI.WINDOW2.move(UI.viewer_win_x, UI.viewer_win_y)
+	calculated_scale = np.calculate_scale(_file=MP.conf['nowplaying']['filepath'], win_size=UI.WINDOW2.size)
+	current_scale = P.video_get_scale()
+	P.video_set_scale(calculated_scale)
+
+
+def viewer_maximize():
+	viewer_screen = MP.conf['screen']
+	UI.viewer_win_w, UI.viewer_win_h = int(xrandr()[MP.conf['screen']]['w']), int(xrandr()[MP.conf['screen']]['h'])
+	UI.viewer_win_x, UI.viewer_win_y = int(xrandr()[MP.conf['screen']]['pos_x']), int(xrandr()[MP.conf['screen']]['pos_y'])
+	MP.conf['windows'][viewer_screen]['viewer']['x'], MP.conf['windows'][viewer_screen]['viewer']['y'], MP.conf['windows'][viewer_screen]['viewer']['w'], MP.conf['windows'][viewer_screen]['viewer']['h'] = UI.viewer_win_x, UI.viewer_win_y, UI.viewer_win_w, UI.viewer_win_h
+	np.writeConf(MP.conf)
+	UI.WINDOW2.size = (UI.viewer_win_w, UI.viewer_win_h)
+	UI.WINDOW2.move(UI.viewer_win_x, UI.viewer_win_y)
+	calculated_scale = np.calculate_scale(_file=MP.conf['nowplaying']['filepath'], win_size=UI.WINDOW2.size)
+	current_scale = P.video_get_scale()
+	P.video_set_scale(calculated_scale)
 
 def recenter_ui():
 	viewer_screen = MP.conf['screen']
@@ -78,6 +108,7 @@ def recenter_ui():
 		gui_x = int(MP.conf['windows'][gui_screen]['gui']['x'])
 		gui_y = int(MP.conf['windows'][gui_screen]['gui']['y'])
 		UI.WINDOW.move(gui_x, gui_y)
+		UI.WINDOW2.size = (int(MP.conf['windows'][viewer_screen]['viewer']['w']), int(MP.conf['windows'][viewer_screen]['viewer']['h']))
 		UI.WINDOW2.move(int(MP.conf['windows'][viewer_screen]['viewer']['x']), int(MP.conf['windows'][viewer_screen]['viewer']['y']))
 		np.writeConf(MP.conf)
 	except:
@@ -127,7 +158,7 @@ def dbmgr_select_all():
 	UI.WINDOW['-DBMGR_SELECTED_ROWS-'].update(MP.dbmgr_picked_items)
 
 
-def store_window_location():
+def store_window_location(reset=False):
 	MP.conf = np.readConf()
 	try:
 		viewer_screen = MP.conf['screen']
@@ -137,11 +168,22 @@ def store_window_location():
 			gui_screen = 0
 		else:
 			gui_screen = 0
-		MP.conf['windows'][gui_screen]['gui']['x'], MP.conf['windows'][gui_screen]['gui']['y'] = UI.get_window_location('gui')
-		np.writeConf(MP.conf)
-		log(f"Window location stored:{MP.conf['windows'][gui_screen]['gui']['x']}, {MP.conf['windows'][gui_screen]['gui']['y']}", 'info')
+		if reset is False:
+			MP.conf['windows'][viewer_screen]['viewer']['x'], MP.conf['windows'][viewer_screen]['viewer']['y'] = UI.WINDOW2.CurrentLocation()
+			MP.conf['windows'][viewer_screen]['viewer']['w'], MP.conf['windows'][viewer_screen]['viewer']['h'] = UI.WINDOW2.size
+			MP.conf['windows'][gui_screen]['gui']['x'], MP.conf['windows'][gui_screen]['gui']['y'] = UI.WINDOW.CurrentLocation()
+			MP.conf['windows'][gui_screen]['gui']['w'], MP.conf['windows'][gui_screen]['gui']['h'] = UI.WINDOW.size
+
+			np.writeConf(MP.conf)
+			gui_out = f"gui_x:{MP.conf['windows'][gui_screen]['gui']['x']}, gui_y:{MP.conf['windows'][gui_screen]['gui']['y']}, gui_w:{MP.conf['windows'][gui_screen]['gui']['w']}, gui_h:{MP.conf['windows'][gui_screen]['gui']['h']}"
+			v_out = f"viewer_x:{MP.conf['windows'][viewer_screen]['viewer']['x']}, viewer_y:{MP.conf['windows'][viewer_screen]['viewer']['y']}, viewer_w:{MP.conf['windows'][viewer_screen]['viewer']['w']}, viewer_h:{MP.conf['windows'][viewer_screen]['viewer']['h']}"
+			log(f"Window geometry updated! GUI:{gui_out}, Viewer:{v_out}", 'info')
+		else:
+			MP.conf = np.init_window_position()
+			np.writeConf(MP.conf)
 	except Exception as e:
 		log(f"Unable to get window location (probably closed). Details: {e}", 'error')
+		
 
 def gui_reset():
 	global P, MP, UI
@@ -622,7 +664,7 @@ def start():
 	UI = np.gui()
 	log("UI created: np_main.py, Start, line 694", 'info')
 	UI.WINDOW.read(timeout=1)
-	MP.viewer_win_w, MP.viewer_win_h = UI.WINDOW.get_screen_size()
+	#MP.viewer_win_w, MP.viewer_win_h = UI.WINDOW.get_screen_size()
 	try:
 		init = MP.conf['init']
 	except Exception as e:
@@ -1149,10 +1191,10 @@ def start():
 					UI.WINDOW.Element('-SEARCH_QUERY-').SetFocus()
 					log(f"Set focus on search query input!", 'info')
 				elif event == 'Fix Scaling':
-					calculated_scale = np.calculate_scale(MP.conf['nowplaying']['filepath'])
+					calculated_scale = np.calculate_scale(_file=MP.conf['nowplaying']['filepath'], win_size=UI.WINDOW2.size)
 					current_scale = P.video_get_scale()
-					log(f"EVENT: Fix Scaling button: Previous:{current_scale}, New:{calculated_scale}", 'info')
 					P.video_set_scale(calculated_scale)
+					log(f"EVENT: Fix Scaling button: Previous:{current_scale}, New:{calculated_scale}", 'info')
 				elif event == 'Screenshot':
 					ret = MP.screenshot()
 					np.log(ret, 'info')
@@ -1196,6 +1238,18 @@ def start():
 					com = (f"python3 \"{np.HOME}/.local/lib/python3.8/site-packages/np/utils/insert_intro.py\" \"{MP.conf['nowplaying']['filepath']}\" {MP.intro_start} {MP.intro_end}&")
 					subprocess.call(com, shell=True)
 					np.log("TODO: Finish np.insert_intro(filepath, start, end)")
+				elif event == 'Toggle Window Size':
+					if UI.maximized is False:
+						viewer_maximize()
+						store_window_location()
+						UI.maximized = True
+						np.log(f"np.start():VIEWER_WINDOW:Maximized!", 'info')
+					elif UI.maximized is True:
+						viewer_minimize()
+						store_window_location()
+						UI.maximized = False
+						np.log(f"np.start():VIEWER_WINDOW:Minimized!", 'info')
+					
 				else:
 					if event is not None:
 						try:
@@ -1259,7 +1313,7 @@ def start():
 			if P.is_playing() and MP.is_url == False:
 				if MP.scale_needed == 1:
 					log(f"np.start(): scale_needed is set, calculating scale...", 'info')
-					calculated_scale = np.calculate_scale(MP.conf['nowplaying']['filepath'])
+					calculated_scale = np.calculate_scale(MP.conf['nowplaying']['filepath'], win_size=UI.WINDOW2.size)
 					current_scale = P.video_get_scale()
 					P.video_set_scale(calculated_scale)
 					log(f"Set scale by scale_needed flag: Previous:{current_scale}, New:{calculated_scale}", 'info')
@@ -1295,6 +1349,16 @@ def start():
 					if MP.next is not None:
 						txt = (txt + "::" + str(MP.next))
 					UI.WINDOW['-MESSAGE_AREA-'].update(txt)
+					w, h = UI.WINDOW2.size
+					if w == int(UI.viewer_win_w) and h == int(UI.viewer_win_h):
+						pass
+					else:
+						UI.viewer_win_w = w
+						UI.viewer_win_h = h
+						log(f"Viewer window size changed! ({w}, {h}). Rescaling...", 'info')
+						calculated_scale = np.calculate_scale(_file=MP.conf['nowplaying']['filepath'], win_size=UI.WINDOW2.size)
+						current_scale = P.video_get_scale()
+						P.video_set_scale(calculated_scale)
 			# if media is playing but it's a url, skip info update
 			elif P.is_playing() and MP.is_url == True:
 				pass
