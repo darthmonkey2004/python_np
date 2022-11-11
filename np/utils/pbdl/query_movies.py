@@ -6,7 +6,7 @@ from np.core.log import np_logger
 log = np_logger().log_msg
 import time
 from np.core.nplayer_db import get_columns
-
+import PySimpleGUI as sg
 from np.core.conf import readConf
 conf = readConf()
 
@@ -80,19 +80,24 @@ def query_movies(title):
 		log(f"TMDB Query Error: Response code {r.status_code}", 'error')
 		return info
 	try:
+		data = None
 		json_data = json.loads(r.text)
+		ret = json_data['results']
+		for i in range(len(ret)):
+			if title == ret[i]['title']:
+				data = ret[i]
+				log(f"query_movies():Results={data}", 'info')
+				break
 		errmsg = None
-		if type == 'tmdb':
+		if data is None:
 			data = json_data['results'][0]
-			info['title'] = data['title']
-			info['year'] = data['release_date'].split('-')[0]
-			info['tmdbid'] = data['id']
-			info['description'] = data['overview']
-			info['poster'] = data['poster_path']
-			info['results'] = True
-			return info
-
-
+		info['title'] = data['title']
+		info['year'] = data['release_date'].split('-')[0]
+		info['tmdbid'] = data['id']
+		info['description'] = data['overview']
+		info['poster'] = data['poster_path']
+		info['results'] = True
+		return info
 	except Exception as e:
 		log("Error: {e}", 'error')
 		return info

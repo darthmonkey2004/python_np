@@ -14,10 +14,19 @@ def guess_intro(_file):
 	json_data = json.loads(data)
 	duration = float(json_data['format']['duration'])
 	com = (f"ffprobe -i '{_file}' -print_format json -show_chapters -loglevel error")
-	data = subprocess.check_output(com, shell=True).decode().strip()
+	try:
+		data = subprocess.check_output(com, shell=True).decode().strip()
+	except Exception as e:
+		log(f"Unable to guess intro! Reason: {e}", 'error')
 	json_data = json.loads(data)
 	intro = None
-	if json_data['chapters'] == []:
+	chapters = None
+	try:
+		chapters = json_data['chapters']
+	except Exception as e:
+		log(f"guess_intro..guess_intro(): Unable to load chapters from json data: {e}", 'error')
+		return None
+	if chapters == []:
 		intro = None
 		log(f"No chapters available for '{_file}'. Intro = None.", 'info')
 		return intro

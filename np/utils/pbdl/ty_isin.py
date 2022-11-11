@@ -49,13 +49,16 @@ def parse_title(filepath):
 				fname = fname.replace('.', ' ')
 				s = f"{year}"
 				title = fname.split(s)[0].strip()
-				return title, year
+				break
 	for tag in movie_tags:
 		if tag in fname:
 			fname = fname.split(tag)[0]
-	if title == None:
-		None
-			
+	if not title:
+		title = fname.replace(".", " ").replace("+", " ")
+		#print("File:", filepath)
+		#title = input("Enter title:")
+	if not year:
+		year = 0000
 	return title, year
 
 if __name__ == "__main__":

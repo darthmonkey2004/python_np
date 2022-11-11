@@ -1,3 +1,4 @@
+from np.utils.id3 import tag
 import PySimpleGUI as sg
 import sys, traceback
 import subprocess
@@ -12,7 +13,7 @@ from np.utils.pbdl.query_series import query_series
 from np.utils.pbdl.query_movies import query_movies
 import os
 import pickle
-
+id3 = tag()
 log = np_logger().log_msg
 conf = readConf()
 DATA_DIR = os.path.join(os.path.expanduser("~"), '.np')
@@ -118,12 +119,13 @@ def refresh_info(torrents, tid):
 			info['series_name'] = series_name
 			info['season'] = season
 			info['episode_number'] = episode_number
+			info['air_date'] = '11-11-1111'
 		elif play_type == 'movies':
 			title, year = test_media(filepath, True)
 			info = set_empty('movies')
 			info['title'] = title
 			info['year'] = year
-		lookup_type = '-rotten tomatoes-'
+		lookup_type = '-TMDB-'
 		torrents[tid]['files'][filepath]['info']['lookup_type'] = lookup_type
 		ret = lookup(torrents[tid]['files'][filepath]['info'])
 		try:
@@ -199,6 +201,7 @@ def add_to_db(torrents):
 			qstring = (f"INSERT INTO {play_type} ({kstring}) VALUES({vstring});")
 			dbfile = os.path.join(DATA_DIR, 'nplayer.db')
 			com = f"sqlite3 \"{dbfile}\" \"{qstring}\""
+			print("sql comand:", qstring)
 			ret = subprocess.check_output(com, shell=True).decode().strip()
 			if ret:
 				log(f"Error: Add to database failed for file '{filepath}': {ret}", 'error')
@@ -248,12 +251,13 @@ def migrate_movies():
 	db = os.path.join(DATA_DIR, 'nplayer.db')
 	com = (f"sqlite3 {db} \"select id,title,year,filepath from movies where filepath like \'%{SFTP_DIR}%\';\"")
 	results = subprocess.check_output(com, shell=True).decode().strip().split("\n")
+	if results is None:
+		return
 	for item in results:
 		try:
 			_id, title, year, filepath = item.split('|')
 		except Exception as e:
 			log(f"Unable to get info from movie: {e}. Data={item}")
-			input("Press enter to continue")
 			return
 		if '%27' in filepath:
 			filepath = filepath.replace("%27", "'")
@@ -280,7 +284,7 @@ def migrate_movies():
 			log(f"Error renaming file in database: id={_id}", 'error')
 			break
 
-def get_torrents_old():
+def get_torrents_kerploosh():
 	torrents = {}
 	com = (f"transmission-remote {conf['pbdl_url']} -l")
 	data = subprocess.check_output(com, shell=True).decode().strip().split('\n')
@@ -321,10 +325,11 @@ def get_torrents_old():
 						torrents[tid]['status'] = chunk
 						name = line.split(torrents[tid]['status'])[1].strip()
 						torrents[tid]['name'] = name
+					torrents[tid]['air_date'] = '11-11-1111'
 			
 	return torrents
 
-def get_torrents():
+def get_torrents_older():
 	com = "transmission-remote -l | grep -v \"ID\" | grep -v \"Sum\""
 	try:
 		lines = subprocess.check_output(com, shell=True).decode().strip().split("\n")
@@ -334,6 +339,7 @@ def get_torrents():
 	for line in lines:
 		tid = int(line.strip().split(' ')[0])
 		torrents[tid] = {}
+		torrents[tid]['tid'] = tid
 		if 'n/a' in line:
 			torrents[tid]['percent'] = 0
 			s = 'n/a'
@@ -357,7 +363,11 @@ def get_torrents():
 		elif 'Downloading' in line:
 			status = 'Downloading'
 		torrents[tid]['status'] = status
-		torrents[tid]['name'] = line.split(status)[1].strip()
+		try:
+			torrents[tid]['name'] = line.split(status)[1].strip()
+		except Exception as e:
+			log(f"pbdl.utils.get_torrents():Unable to get torrent status ({e}, line={line}", 'error')
+			torrents[tid]['name'] = line
 		com = f"transmission-remote -t{tid} -f | grep -v \"Done\" | grep -v \"files):\""
 		try:
 			file_lines = subprocess.check_output(com, shell=True).decode().strip().split("\n")
@@ -374,6 +384,99 @@ def get_torrents():
 				torrents[tid]['files'].append(fline.split(s)[1].strip())
 		except:
 			torrents[tid]['files'] = []
+	return torrents
+
+
+def empty(tid):
+	d = {}
+	d['tid'] = tid
+	d['percent'] = 'Unknown'
+	d['have'] = 'Unknown'
+	d['eta'] = 'Unknown'
+	d['upload'] = 'Unknown'
+	d['download'] = 'Unknown'
+	d['ratio'] = 'Unknown'
+	d['status'] = 'Unknown'
+	d['name'] = 'Unknown'
+	return d
+
+def get_torrents_weirdness():
+	com = f"transmission-remote -l | grep -v \"Ratio\" | grep -v \"Sum:\" | cut -d ' ' -f 4"
+	tids = subprocess.check_output(com, shell=True).decode().strip().split("\n")
+	torrents = {}
+	for tid in tids:
+		torrents[int(tid)] = empty(tid)
+	com = "transmission-remote -l | grep -v \"Ratio\" | grep -v \"Sum:\""
+	lines = subprocess.check_output(com, shell=True).decode().strip().split("\n")
+	for line in lines:
+		tid = int(line.strip().split(' ')[0].strip())
+		torrents[tid] = {}
+		percent = line.split(f"{tid} ")[1].strip().split(' ')[0]
+		try:
+			have = line.split(percent)[1].strip().split(' ')[0]
+		except:
+			have = percent.split(' ')[1]
+			percent = percent.split(' ')[0]
+		size_unit = line.strip().split(percent)[1].strip().split(' ')[1]
+		if '100' in percent:
+			eta = 'Done'
+		else:
+			eta = line.strip().split(size_unit)[1].strip().split(' ')[0]
+		if have == '':
+			have = 'Unknown'
+		if eta == '':
+			eta = 'Unknown'
+			time_unit = 'Unknown'
+		if eta != 'Unknown':
+			time_unit = line.strip().split(eta)[1].strip().split(' ')[0]
+			eta = f"{eta} {time_unit}"
+		print("eta:", eta)
+		try:
+			upload_speed = line.strip().split(eta)[1].strip().split(' ')[0]
+		except Exception as e:
+			upload_speed = eta.split(' ')[0]
+			eta = eta.split(' ')[1]
+			#upload_speed = line.strip().split(eta)[1]
+			log(f"pbdl.utils.get_torrents():Cannot get upload speed ({e})!", 'error')
+		if upload_speed == '':
+			upload_speed = 'Unknown'
+		download_speed = line.strip().split(upload_speed)[1].strip().split(' ')[0]
+		if download_speed == '':
+			download_speed = 'Unknown'
+		ratio = line.strip().split(download_speed)[1].strip().split(' ')[0]
+		if 'Downloading' in line:
+			status = 'Downloading'
+		elif 'Finished' in line:
+			status = 'Done'
+		elif 'Stopped' in line:
+			status = 'Stopped'
+		elif 'Up & Down' in line:
+			status = 'Up & Down'
+		else:
+			status = 'Unknown'
+		name = line.split(status)[1].strip()
+		torrents[tid]['tid'] = tid
+		torrents[tid]['percent'] = percent
+		torrents[tid]['have'] = f"{have} {size_unit}"
+		torrents[tid]['eta'] = eta
+		torrents[tid]['upload_speed'] = upload_speed
+		torrents[tid]['download_speed'] = download_speed
+		torrents[tid]['ratio'] = ratio
+		torrents[tid]['status'] = status
+		torrents[tid]['name'] = name
+		com = "transmission-remote -t1 -f | grep \"Yes\""
+		files = subprocess.check_output(com, shell=True).decode().strip().split("\n")
+		torrents[tid]['files'] = {}
+		fid = -1
+		for line in files:
+			fid += 1
+			torrents[tid]['files'][fid] = {}
+			downloaded = line.strip().split('Yes')[1].strip().split(' ')[0]
+			size_unit = line.split(downloaded)[1].strip().split(' ')[0]
+			downloaded = f"{downloaded} {size_unit}"
+			filepath = line.split(size_unit)[1].strip()
+			torrents[tid]['files'][fid]['downloaded'] = downloaded
+			torrents[tid]['files'][fid]['filepath'] = filepath
 	return torrents
 
 def get_files(tid):
@@ -405,6 +508,8 @@ def get_files(tid):
 
 
 def test_media_type(filepath):
+	if '.mp3' in filepath:
+		return 'music'
 	is_series = se_isin(filepath)
 	is_movie = ty_isin(filepath)
 	if is_series is True:
@@ -425,7 +530,13 @@ def test_media(filepath, return_data=False):
 			return parse_series(filepath)
 		elif play_type == 'movies':
 			return parse_movies(filepath)
+		elif play_type == 'music':
+			return parse_music(filepath)
 
+
+def parse_music(filepath):
+	tag = id3.read(filepath)
+	return tag.title, tag.artist, tag.album
 
 def parse_series(filepath):
 	conf = readConf()
@@ -460,10 +571,12 @@ def parse_movies(filepath):
 		if year >= 1900:
 			string = f" ({year}) "
 			if string in filepath:
-				title = filepath.split(string)[0].strip()
+				fname = os.path.basename(filepath)
+				title = fname.split(string)[0].strip()
 			else:
+				fname = os.path.basename(filepath)
 				string = ('(' + str(year) + ')')
-				title = filepath.split(string)[0].strip()
+				title = fname.split(string)[0].strip()
 		else:
 			year = None
 	else:
@@ -646,27 +759,97 @@ def merge_saved_data():
 	return torrents
 
 
+def files_empty(filepath):
+	play_type = test_media_type(filepath)
+	d = {}
+	d['play_type'] = play_type
+	for key in list(get_columns(play_type).keys()):
+		d[key] = None
+	d['play_type'] = play_type
+	d['lookup_type'] = '-TMDB-'
+	return d
+
+
+def get_torrents():
+	com = "transmission-remote -l | grep -v \"Ratio\" | grep -v \"Sum:\""
+	lines = subprocess.check_output(com, shell=True).decode().strip().split("\n")
+	#lines = ['25     2%   47.02 MB  5 hrs        0.0   240.0    0.0  Downloading  Captain America - The First Avenger (2011)', '  26     2%   60.29 MB  Unknown      0.0     0.0    0.0  Downloading  Captain.Marvel.2019.1080p.BRRip.x264-MkvCage.ws.mkv', '  27     0%    9.30 MB  2 hrs        0.0   119.0    0.0  Downloading  Iron Man [1080p]', '  28   100%    1.72 GB  Done         0.0     0.0    0.0  Stopped      Iron Man 2 (2010) [1080p]', '  29     6%   123.1 MB  17 hrs       0.0     0.0    0.0  Downloading  The Incredible Hulk (2008) [1080p]', '  30     1%   42.64 MB  2965 days     0.0     0.0    0.0  Downloading  Thor.2011.1080p.BluRay.H264.AAC-RARBG', "  31    n/a       None  Unknown      0.0     0.0   None  Idle         Marvel's+The+Avengers+(2012)(Bitloks)(1920).mkv", '  32     5%   99.85 MB  Unknown      0.0     0.0    0.0  Downloading  Thor The Dark World (2013) [1080p]', '  33    20%   419.7 MB  52 days      0.0     1.0    0.0  Downloading  Iron Man 3 (2013) [1080p]', '  34     6%   140.3 MB  47 min       0.0  1153.0    0.0  Up & Down    Captain America The Winter Soldier (2014) [1080p]', '  35     3%   68.42 MB  22 hrs       0.0     6.0    0.0  Downloading  Guardians of the Galaxy (2014) [1080p]', '  36     0%   49.15 kB  Unknown      0.0     0.0    0.0  Queued       Guardians of the Galaxy Vol. 2 (2017) 720p BrRip x264 - VPPV', '  37    n/a       None  Done         0.0     0.0   None  Queued       Avengers:+Age+of+Ultron+(2015)+1080p+BrRip+x264+-+YIFY', '  38     0%   524.3 kB  Unknown      0.0     0.0    0.0  Queued       Avengers Infinity War (2018) [BluRay] [1080p] [YTS.AM]', '  39    n/a       None  Done         0.0     0.0   None  Queued       Captain+America+Civil+War+2016+1080p+BluRay+x264+DTS-JYK', '  40    n/a       None  Done         0.0     0.0   None  Queued       Black.Panther.2018.1080p.BRRip.x264-BRRIP', '  41    n/a       None  Done         0.0     0.0   None  Queued       Spider-Man.Homecoming.2017.720p.BluRay.x264-NeZu', '  42    n/a       None  Done         0.0     0.0   None  Queued       Thor+Ragnarok+2017+1080p+HDRip+x264+AAC+5.1+ESub+-xRG', '  43     0%       None  Unknown      0.0     0.0   None  Queued       Avengers Endgame (2019) [BluRay] [1080p] [YTS.LT]', '  44     0%       None  Unknown      0.0     0.0   None  Queued       The Good The Bart And The Loki (2021) [1080p] [WEBRip] [5.1] [YTS.MX]', '  45    n/a       None  Done         0.0     0.0   None  Queued       What.If.2021.S01.COMPLETE.720p.DSNP.WEBRip.x264-GalaxyTV', '  46     0%   86.83 MB  Unknown      0.0     0.0    0.0  Idle         WandaVision (2021) Season 1 S01 (1080p DSNP WEB-DL x265 HEVC 10bit EAC3 5.1 Silence)', '  47    n/a       None  Done         0.0     0.0   None  Queued       The+Falcon+and+the+Winter+Soldier+(2021)+Season+1+S01+(1080p+WEB', '  48    n/a       None  Done         0.0     0.0   None  Queued       Shang-Chi+and+the+Legend+of+the+Ten+Rings+(2021)+[1080p]+[BluRay', '  49    n/a       None  Done         0.0     0.0   None  Queued       Eternals+(2021)+[1080p]+[WEBRip]+[5.1]', '  50    n/a       None  Done         0.0     0.0   None  Queued       Hawkeye+2021+S01E01+Never+Meet+Your+Heroes+1080p+DSNP+WEB-DL+DDP', '  51    n/a       None  Done         0.0     0.0   None  Queued       Moon.Knight.2022.S01.2160p.10bit.DSNP.DDP5.1.HEVC.x265-Vyndros', '  52    n/a       None  Done         0.0     0.0   None  Queued       She-Hulk+Attorney+at+Law+(2022)+Season+1+S01+(1080p+DSNP+WEB-DL+x265+HEVC+10bit', '  53    n/a       None  Done         0.0     0.0   None  Queued       Ms.Marvel.2022.S01.2160p.10bit.DSNP.DDP5.1.HEVC.x265-Vyndros', '  54    n/a       None  Done         0.0     0.0   None  Queued       Thor+Love+and+Thunder+(2022)+[1080p]+[WEBRip]+[5.1]']
+	statuses = ['Queued', 'Downloading', 'Idle', 'Stopped', 'Finished', 'Up & Down']
+	torrents = {}
+	for line in lines:
+		tid = int(line.strip().split(' ')[0].strip())
+		percent = line.split(f"{tid} ")[1].strip().split(' ')[0]
+		have = line.split(percent)[1].strip().split(' ')[0]
+		if have != 'None':
+			size_unit = line.split(have)[1].strip().split(' ')[0]
+			have = f"{have} {size_unit}"
+		eta = line.split(have)[1].strip().split(' ')[0]
+		if eta != 'Unknown' and eta!= 'Done':
+			time_unit = line.split(f"{eta} ")[1].strip().split(' ')[0]
+			if '%' in time_unit:
+				time_unit = line.split(f"{eta} ")[2].strip().split(' ')[0]
+			eta = f"{eta} {time_unit}"
+		if have != 'None':
+			uploaded = line.split(eta)[1].strip().split(' ')[0]
+			downloaded = line.split(f"{uploaded} ")[1].strip().split(' ')[0]
+			try:
+				ratio = line.split(f"{downloaded} ")[1].strip().split(' ')[0]
+			except:
+				ratio = 0.0
+		else:
+			uploaded = '0.0'
+			downloaded = '0.0'
+			ratio = 'None'
+		status = None
+		for s in statuses:
+			if s in line:
+				status = s
+		name = line.split(status)[1].strip()
+		if tid is not None and percent is not None and have is not None and eta is not None and uploaded is not None and downloaded is not None and ratio is not None and status is not None and name is not None:
+			torrents[tid] = {}
+			torrents[tid]['tid'] = tid
+			torrents[tid]['percent'] = percent
+			torrents[tid]['have'] = have
+			torrents[tid]['eta'] = eta
+			torrents[tid]['uploaded'] = uploaded
+			torrents[tid]['downloaded'] = downloaded
+			torrents[tid]['ratio'] = ratio
+			torrents[tid]['status'] = status
+			torrents[tid]['name'] = name
+			files = get_files(tid)
+			torrents[tid]['files'] = {}
+			if files != []:
+				for filepath in files:
+					torrents[tid]['files'][filepath] = {}
+					torrents[tid]['files'][filepath]['filepath'] = filepath
+	return torrents
+
+
+
 def build_data(rebuild=False, lookup_type=None):
 	
 	if lookup_type == None:
-		lookup_type = '-rotten tomatoes-'
-	try:
-		if rebuild is False:
-			log(f"Loading saved data...", 'info')
+		lookup_type = '-TMDB-'
+	if rebuild is False:
+		log(f"Loading saved data...", 'info')
+		try:
 			torrents = load_saved_data()
-			if torrents is not None:
-				return torrents
-			else:
-				torrents = get_torrents()
-		elif rebuild is True:
+		except Exception as e:
+			log(f"pbdl.utils.build_data:Unable to load data! {e}", 'error')
 			torrents = get_torrents()
-	except Exception as e:
-		log(f"Unable to load saved data: {e}. Rebuilding...", 'warning')
+		if torrents is not None:
+			return torrents
+		else:
+			torrents = get_torrents()
+	elif rebuild is True:
+		torrents = get_torrents()
 	for tid in torrents.keys():
 		files = get_files(tid)
 		torrents[tid]['files']  = {}
 		for filepath in files:
 			play_type = test_media(filepath)
+			query_info = test_media(filepath, True)
+			log(f"filepath:{filepath}, play_type:{play_type}, query_info:{query_info}", 'error')
 			try:
 				results = torrents[tid]['files'][filepath]['info']['results']
 			except Exception as e:
@@ -675,22 +858,30 @@ def build_data(rebuild=False, lookup_type=None):
 			if results is None:
 				torrents[tid]['files'][filepath] = {}
 				torrents[tid]['files'][filepath]['info'] = set_empty(play_type)
+				torrents[tid]['files'][filepath]['info']['filepath'] = filepath
 				torrents[tid]['files'][filepath]['info']['play_type'] = play_type
 				if torrents[tid]['files'][filepath]['info']['play_type'] == 'series':
+					torrents[tid]['files'][filepath]['info']['series_name'], torrents[tid]['files'][filepath]['info']['season'], torrents[tid]['files'][filepath]['info']['episode_number'] = query_info
 					series_name, season, episode_number = test_media(filepath, True)
 					tname = verify_series_name(series_name)
 					if tname is not None:
 						series_name = tname
+					torrents[tid]['air_date'] = '11-11-1111'
 					torrents[tid]['files'][filepath]['info']['series_name'] = series_name
 					torrents[tid]['files'][filepath]['info']['season'] = season
 					torrents[tid]['files'][filepath]['info']['episode_number'] = episode_number
 					torrents[tid]['files'][filepath]['info']['lookup_type'] = lookup_type
 				elif torrents[tid]['files'][filepath]['info']['play_type'] == 'movies':
+					torrents[tid]['files'][filepath]['info']['title'] = query_info[0]
 					title, year = test_media(filepath, True)
+					log(f"filepath:{filepath}, data:{test_media(filepath, True)}", 'error')
 					torrents[tid]['files'][filepath]['info']['title'] = title
 					torrents[tid]['files'][filepath]['info']['year'] = year
 					torrents[tid]['files'][filepath]['info']['lookup_type'] = lookup_type
-				ret = lookup(torrents[tid]['files'][filepath]['info'])
+				try:
+					ret = lookup(torrents[tid]['files'][filepath]['info'])
+				except Exception as e:
+					log(f"pbdl.utils.build_data():Can't get info... {e}", 'info')
 				try:
 					if ret['results'] == True:
 						torrents[tid]['files'][filepath]['info'] = ret

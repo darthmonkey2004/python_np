@@ -42,7 +42,7 @@ def run_server():
 		log(f"Error starting socket server: {e}", 'error')
 
 def sqlite3(query):
-	dbfile = (f"{np.DATA_DIR}{os.path.sep}nplayer.db")
+	dbfile = os.path.join(os.path.expanduser("~"), '.np', 'nplayer.db')
 	com = (f"sqlite3 '{dbfile}' \"{query}\"")
 	out = subprocess.check_output(com, shell=True).decode().strip().split("\n")
 	if MP.conf['debug'] == True:
@@ -476,6 +476,9 @@ def remote_handler(com, arg):
 		UI.WINDOW.close()
 		log("REMOTE:GUI Window closed.", 'info')
 		ret = 'gui closed!'
+	elif com == 'resize_gui':
+		ret = resize_gui()
+		log(f"REMOTE:{ret}", 'info')
 	elif com == 'pause':
 		P.pause()
 		log("REMOTE: Paused", 'info')
@@ -585,7 +588,9 @@ def remote_handler(com, arg):
 		MP.remote_media = l
 		ret = l
 	elif com == 'fix_scaling':
-		MP.set_scale(MP.conf['nowplaying']['filepath'])
+		calculated_scale = np.calculate_scale(_file=MP.conf['nowplaying']['filepath'], win_size=UI.WINDOW2.size)
+		current_scale = P.video_get_scale()
+		P.video_set_scale(calculated_scale)
 		log("REMOTE: Fix Scaling command received, scale set ({MP.scale})", 'info')
 		ret = "Scaling fixed!"
 	elif com == 'debug':
@@ -621,6 +626,21 @@ def refresh_log_data():
 		UI.WINDOW['-DEBUGGER-'].update(log_data)
 	except:
 		pass
+
+
+def resize_gui():
+	if UI.maximized is False:
+		viewer_maximize()
+		store_window_location()
+		UI.maximized = True
+		np.log(f"np.start():VIEWER_WINDOW:Maximized!", 'info')
+		return "UI Maximized!"
+	elif UI.maximized is True:
+		viewer_minimize()
+		store_window_location()
+		UI.maximized = False
+		np.log(f"np.start():VIEWER_WINDOW:Minimized!", 'info')
+		return "UI Minimized"
 
 
 def start():
@@ -688,7 +708,10 @@ def start():
 		run_server()
 	recenter_ui()
 	MP.version = get_version()
-	MP.update_needed = match_repo_version()
+	#try:
+	#	MP.update_needed = match_repo_version()
+	#except Exception as e:
+	#	log(f"np:start():Unable to check latest version! (Check network connection?): {e}", 'error')
 	log(f"Starting nplayer (V{MP.version})...", 'info')
 	while True:
 		readct += 1
@@ -875,7 +898,7 @@ def start():
 						log(f"ACTION:play", 'info')
 				elif event == 'Refresh from Database':
 					MP.media = np.create_media()
-					UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.playlist)
+					UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.playlist.playlist)
 				elif event == 'Refresh Log Data':
 					refresh_log_data()
 					readct = 0
@@ -979,8 +1002,9 @@ def start():
 						if is_active == 1:
 							query_string = (query_string + " and isactive = '" + str(is_active) + "'")
 						rows = np.querydb(table=table, column=columns, query=query_string)
+						MP.playlist = MP.get_playlist_object(data=rows, mode='database')
 						if rows is not None:
-							UI.WINDOW['-PLAYLIST_ITEMS-'].update(rows)
+							UI.WINDOW['-PLAYLIST_ITEMS-'].update(MP.playlist.playlist)
 						else:
 							UI.WINDOW['-PLAYLIST_ITEMS-'].update("Looks like you better figure out how to search without that active flag....")
 				elif event == 'Search':
@@ -1011,19 +1035,22 @@ def start():
 										query_string = ("series_name like '%" + series_name + "%' and season = " + season + " and isactive = '" + str(is_active) + "'")
 								log(f"Query string:{query_string}", 'info')
 							rows = np.querydb(table='series', column='id,series_name,tmdbid,season,episode_number,episode_name,description,air_date,still_path,filepath', query=query_string)
-							MP.playlist = np.create_media(rows=rows)
+							items = np.create_media(rows=rows)
+							MP.playlist = MP.get_playlist_object(data=items, mode='database')
 							if rows is not None:
-								UI.WINDOW['-CURRENT_PLAYLIST-'].update(sorted(MP.playlist))
+								UI.WINDOW['-CURRENT_PLAYLIST-'].update(sorted(MP.playlist.playlist))
 								MP.play_mode = 'playlist'
 								UI.WINDOW['-PLAY_MODE-'].update(MP.play_mode)
 							else:
 								UI.WINDOW['-CURRENT_PLAYLIST-'].update("Looks like you better figure out how to search without that active flag....")
 						elif table == 'movies':
+							log(f"Query String:{query_string}", 'info')
 							query_string = ("title like '%" + query + "%' and isactive = '" + str(is_active) + "'")
 							rows = querydb(table='movies', column='id,tmdbid,title,year,release_date,description,poster,filepath', query=query_string)
-							MP.media = np.create_media(rows=rows)
+							items = np.create_media(rows=rows)
+							MP.playlist = MP.get_playlist_object(data=items, mode='database')
 							if rows is not None:
-								UI.WINDOW['-CURRENT_PLAYLIST-'].update(sorted(MP.playlist))
+								UI.WINDOW['-CURRENT_PLAYLIST-'].update(sorted(MP.playlist.playlist))
 								MP.play_mode = 'playlist'
 								UI.WINDOW['-PLAY_MODE-'].update(MP.play_mode)
 						elif table == 'music':
@@ -1100,11 +1127,11 @@ def start():
 						_id = line.split(':')[5]
 						query_string = ("id = " + str(_id))
 						ret = np.removefromdb(table, query_string)
-						MP.playlist.remove(line)
+						MP.playlist.playlist.remove(line)
 					MP.dbmgr_picked_items = []
 					UI.window['-DBMGR_SELECTED_ROWS-'].update(MP.dbmgr_picked_items)
 					log(f"Remove selected:{MP.dbmgr_picked_items}", 'info')
-					UI.window['-PLAYLIST_ITEMS-'].update(sorted(MP.playlist))
+					UI.window['-PLAYLIST_ITEMS-'].update(sorted(MP.playlist.playlist))
 				elif event == 'Torrent Manager':
 					pbdl_win = start_pbdl('mgr')
 					log(f"Loaded torrent manager!", 'info')
@@ -1138,7 +1165,7 @@ def start():
 					filepath = file_browse_window()
 					if filepath is not None:
 						try:
-							ret = MP.save_playlist(filepath, MP.playlist)
+							ret = MP.save_playlist(filepath, MP.playlist.playlist)
 							if ret is True:
 								log(f"Save playlist: Success: {filepath}", 'info')
 							else:
@@ -1150,12 +1177,13 @@ def start():
 					path = folder_browse_window()
 					if path is not None:
 						try:
-							MP.playlist = sorted(MP.load_directory(path))
+							
+							MP.playlist = MP.get_playlist_object(data = sorted(MP.load_directory(path)), mode='playlist')
 							if MP.playlist is not None:
-								UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.playlist)
+								UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.playlist.playlist)
 								MP.play_mode = 'playlist'
 								UI.WINDOW['-PLAY_MODE-'].update(MP.play_mode)
-								filepath = MP.playlist[0]
+								filepath = MP.playlist.playlist[0]
 								log(f"np.event:Load Directory: Starting playback (file={filepath})", 'info')
 								MP.play(filepath)
 								log(f"np.event:Load Directory: Play function exited! is_playing = {MP.player.is_playing()}", 'info')
@@ -1166,15 +1194,15 @@ def start():
 						MP.play_needed = 1
 						np.log(f"np.start(): set play_needed=1", 'info')
 				elif event == "-Database Editor-":
-					UI.db_editor()
+					UI.db_editor(MP.play_type)
 				elif event == '-ID3 Tag Editor-':
 					UI.tag_editor()
 				elif event == '-PLAY_MODE-':
 					MP.play_mode = values[event]
 					log(f"Play mode changed:{MP.play_mode}", 'info')
 					if MP.play_mode == 'database':
-						MP.media = np.create_media()
-						UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.playlist)
+						MP.media = MP.get_playlist_object(data=np.create_media())
+						UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.playlist.playlist)
 						MP.skip_next()
 				elif event == '-Set Active-':
 					log(f"TODO: Set active:{MP.dbmgr_picked_items}", 'info')
@@ -1239,16 +1267,7 @@ def start():
 					subprocess.call(com, shell=True)
 					np.log("TODO: Finish np.insert_intro(filepath, start, end)")
 				elif event == 'Toggle Window Size':
-					if UI.maximized is False:
-						viewer_maximize()
-						store_window_location()
-						UI.maximized = True
-						np.log(f"np.start():VIEWER_WINDOW:Maximized!", 'info')
-					elif UI.maximized is True:
-						viewer_minimize()
-						store_window_location()
-						UI.maximized = False
-						np.log(f"np.start():VIEWER_WINDOW:Minimized!", 'info')
+					resize_gui()
 					
 				else:
 					if event is not None:
@@ -1262,13 +1281,13 @@ def start():
 				MP.conf = np.readConf()
 				MP = np.nplayer()
 				P = MP.init_vlc()
-				media = np.create_media()
+				#media = np.create_media()
 				MP.series_history = np.read_history()
 				UI = np.gui()
 				log("np_main.py: Created GUI from main loop ('GUI_RESET' = {MP.conf['GUI_RESET']}", 'info')
 				set_video_out()
 				MP.continuous = 1
-				UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.playlist)
+				UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.playlist.playlist)
 				UI.WINDOW['-PLAY_TYPE-'].update(MP.conf['play_type'])
 				log("np_main.py: Resuming from reset = True...", 'info')
 				MP.play()

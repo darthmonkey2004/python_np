@@ -5,6 +5,7 @@ import os
 from np.core.nplayer_db import get_columns
 from np.utils.pbdl.rotten_tomatoes import get_episode_data
 from np.core.log import np_logger
+from np.utils.pbdl.utils import test_media
 log = np_logger().log_msg
 
 def sqlite3(com):
@@ -53,6 +54,7 @@ def get_table(values):
 		return 'music'
 	elif values['-table_movies-'] == True:
 		return 'movies'
+
 
 def edit_details(table, _id):
 	log(f"Edit Details: table:{table}, id:{_id}", 'info')
@@ -143,7 +145,7 @@ def show_editor():
 	return WINDOW
 
 			
-def db_editor():
+def db_editor(table=None):
 	title = None
 	series_name = None
 	artist = None
@@ -160,10 +162,11 @@ def db_editor():
 		except Exception as e:
 			log(f"Error reading window (closed?)", 'error')
 			break
-		try:
-			table = get_table(values)
-		except:
-			table = 'series'
+		if table is None:
+			try:
+				table = get_table(values)
+			except:
+				table = 'series'
 		if event is not None and event != '__TIMEOUT__':
 			log(f"DBEDITOR:EVENT:{event}", 'info')
 			if event ==  sg.WIN_CLOSED:

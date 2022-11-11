@@ -78,7 +78,7 @@ def run():
 		line = [sg.Text(prop), sg.Input(key=prop, expand_x=True, enable_events=True, do_not_clear=True)]
 		layout.append(line)
 
-	line = [sg.Button('delete'), sg.Button('play'), sg.Button('stop'), sg.Button('Save Tag'), sg.Button('Lookup Data'), sg.Button('Close')]
+	line = [sg.Button('delete'), sg.Button('play'), sg.Button('stop'), sg.Button('Save Tag'), sg.Button('-Lookup Album-'), sg.Button('Close')]
 	layout.append(line)
 	line = [sg.Listbox(values=music_files, change_submits=True, auto_size_text=True, enable_events=True, expand_x=True, expand_y=True, key='-music_list_select-')]
 	layout.append(line)
@@ -174,7 +174,7 @@ def run():
 							log(f"Autorename: Skipping (filepath and newpath match!)", 'info')
 					ret = tag.save(tag.filepath)
 					log(f"Tag Save Results: {ret}", 'info')
-			elif event == 'Lookup Album':
+			elif event == 'Lookup Album' or event == '-Lookup Album-':
 				if tag is not None:
 					album = find_album(tag.artist, tag.title)
 					if album is not None:

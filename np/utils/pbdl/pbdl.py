@@ -288,6 +288,8 @@ def start(t='mgr'):
 					for item in list(p.info.keys()):
 						if item in columns:
 							k = f"dbcolumn{columns.index(item)}"
+							if "'" in str(p.info[item]):
+								p.info[item] = str(p.info[item]).replace("'", "")
 							d[k] = p.info[item]
 							log(f"item:{item}, k:{k}", 'info')
 					sg.fill_form_with_values(p.win, d)
@@ -299,8 +301,11 @@ def start(t='mgr'):
 				log(f"Set lookup type to {p.lookup_type}", 'info')
 			elif event == '-LOOKUP-':
 				log(f"EVENT:{event}", 'info')
+				log(f"info:{p.info}", 'info')
 				p.info['lookup_type'] = p.lookup_type
 				p.info['play_type'] = p.play_type
+				fidx = list(get_columns(p.play_type).keys()).index('filepath')
+				key = f"dbcolumn{fidx}"
 				ret = lookup(p.info)
 				if ret is None:
 					log(f"Lookup failed for {p.info}", 'info')
@@ -310,6 +315,7 @@ def start(t='mgr'):
 					worked = False
 				if worked:
 					p.info = ret
+					p.info['filepath'] = p.win[key]
 					columns = list(get_columns(p.play_type).keys())
 					for k in list(p.info.keys()):
 						if k in columns:

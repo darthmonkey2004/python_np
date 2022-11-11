@@ -119,13 +119,17 @@ class torrent_mgr():
 		return status
 
 	def get_data(self):
-		com=f"transmission-remote {self.remote_ip} -l | grep -v \"ID\" | grep -v \"Sum:\""
-		results = subprocess.check_output(com, shell=True).decode().strip().split("\n")
-		tids = []
-		for item in results:
-			tid = item.strip().split(' ')[0]
-			tids.append(tid)
 		self.tdata = {}
+		try:
+			com=f"transmission-remote {self.remote_ip} -l | grep -v \"ID\" | grep -v \"Sum:\""
+			results = subprocess.check_output(com, shell=True).decode().strip().split("\n")
+			tids = []
+			for item in results:
+				tid = item.strip().split(' ')[0]
+				tids.append(tid)
+		except Exception as e:
+			log(f"pbdl.torrentmgr.get_data():Unable to get torrent data (no active torrents?) {e}", 'info')
+			return self.tdata
 		keys = ['Name', 'Hash', 'Magnet', 'State', 'Location', 'Percent Done', 'ETA', 'Download Speed', 'Upload Speed', 'Have', 'Total size', 'Downloaded', 'Uploaded', 'Ratio', 'Corrupt DL', 'Peers']
 		dkeys = ['name', 'hash', 'magnet', 'state', 'location', 'percent', 'eta', 'download_speed', 'upload_speed', 'have', 'total_size', 'downloaded', 'uploaded', 'ratio', 'corrupt', 'peers']
 		for tid in tids:

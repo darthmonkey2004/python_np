@@ -331,8 +331,11 @@ class gui():
 		log(f"Window location: Name={window}, Coords={coords}", 'info')
 		return coords
 
-	def db_editor(self):
-		db_editor()
+	def db_editor(self, play_type=None):
+		if play_type is not None:
+			db_editor(play_type)
+		else:
+			db_editor()
 		
 	def tag_editor(self):
 		tag_editor()

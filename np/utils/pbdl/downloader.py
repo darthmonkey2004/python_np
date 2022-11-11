@@ -24,7 +24,7 @@ def create_downloader():
 	conf = readConf()
 	play_type = conf['play_type']
 	results = []
-	play_type_combo = [sg.Combo(['series', 'movies', 'music'], conf['play_type'] , enable_events=True,key='-DL_MEDIA_TYPE-')]
+	play_type_combo = [sg.Combo(['series', 'movies', 'music'], conf['play_type'] , enable_events=True,key='-DL_MEDIA_TYPE-'), sg.Checkbox(text="VPN On/Off", auto_size_text=True, change_submits=True, enable_events=True, key='-TOGGLE_VPN-')]
 	search_line = [sg.Input('Enter search query here:', enable_events=True, change_submits=True, key='-PBDL_SEARCH_QUERY-', expand_x=True), sg.Button('Search', key='-PBDL_SEARCH-'), sg.Button('Quit!', key='-DOWNLOADER_EXIT-')]
 	results_box = [sg.Listbox(values=results, change_submits=True, auto_size_text=True, enable_events=True, expand_x=True, expand_y=True, key='-PBDL_RESULTS-')]
 	pbdl_search_layout = [
@@ -37,7 +37,7 @@ def create_downloader():
 		w = conf['windows'][conf['screen']]['pbdl_dl']['w']
 		h = conf['windows'][conf['screen']]['pbdl_dl']['h']
 	except Exception as e:
-		log(f"Error: Unable to restore previous window location: {e}", 'error')
+		log(f"pbdl.downloader():Error: Unable to restore previous window location: {e}", 'error')
 		conf = readConf()
 		screen = conf['screen']
 		x, y = conf['windows'][conf['screen']]['pbdl_dl']['x'], conf['windows'][conf['screen']]['pbdl_dl']['y']
@@ -64,7 +64,6 @@ def downloader_loop(win=None, mgr=None):
 		win = create_downloader()
 	mgr.set_start_paused()
 	mgr.set_global_ratio(0)
-	mgr.start_vpn()
 	while True:
 		if exit == True:
 			break
@@ -73,11 +72,11 @@ def downloader_loop(win=None, mgr=None):
 			if window is not None:
 				conf['locations']['dl'] = window.current_location()
 		except Exception as e:
-			log(f"Exit exception:{e}", 'error')
+			log(f"pbdl.downloader():Exit exception:{e}", 'error')
 			exit = True
 		if event != '__TIMEOUT__':
 			if conf['debug'] == True:
-				log(f"EVENT: {event}", 'info')
+				log(f"pbdl.downloader():EVENT: {event}", 'info')
 		if event=='-Close PBDL-' or event == "Exit" or event == '-DOWNLOADER_EXIT-':
 				exit = True
 				conf['locations']['dl'] = window.current_location()
@@ -94,23 +93,31 @@ def downloader_loop(win=None, mgr=None):
 				break
 		else:
 			if event == '-PBDL_SEARCH-':
-				log(f"searching {pbdl_query}...", 'info')
+				log(f"pbdl.downloader():searching {pbdl_query}...", 'info')
 				results = search(pbdl_query)
 				window['-PBDL_RESULTS-'].update(results)
 
 			elif event == '-PBDL_SEARCH_QUERY-':
 				pbdl_query = values[event]
+			elif event == '-TOGGLE_VPN-':
+				state = mgr.vpn_status()
+				if state:
+					log("Starting vpn...", 'info')
+					mgr.start_vpn()
+				else:
+					log("Stopping vpn...", 'info')
+					mgr.stop_vpn()
 			elif event == '-PBDL_RESULTS-':
 				try:
 					picked = values[event][0]
-					log(f"Downloading:{picked}", 'info')
+					log(f"pbdl.downloader():Downloading:{picked}", 'info')
 					magnet = results[picked]
 					ret = mgr.add(magnet)
 					mgr.stop_seeds()
 					if ret != '':
-						log(f"Send magnet results: {ret}", 'info')
+						log(f"pbdl.downloader():Send magnet results: {ret}", 'info')
 				except Exception as e:
-					log(f"list empty? {e}", 'warning')
+					log(f"pbdl.downloader():list empty? {e}", 'error')
 		win.refresh()
 	return True
 

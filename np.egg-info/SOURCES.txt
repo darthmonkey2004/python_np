@@ -17,6 +17,7 @@ np/core/log.py
 np/core/np.py
 np/core/nplayer.py
 np/core/nplayer_db.py
+np/core/playlist.py
 np/core/wsreceiver.py
 np/core/wssender.py
 np/core/wsserver.py
