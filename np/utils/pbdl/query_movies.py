@@ -86,7 +86,7 @@ def query_movies(title):
 		for i in range(len(ret)):
 			if title == ret[i]['title']:
 				data = ret[i]
-				log(f"query_movies():Results={data}", 'info')
+				#log(f"query_movies():Results={data}", 'info')
 				break
 		errmsg = None
 		if data is None:

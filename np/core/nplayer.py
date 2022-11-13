@@ -10,7 +10,7 @@ import time
 from np.utils.playlist import get_next
 from np.core.log import np_logger
 import PySimpleGUI as sg
-from np.core.playlist import playlist, db_playlist
+from np.core.playlist import *
 from random import shuffle
 
 log = np_logger().log_msg
@@ -71,14 +71,18 @@ class nplayer():
 		self.version = 1.0
 		self.update_needed = False
 		self.shuffle = True
-		
+		self.img_url = None
 
-	def get_playlist_object(self, data=None, mode=None):
+	def get_playlist_object(self, data=None, mode=None, play_type=None):
+		#play type can be list: ['series', 'movies', etc]
+		if play_type is not None:
+			self.play_type = play_type
 		if mode is not None:
 			self.play_mode = mode
+		print(data, self.play_mode)
 		if data is None:
 			if self.play_mode == 'database':
-				self.playlist = db_playlist()
+				self.playlist = new_rdm(self.play_type)
 			else:
 				self.playlist = playlist()
 		else:
@@ -188,32 +192,41 @@ class nplayer():
 			shuffle(movies)
 		return movies[0]
 
+
+	def get_next_song(self):
+		query = f"select distinct filepath from music order by artist, title, album;"
+		log(f"nplayer:get_next_song():query={query}", 'info')
+		songs = sqlite3(query)
+		if self.shuffle:
+			shuffle(songs)
+			shuffle(songs)
+			shuffle(songs)
+		return songs[0]
+
 			
 	def get_next(self):
-		if self.play_mode == 'database':
-			if self.play_type == 'series':
-				series_name = self.get_next_series_name()
-				self.series_history = np.read_history()
-				last = self.series_history[series_name]
-				files = sqlite3(f"select filepath from {self.play_type} where series_name like \'%{series_name}%\' order by season,episode_number;")
-				idx = files.index(last) + 1
-				try:
-					self.next = files[idx]
-				except Exception as e:
-					log(f"nplayer.get_next():Reached end of series! Starting over...({e})", 'info')
-					self.next = files[0]
-			elif self.play_type == 'movies':
-				self.next = self.get_next_movie()
-			elif self.play_type == 'music':
-				if self.shuffle:
-					shuffle(self.playlist.playlist)
-					shuffle(self.playlist.playlist)
-					shuffle(self.playlist.playlist)
-					self.next = self.playlist.playlist[0]
-				else:
-					self.next = self.playlist.next()
-		else:
-			self.next = self.playlist.next()
+		#if self.play_mode == 'database':
+		#	if self.play_type == 'series':
+		#		series_name = self.get_next_series_name()
+		#		self.series_history = np.read_history()
+		#		last = self.series_history[series_name]
+		#		files = sqlite3(f"select filepath from {self.play_type} where series_name like \'%{series_name}%\' order by season,episode_number;")
+		#		idx = files.index(last) + 1
+		#		try:
+		#			self.next = files[idx]
+		#		except Exception as e:
+		#			log(f"nplayer.get_next():Reached end of series! Starting over...({e})", 'info')
+		#			self.next = files[0]
+		#	elif self.play_type == 'movies':
+		#		self.next = self.get_next_movie()
+		#	elif self.play_type == 'music':
+		#		try:
+		#			self.next = self.get_next_song()
+		#		except Exception as e:
+		#			log(f"nplayer.get_next():Weird error...({e})", 'error')
+		#			self.next = self.playlist.next()
+		#else:
+		self.next = self.playlist.next()
 		return self.next
 
 
@@ -557,11 +570,15 @@ class nplayer():
 				if '%' in self.img_url:
 					self.img_url = unquote(self.img_url)
 				break
-		try:
-			com = ("wget --output-document 'poster.jpg' '" + self.img_url + "'")
-			subprocess.check_output(com, shell=True)
-		except Exception as e:
-			log(f"Unable to get poster: {e}", 'error')
+		if self.img_url is not None:
+			try:
+				com = (f"wget --output-document 'poster.jpg' '{self.img_url}'")
+				subprocess.check_output(com, shell=True)
+			except Exception as e:
+				log(f"Unable to get poster: {e}", 'error')
+				return None
+		else:
+			return None
 		screen = self.conf['screen']
 		self.art_w = self.conf['windows'][screen]['viewer']['w']
 		self.art_h = self.conf['windows'][screen]['viewer']['h']
@@ -595,9 +612,11 @@ class nplayer():
 
 	def save_playlist(self, filepath, media_list=None):
 		if media_list:
-			media_list = media_list.playlist
+			if type(media_list) != list:
+				media_list = media_list.playlist
 		else:
 			media_list = self.playlist.playlist
+		print(media_list)
 		l = []
 		if len(media_list[0].split(':')) >= 3:
 			for string in media_list:

@@ -39,6 +39,7 @@ np/utils/scan_all.py
 np/utils/scan_movies.py
 np/utils/scan_music.py
 np/utils/scan_series.py
+np/utils/searchdb.py
 np/utils/searchdb_all.py
 np/utils/searchdb_table.py
 np/utils/tadb_search.py

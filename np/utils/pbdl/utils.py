@@ -138,15 +138,28 @@ def refresh_info(torrents, tid):
 
 
 def add_to_db(torrents):
+	tids = []
 	for tid in list(torrents.keys()):
+		percent = torrents[tid]['percent']
+		if percent == '100%':
+			tids.append(tid)
+	for tid in tids:
 		try:
 			hasfiles = torrents[tid]['files']
 		except:
-			info = refresh_info(torrents, tid)
-			if info is None:
+			torrents[tid]['files'] = get_files(tid)
+			if torrents[tid]['files'] is None:
 				break
 		for filepath in list(torrents[tid]['files'].keys()):
-			info = torrents[tid]['files'][filepath]['info']
+			try:
+				info = torrents[tid]['files'][filepath]['info']
+			except:
+				torrents[tid] = refresh_info(torrents, tid)
+				info = torrents[tid]['files'][filepath]['info']
+			if torrents[tid]['files'][filepath]['info']['title'] == 'Unknown':
+				title, year = test_media(filepath, True)
+				torrents[tid]['files'][filepath]['info']['title'] = title
+				torrents[tid]['files'][filepath]['info']['year'] = year
 			fname = os.path.basename(filepath).replace("'", "%27")
 			try:
 				play_type = info['play_type']
@@ -154,9 +167,14 @@ def add_to_db(torrents):
 				play_type = test_media(filepath)
 			exists = None
 			dbfile = os.path.join(DATA_DIR, 'nplayer.db')
-			com = f"sqlite3 \"{dbfile}\" \"select id from {play_type} where filepath like \'%{fname}%\';\""
-			exists = subprocess.check_output(com, shell=True).decode().strip()
-			if exists is not None and exists != '':
+			com = f"sqlite3 \"{dbfile}\" \"select id,title from {play_type} where title like \'%{torrents[tid]['files'][filepath]['info']['title']}%\';\""
+			exists = subprocess.check_output(com, shell=True).decode().strip().split("\n")
+			indb = False
+			title = torrents[tid]['files'][filepath]['info']['title']
+			for item in exists:
+				if title == item:
+					indb = True
+			if indb:
 				log(f"File already exists with id {exists} ({filepath}). Aborting...", 'warning')
 				break
 			fullpath = None
@@ -209,6 +227,31 @@ def add_to_db(torrents):
 				log("Ok!")
 
 
+def migrate(torrents=None):
+	if torrents is None:
+		try:
+			torrents = merge_saved_data()
+		except:
+			torrents = build_data(rebuild=True)
+	add_to_db(torrents)
+	log(f"Migrating series files...", 'info')
+	ret = migrate_series()
+	print("migrate series ret:", ret)
+	if ret:
+		log("Series migration finished!", 'info')
+	else:
+		log("Series migration failed!", 'error')
+	log(f"Migrating movie files...", 'info')
+	ret = migrate_movies()
+	print("migrate movies ret:", ret)
+	if ret:
+		log("Movies migration finished!", 'info')
+	else:
+		log("Movies migration failed!", 'error')
+	log(f"Finished!", 'info')
+	
+
+
 def migrate_series():
 	conf = readConf()
 	media_dir = conf['media_directories']['series']
@@ -217,7 +260,8 @@ def migrate_series():
 	results = subprocess.check_output(com, shell=True).decode().strip().split("\n")
 	for item in results:
 		if item == '':
-			return None
+			log(f"No series in database in sftp directory! (results={results})", 'warning')
+			return False
 		_id, series_name, season, episode_number, episode_name, filepath = item.split('|')
 		if '%27' in filepath:
 			filepath = filepath.replace("%27", "'")
@@ -228,21 +272,26 @@ def migrate_series():
 		ret = subprocess.check_output(com, shell=True).decode().strip()
 		if ret:
 			log(f"Error creating directory: {newdir}. ({ret})", 'error')
-			break
+			return False
 		newpath = (f"{newdir}/{series_name}.S{season}E{episode_number}.{episode_name}{ext}").replace("'", "")
 		log(f"Migrating file '{filepath}' to '{newpath}'..", 'info')
 		com = (f"cp \"{filepath}\" \"{newpath}\"")
 		ret = subprocess.check_output(com, shell=True).decode().strip()
 		if ret:
 			log(f"Error migrating file: {filepath} to {newpath}. ({ret})", 'error')
-			break
+			return False
 		else:
 			log(f"File moved!", 'info')
-		com = (f"sqlite3 {db} \"update series set filepath = \'{newpath}\' where id = {_id};\"")
-		ret = subprocess.check_output(com, shell=True).decode().strip()
-		if ret:
-			log(f"Error renaming file in database: id={_id}", 'error')
-			break
+		if os.path.exists(filepath):
+			com = (f"sqlite3 {db} \"update series set filepath = \'{newpath}\' where id = {_id};\"")
+			ret = subprocess.check_output(com, shell=True).decode().strip()
+			if ret:
+				log(f"Error renaming file in database: id={_id}", 'error')
+				return False
+			return True
+		else:
+			log(f"Error migrating file: {filepath} to {newpath}. (File not found!)", 'error')
+			return False
 
 
 def migrate_movies():
@@ -256,6 +305,8 @@ def migrate_movies():
 	for item in results:
 		try:
 			_id, title, year, filepath = item.split('|')
+			if title is 'Unknown' or year is 'Unknown':
+				title, year = test_media(filepath, True)
 		except Exception as e:
 			log(f"Unable to get info from movie: {e}. Data={item}")
 			return
@@ -268,21 +319,27 @@ def migrate_movies():
 		ret = subprocess.check_output(com, shell=True).decode().strip()
 		if ret:
 			log(f"Error creating directory: {newdir}. ({ret})", 'error')
-			break
+			return False
 		newpath = os.path.join(newdir, f"{title} ({year}){ext}").replace("'", "")
 		log(f"Migrating file '{filepath}' to '{newpath}'..", 'info')
 		com = (f"cp \"{filepath}\" \"{newpath}\"")
 		ret = subprocess.check_output(com, shell=True).decode().strip()
 		if ret:
 			log(f"Error migrating file: {filepath} to {newpath}. ({ret})", 'error')
-			break
+			return False
 		else:
 			log(f"File moved!", 'info')
-		com = (f"sqlite3 {db} \"update movies set filepath = \'{newpath}\' where id = {_id};\"")
-		ret = subprocess.check_output(com, shell=True).decode().strip()
-		if ret:
-			log(f"Error renaming file in database: id={_id}", 'error')
-			break
+		if os.path.exists(newpath):
+			com = (f"sqlite3 {db} \"update movies set filepath = \'{newpath}\' where id = {_id};\"")
+			ret = subprocess.check_output(com, shell=True).decode().strip()
+			if ret:
+				log(f"Error renaming file in database: id={_id}", 'error')
+				return False
+			else:
+				return True
+		else:
+			log(f"Error migrating file: {filepath} to {newpath}. (File not found!)", 'error')
+			return False
 
 def get_torrents_kerploosh():
 	torrents = {}

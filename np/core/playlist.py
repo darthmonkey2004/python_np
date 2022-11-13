@@ -1,9 +1,12 @@
+from np.core.core import read_history, write_history
+from random import randint, shuffle
+from np.utils.searchdb import *
 from np.core.nplayer_db import querydb
 from np.core.core import create_media
 from np.core.log import np_logger
 
 log = np_logger().log_msg
-
+h = read_history()
 class db_playlist():
 	def __init__(self, _list=None):
 		self.current = None
@@ -24,7 +27,7 @@ class db_playlist():
 				self.playlist = playlist
 		else:
 			self.playlist = []
-		return self.playlist
+		return self
 
 
 	def path_from_npstring(self, string):
@@ -161,6 +164,97 @@ class playlist():
 			log(f"playlist():No previous item available!", 'warning')
 		return self.current
 
+
+def random_series_name():
+	items = sqlite3("select distinct series_name from series;")
+	shuffle(items)
+	return items[0]
+	
+def get_next_series(series_name=None):
+	global h
+	j = "\n"
+	if series_name is None:
+		series_name = random_series_name()
+	last = h[series_name]
+	if last is None or last == '':
+		last = sqlite3(f"select filepath from series where series_name like \'%{series_name}%\' order by season,episode_number;")[0]
+		h[series_name] = last
+		#write_history(h)
+	out = j.join(sqlite3(f"select filepath from series where series_name like \'%{series_name}%\' order by season, episode_number;"))
+	next = out.split(last)[1].strip().split("\n")[0]
+	h[series_name] = next
+	#write_history(h)
+	return series_name, next
+
+def get_next_movies(title=None):
+	movies = sqlite3("select filepath from movies;")
+	shuffle(movies)
+	return movies[0]
+
+def get_next_music():
+	songs = sqlite3("select filepath from music;")
+	shuffle (songs)
+	return songs[0]
+
+
+def reset_series_history():
+	global h
+	for series_name in list(h.keys()):
+		files = sqlite3(f"select filepath from series where series_name like \'%{series_name}%\' order by season,episode_number;")
+		try:
+			last = files[0]
+		except:
+			last = None
+		if last is None:
+			break
+		else:
+			h[series_name] = last
+
+
+
+def new_rdm(tables=None):
+	global h
+	pl = db_playlist()
+	if tables is None:
+		tables = ['series', 'movies']
+	if type(tables) != list:
+		tables = [tables]
+	ct = 100
+	pos = 0
+	items = []
+	while pos < ct:
+		pos += 1
+		table = tables[randint(0, len(tables) - 1)]
+		if table == 'series':
+			series_name, next = get_next_series()
+			if next is not None:
+				string = pl.npstring_from_path(next)
+				items.append(string)
+			else:
+				last = sqlite3(f"select filepath from series where series_name like \'%{series_name}%\' order by season,episode_number;")[0]
+				if last is not None and last != '':
+					h[series_name] = last
+					write_history(h)
+			
+			#except Exception as e:
+			#	log(f"Reached end of series list ({e})! Starting from 0...", 'warning')
+			#	items.append(sqlite3(f"select filepath from series where series_name like \'%{series_name}%\' order by season,episode_number;")[0])
+		elif table == 'movies':
+			try:
+				string = pl.npstring_from_path(get_next_movies())
+				items.append(string)
+			except Exception as e:
+				log(f"Reached end of movies list ({e})! Starting from 0...", 'warning')
+				string = pl.npstring_from_path(sqlite3("select filepath from movies;")[0])
+				items.append(string)
+		elif table == 'music':
+			try:
+				items.append(get_next_music())
+			except Exception as e:
+				log(f"Reached end of music list ({e})! Starting from 0...", 'warning')
+				items.append(sqlite3("select filepath from music;")[0])
+	return pl.set(items)
+		
 if __name__ == "__main__":
 	hlist = create_media()
 	his = playlist(hlist)

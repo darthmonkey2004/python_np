@@ -1,7 +1,7 @@
 import pickle
 import sys, traceback
 import os
-from np.utils.pbdl.utils import get_torrents, get_files, test_media_type, test_media, parse_series, parse_movies, lookup, verify_series_name, build_data, merge_saved_data, save_data, load_saved_data, clear_data, set_api_key_tmdb, set_api_key_rt, add_to_db, migrate_series, migrate_movies
+from np.utils.pbdl.utils import get_torrents, get_files, test_media_type, test_media, parse_series, parse_movies, lookup, verify_series_name, build_data, merge_saved_data, save_data, load_saved_data, clear_data, set_api_key_tmdb, set_api_key_rt, add_to_db, migrate
 from np.utils.pbdl.torrentmgr import torrent_mgr
 from np.utils.pbdl.ty_isin import ty_isin
 from np.utils.pbdl.se_isin import se_isin
@@ -398,11 +398,7 @@ def start(t='mgr'):
 			elif event == 'Set Api Key:Search TMDB':
 				set_api_key_tmdb()
 			elif event == '-Migrate Files-' or event == 'Migrate Data':
-				log(f"Migrating series files...", 'info')
-				migrate_series()
-				log(f"Migrating movie files...", 'info')
-				migrate_movies()
-				log(f"Finished!", 'info')
+				migrate()
 							
 			else:
 				log(f"UNHANDLED_EVENT:{event}", 'info')

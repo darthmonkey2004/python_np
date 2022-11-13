@@ -1,3 +1,5 @@
+from urllib.parse import quote, unquote
+import requests
 import subprocess
 import os
 from np.core.conf import readConf
@@ -36,6 +38,25 @@ def test_exists(filepath):
 		return True
 	else:
 		return False
+
+
+def get_url(artist, title):
+	test='https://www.google.com/imgres?imgurl='
+	s = '&amp;imgrefurl'
+	img_url = None
+	query = (artist + " " + title + " album art")
+	q = quote(query)
+	url = ("https://www.google.com/search?q=" + q)
+	r = requests.get(url)
+	data = r.text.split("\n")
+	for item in data:
+		if test in item:
+			img_url = item.split(test)[1].split(s)[0]
+			if '%' in img_url:
+				img_url = unquote(img_url)
+			break
+	return img_url
+
 
 def scan_music(target_dir=None):
 	test_db()
@@ -131,8 +152,12 @@ def scan_music(target_dir=None):
 			artist = info['artist']
 			genre = info['genre']
 			track = info['track']
+			poster = get_url(info['artist'], info['title'])
+			if poster is None:
+				poster = 'Unknown'
+			info['poster'] = poster
 
-			sql_string = (f"INSERT INTO music (isactive, title, mbid, album, album_id, artist_id, artist, genre, track, filepath) VALUES({isactive}, '{title}', '{mbid}', '{album}', '{album_id}', '{artist_id}', '{artist}', '{genre}', {track}, '{filepath}');")
+			sql_string = (f"INSERT INTO music (isactive, title, mbid, album, album_id, artist_id, artist, genre, track, filepath, poster) VALUES({isactive}, '{title}', '{mbid}', '{album}', '{album_id}', '{artist_id}', '{artist}', '{genre}', {track}, '{filepath}', '{poster}');")
 			ret = addtodb('music', sql_string)
 			if conf['debug'] == True:
 				log(f"Add to db results: {ret}, filepath:{filepath}", 'info')

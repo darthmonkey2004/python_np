@@ -7,6 +7,7 @@ from np.utils.pbdl.pbdl import start as start_pbdl
 from np.utils.pbdl.pbdl import pbdl
 from np.utils.cleandb import run as cleandb
 from np.core.gui import folder_browse_window, file_browse_window
+from np.utils.searchdb import querydb
 from threading import *
 import queue
 import timeit
@@ -14,7 +15,7 @@ import urllib.parse
 import PySimpleGUI as sg
 import os
 import subprocess
-querydb = np.querydb
+#querydb = np.querydb
 xrandr = np.xrandr
 import pickle
 import vlc
@@ -78,9 +79,12 @@ def viewer_minimize():
 	np.writeConf(MP.conf)
 	UI.WINDOW2.size = UI.viewer_win_w, UI.viewer_win_h				
 	UI.WINDOW2.move(UI.viewer_win_x, UI.viewer_win_y)
-	calculated_scale = np.calculate_scale(_file=MP.conf['nowplaying']['filepath'], win_size=UI.WINDOW2.size)
-	current_scale = P.video_get_scale()
-	P.video_set_scale(calculated_scale)
+	if MP.play_type != 'music':
+		calculated_scale = np.calculate_scale(_file=MP.conf['nowplaying']['filepath'], win_size=UI.WINDOW2.size)
+		current_scale = P.video_get_scale()
+		P.video_set_scale(calculated_scale)
+	else:
+		log(f"nplayer.viewer_minimize(): Skipping scale (play_type={MP.play_type})", 'info')
 
 
 def viewer_maximize():
@@ -91,9 +95,12 @@ def viewer_maximize():
 	np.writeConf(MP.conf)
 	UI.WINDOW2.size = (UI.viewer_win_w, UI.viewer_win_h)
 	UI.WINDOW2.move(UI.viewer_win_x, UI.viewer_win_y)
-	calculated_scale = np.calculate_scale(_file=MP.conf['nowplaying']['filepath'], win_size=UI.WINDOW2.size)
-	current_scale = P.video_get_scale()
-	P.video_set_scale(calculated_scale)
+	if MP.play_type != 'music':
+		calculated_scale = np.calculate_scale(_file=MP.conf['nowplaying']['filepath'], win_size=UI.WINDOW2.size)
+		current_scale = P.video_get_scale()
+		P.video_set_scale(calculated_scale)
+	else:
+		log(f"nplayer.viewer_maximize(): Skipping scale (play_type={MP.play_type})", 'info')
 
 def recenter_ui():
 	viewer_screen = MP.conf['screen']
@@ -453,7 +460,11 @@ def remote_handler(com, arg):
 		recenter_ui()
 		ret = 'ui recentered!'
 	elif com == 'help' or com == 'commands':
-		com = f"filepath=$(which np); cat \"$filepath\""
+		for item in sys.path:
+			if '.local' in item:
+				pydir = item
+		nppath = os.path.join(pydir, 'np', 'core', 'np.py')
+		com = f"cat \"{nppath}\""
 		code = np.shell(com).split("def remote_handler(com, arg):")[1].split('return True')[0].split("\n")
 		coms = []
 		for line in code:
@@ -465,7 +476,7 @@ def remote_handler(com, arg):
 		log(f"REMOTE: Commands List: {ret}", 'info')
 	elif com == 'create_gui':
 		UI.WINDOW = UI.create_gui_window()
-		recenter_ui()
+		#recenter_ui()
 		log("REMOTE:GUI Window created.", 'info')
 		ret = 'gui created!'
 	elif com == 'close_gui':
@@ -588,11 +599,15 @@ def remote_handler(com, arg):
 		MP.remote_media = l
 		ret = l
 	elif com == 'fix_scaling':
-		calculated_scale = np.calculate_scale(_file=MP.conf['nowplaying']['filepath'], win_size=UI.WINDOW2.size)
-		current_scale = P.video_get_scale()
-		P.video_set_scale(calculated_scale)
-		log("REMOTE: Fix Scaling command received, scale set ({MP.scale})", 'info')
-		ret = "Scaling fixed!"
+		if MP.play_type != 'music':
+			calculated_scale = np.calculate_scale(_file=MP.conf['nowplaying']['filepath'], win_size=UI.WINDOW2.size)
+			current_scale = P.video_get_scale()
+			P.video_set_scale(calculated_scale)
+			log("REMOTE: Fix Scaling command received, scale set ({MP.scale})", 'info')
+			ret = "Scaling fixed!"
+		else:
+			log(f"REMOTE: Skipping scale (play_type={MP.play_type})", 'info')
+			ret = f"Scaling skipped: Play Type:{MP.play_type}"
 	elif com == 'debug':
 		try:
 			debug = bool(arg)
@@ -656,7 +671,8 @@ def start():
 	btn = None
 	MP = np.nplayer()
 	P = MP.init_vlc()
-	playlist = np.create_media()
+	MP.playlist = MP.get_playlist_object(play_type=MP.play_type)
+	
 	tab = '-player_control_layout-'
 	MP.conf = np.readConf()
 	try:
@@ -684,6 +700,7 @@ def start():
 	UI = np.gui()
 	log("UI created: np_main.py, Start, line 694", 'info')
 	UI.WINDOW.read(timeout=1)
+	UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.playlist.playlist)
 	#MP.viewer_win_w, MP.viewer_win_h = UI.WINDOW.get_screen_size()
 	try:
 		init = MP.conf['init']
@@ -897,7 +914,7 @@ def start():
 						MP.play(MP.next)
 						log(f"ACTION:play", 'info')
 				elif event == 'Refresh from Database':
-					MP.media = np.create_media()
+					MP.media = MP.get_playlist_object(play_type=MP.play_type)
 					UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.playlist.playlist)
 				elif event == 'Refresh Log Data':
 					refresh_log_data()
@@ -1002,59 +1019,44 @@ def start():
 						if is_active == 1:
 							query_string = (query_string + " and isactive = '" + str(is_active) + "'")
 						rows = np.querydb(table=table, column=columns, query=query_string)
-						MP.playlist = MP.get_playlist_object(data=rows, mode='database')
+						MP.playlist = MP.get_playlist_object(data=rows, mode='database', play_type=MP.play_type)
 						if rows is not None:
 							UI.WINDOW['-PLAYLIST_ITEMS-'].update(MP.playlist.playlist)
 						else:
 							UI.WINDOW['-PLAYLIST_ITEMS-'].update("Looks like you better figure out how to search without that active flag....")
 				elif event == 'Search':
-					season = None
-					table = UI.WINDOW['-PLAY_TYPE-'].Get()
 					query_string = values['-SEARCH_QUERY-']
-					is_active = 1
-					if query_string is not None:
-						if table is None:
-							table = MP.conf['play_type']
-						if table == 'series':
-							if ':' in query_string:
-								series_name = query_string.split(':')[0]
-								season = query_string.split(':')[1]
-								try:
-									episode_number = query_string.split(':')[2]
-									query_string = ("series_name like '%" + series_name + "%' and season = " + str(season) + " and episode_number = " + str(episode_number) + " and isactive = " + str(is_active))
-								except:
-									query_string = ("series_name like '%" + series_name + "%' and season = " + str(season) + " and isactive = " + str(is_active))
-							else:
-								series_name = query_string
-								query_string = ("series_name like '%" + series_name + "%' and isactive = " + str(is_active))
-								if season is not None:
-									try:
-										episode_number = query_string.split(':')[3]
-										query_string = ("series_name like '%" + series_name + "%' and season = " + season + " episode_number = " + episode_number + " and isactive = '" + str(is_active) + "'")
-									except:
-										query_string = ("series_name like '%" + series_name + "%' and season = " + season + " and isactive = '" + str(is_active) + "'")
-								log(f"Query string:{query_string}", 'info')
-							rows = np.querydb(table='series', column='id,series_name,tmdbid,season,episode_number,episode_name,description,air_date,still_path,filepath', query=query_string)
-							items = np.create_media(rows=rows)
-							MP.playlist = MP.get_playlist_object(data=items, mode='database')
-							if rows is not None:
-								UI.WINDOW['-CURRENT_PLAYLIST-'].update(sorted(MP.playlist.playlist))
-								MP.play_mode = 'playlist'
-								UI.WINDOW['-PLAY_MODE-'].update(MP.play_mode)
-							else:
-								UI.WINDOW['-CURRENT_PLAYLIST-'].update("Looks like you better figure out how to search without that active flag....")
-						elif table == 'movies':
-							log(f"Query String:{query_string}", 'info')
-							query_string = ("title like '%" + query + "%' and isactive = '" + str(is_active) + "'")
-							rows = querydb(table='movies', column='id,tmdbid,title,year,release_date,description,poster,filepath', query=query_string)
-							items = np.create_media(rows=rows)
-							MP.playlist = MP.get_playlist_object(data=items, mode='database')
-							if rows is not None:
-								UI.WINDOW['-CURRENT_PLAYLIST-'].update(sorted(MP.playlist.playlist))
-								MP.play_mode = 'playlist'
-								UI.WINDOW['-PLAY_MODE-'].update(MP.play_mode)
-						elif table == 'music':
-							log(f"TODO: querydb music", 'info')
+					if 'all:' in query_string or ',' in query_string or 'music:' in query_string or 'movies:' in query_string or 'series:' in query_string:
+						if ',' in query_string:
+							table = query_string.split(':')[0]
+						else:
+							if 'music:' in query_string:
+								table = 'music'
+							elif 'series:' in query_string:
+								table = 'series'
+							elif 'movies:' in query_string:
+								table = 'movies'
+							elif 'all:' in query_string:
+								table = 'all'
+						query_string = query_string.split(f"{table}:")[1]
+						if "'" in table:
+							table = table.split("'")
+					else:
+						table = MP.play_type
+					ret = querydb(tables=table, query=query_string)
+					if type(ret) == str:
+						ret = ret.split("\n")
+					if ret:
+						log(f"np:start:EVENT=Search:query_string={query_string},table={table}", 'info')
+						MP.playlist = MP.get_playlist_object(data=ret, mode='playlist', play_type=MP.play_type)
+						playlist = MP.playlist.playlist
+						#print(type(playlist), len(playlist), playlist)
+						UI.WINDOW['-CURRENT_PLAYLIST-'].update(sorted(playlist))
+						MP.play_mode = 'playlist'
+						UI.WINDOW['-PLAY_MODE-'].update(MP.play_mode)
+						log(f"np:start:EVENT=Search:play_mode updated ({MP.play_mode})", 'info')
+					else:
+						log(f"np:start:EVENT=Search:No results found!", 'warning')
 				elif event == '-PLAYLIST_ITEMS-':
 					if values['-table_series-'] == True:
 						table = 'series'
@@ -1178,7 +1180,7 @@ def start():
 					if path is not None:
 						try:
 							
-							MP.playlist = MP.get_playlist_object(data = sorted(MP.load_directory(path)), mode='playlist')
+							MP.playlist = MP.get_playlist_object(data=sorted(MP.load_directory(path)), mode='playlist')
 							if MP.playlist is not None:
 								UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.playlist.playlist)
 								MP.play_mode = 'playlist'
@@ -1201,7 +1203,7 @@ def start():
 					MP.play_mode = values[event]
 					log(f"Play mode changed:{MP.play_mode}", 'info')
 					if MP.play_mode == 'database':
-						MP.media = MP.get_playlist_object(data=np.create_media())
+						MP.playlist = MP.get_playlist_object(play_type=MP.play_type)
 						UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.playlist.playlist)
 						MP.skip_next()
 				elif event == '-Set Active-':
@@ -1219,10 +1221,13 @@ def start():
 					UI.WINDOW.Element('-SEARCH_QUERY-').SetFocus()
 					log(f"Set focus on search query input!", 'info')
 				elif event == 'Fix Scaling':
-					calculated_scale = np.calculate_scale(_file=MP.conf['nowplaying']['filepath'], win_size=UI.WINDOW2.size)
-					current_scale = P.video_get_scale()
-					P.video_set_scale(calculated_scale)
-					log(f"EVENT: Fix Scaling button: Previous:{current_scale}, New:{calculated_scale}", 'info')
+					if MP.play_type != 'music':
+						calculated_scale = np.calculate_scale(_file=MP.conf['nowplaying']['filepath'], win_size=UI.WINDOW2.size)
+						current_scale = P.video_get_scale()
+						P.video_set_scale(calculated_scale)
+						log(f"EVENT: Fix Scaling button: Previous:{current_scale}, New:{calculated_scale}", 'info')
+					else:
+						log(f"EVENT: Fix Scaling button: Skipping scale (play_type={MP.play_type})", 'info')
 				elif event == 'Screenshot':
 					ret = MP.screenshot()
 					np.log(ret, 'info')
@@ -1287,7 +1292,12 @@ def start():
 				log("np_main.py: Created GUI from main loop ('GUI_RESET' = {MP.conf['GUI_RESET']}", 'info')
 				set_video_out()
 				MP.continuous = 1
-				UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.playlist.playlist)
+				try:
+					UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.playlist.playlist)
+				except Exception as e:
+					log(f"Weird playlist mess! ({e})", 'error')
+					MP.playlist = MP.get_playlist_object(play_type=MP.play_type)
+					UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.playlist.playlist)
 				UI.WINDOW['-PLAY_TYPE-'].update(MP.conf['play_type'])
 				log("np_main.py: Resuming from reset = True...", 'info')
 				MP.play()
@@ -1331,11 +1341,14 @@ def start():
 			# update elapsed time if there is a video loaded and the media is playing
 			if P.is_playing() and MP.is_url == False:
 				if MP.scale_needed == 1:
-					log(f"np.start(): scale_needed is set, calculating scale...", 'info')
-					calculated_scale = np.calculate_scale(MP.conf['nowplaying']['filepath'], win_size=UI.WINDOW2.size)
-					current_scale = P.video_get_scale()
-					P.video_set_scale(calculated_scale)
-					log(f"Set scale by scale_needed flag: Previous:{current_scale}, New:{calculated_scale}", 'info')
+					if MP.play_type != 'music':
+						log(f"np.start(): scale_needed is set, calculating scale...", 'info')
+						calculated_scale = np.calculate_scale(MP.conf['nowplaying']['filepath'], win_size=UI.WINDOW2.size)
+						current_scale = P.video_get_scale()
+						P.video_set_scale(calculated_scale)
+						log(f"Set scale by scale_needed flag: Previous:{current_scale}, New:{calculated_scale}", 'info')
+					else:
+						log(f"np.start(): Skipping scale (play_type={MP.play_type})", 'info')
 					MP.scale_needed = 0
 				if update >= update_ct:
 					update = 0
@@ -1375,9 +1388,12 @@ def start():
 						UI.viewer_win_w = w
 						UI.viewer_win_h = h
 						log(f"Viewer window size changed! ({w}, {h}). Rescaling...", 'info')
-						calculated_scale = np.calculate_scale(_file=MP.conf['nowplaying']['filepath'], win_size=UI.WINDOW2.size)
-						current_scale = P.video_get_scale()
-						P.video_set_scale(calculated_scale)
+						if MP.play_type != 'music':
+							calculated_scale = np.calculate_scale(_file=MP.conf['nowplaying']['filepath'], win_size=UI.WINDOW2.size)
+							current_scale = P.video_get_scale()
+							P.video_set_scale(calculated_scale)
+						else:
+							log(f"Skipping scale (play_type={MP.play_type})", 'info')
 			# if media is playing but it's a url, skip info update
 			elif P.is_playing() and MP.is_url == True:
 				pass
