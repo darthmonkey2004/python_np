@@ -22,7 +22,7 @@ fasteners==0.14.1
 filetype==1.0.13
 future==0.18.2
 get-video-properties==0.1.1
-httplib2==0.14.0
+httplib2==0.19.0
 idna==2.8
 importlib-resources==5.7.1
 keyring==18.0.1
@@ -43,7 +43,7 @@ packaging==21.3
 pafy==0.5.5
 paramiko==2.6.0
 pexpect==4.6.0
-Pillow==7.0.0
+Pillow==9.2.0
 protobuf==3.6.1
 pycairo==1.16.2
 pycups==1.9.73
@@ -82,3 +82,4 @@ xkit==0.0.0
 youtube-dl==2020.3.24
 zipp==3.8.0
 websockets==10.3
+setuptools>=65.5.1 # not directly required, pinned by Snyk to avoid a vulnerability
