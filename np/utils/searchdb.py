@@ -109,15 +109,13 @@ def query_series(query_string):
 		results = []
 		query = f"select series_name,season,episode_number,episode_name,id from series order by series_name,season,episode_number;"
 		ret = sqlite3(query)
+		print(type(ret), ret)
 		if type(ret) == str:
-			results.append(ret)
+			results.append(f"series:{ret}")
 		elif type(ret) == list:
 			for item in ret:
-				results.append(item)
-		ret = []
-		for item in results:
-			ret.append(f"series:{item}")
-		return ret
+				results.append(f"series:{item}")
+		return results
 	else:
 		query = query_string.split(':')
 		series_name = query[0]
@@ -130,7 +128,7 @@ def query_series(query_string):
 		except:
 			episode_number = None
 		if episode_number is None and season is None and series_name is not None:
-			qstring = f"select series_name,season,episode_number,episode_name,id from series where series_name like '%{series_name}% order by series_name,season,episode_number';"
+			qstring = f"select series_name,season,episode_number,episode_name,id from series where series_name like '%{series_name}%' order by series_name,season,episode_number;"
 		elif episode_number is None and season is not None and series_name is not None:
 			qstring = f"select series_name,season,episode_number,episode_name,id from series where series_name like '%{series_name}%' and season = {season} order by series_name,season,episode_number;"
 		elif episode_number is not None and season is not None and series_name is not None:

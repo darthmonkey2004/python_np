@@ -1,4 +1,4 @@
-from np.core.xrandr import xrandr
+from np.utils.xrandr import xrandr
 from np.core.log import np_logger
 import os
 import pickle

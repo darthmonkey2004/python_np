@@ -1044,6 +1044,7 @@ def start():
 					else:
 						table = MP.play_type
 					ret = querydb(tables=table, query=query_string)
+					log(f"np.start():search event:tabe:{table}, query={query_string}, ret:{ret}", 'info')
 					if type(ret) == str:
 						ret = ret.split("\n")
 					if ret:

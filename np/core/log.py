@@ -3,7 +3,7 @@ import pickle
 import logging
 import datetime
 import os
-from np.core.xrandr import xrandr
+from np.utils.xrandr import xrandr
 
 home = os.path.expanduser("~")
 user = home.split('/')[2]

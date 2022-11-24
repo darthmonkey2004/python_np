@@ -27,6 +27,7 @@ class db_playlist():
 				self.playlist = playlist
 		else:
 			self.playlist = []
+		log(f"db_playlist.set():Playlist data set! playlist={self.playlist}", 'info')
 		return self
 
 
@@ -71,8 +72,8 @@ class db_playlist():
 			log(f"No files in playlist yet!", 'warning')
 			return None
 		elif len(self.playlist) == 1:
-			self.current = self.playlist[0]
-			self.current_idx = 1
+			self.current_idx = 0
+			self.current = self.playlist[self.current_idx]
 		else:
 			self.current_idx += 1
 			try:
@@ -81,6 +82,10 @@ class db_playlist():
 				self.current = self.playlist[0]
 				self.current_idx = 0
 				log(f"Reached end of playlist! ({e}). Using 0...", 'warning')
+		if self.current is None:
+			self.current = self.playlist[0]
+			self.current_idx = 0
+			log(f"Reached end of playlist! ({e}). Using 0...", 'warning')
 		if 'series' in self.current or 'movies' in self.current or 'music' in self.current:
 			self.current = self.path_from_npstring(self.current)
 		return self.current
@@ -97,6 +102,9 @@ class db_playlist():
 			self.current = self.playlist[self.current_idx]
 		else:
 			log(f"playlist():No previous item available!", 'warning')
+		if self.current is None:
+			log(f"playlist.previous():self.current returned None!", 'error')
+			return None
 		if 'movies' in self.current or 'series' in self.current or 'music' in self.current:
 			self.current = self.path_from_npstring(self.current)
 		return self.current
@@ -122,6 +130,7 @@ class playlist():
 				self.playlist = playlist
 		else:
 			self.playlist = []
+		log(f"playlist.set():Playlist data set! playlist={self.playlist}", 'info')
 		return self.playlist
 
 
@@ -186,15 +195,15 @@ def get_next_series(series_name=None):
 	#write_history(h)
 	return series_name, next
 
-def get_next_movies(title=None):
+def get_shuffle_movies(title=None):
 	movies = sqlite3("select filepath from movies;")
 	shuffle(movies)
-	return movies[0]
+	return movies
 
-def get_next_music():
+def get_shuffle_music():
 	songs = sqlite3("select filepath from music;")
 	shuffle (songs)
-	return songs[0]
+	return songs
 
 
 def reset_series_history():
@@ -213,6 +222,8 @@ def reset_series_history():
 
 
 def new_rdm(tables=None):
+	movies = get_shuffle_movies()
+	music = get_shuffle_music()
 	global h
 	pl = db_playlist()
 	if tables is None:
@@ -222,6 +233,8 @@ def new_rdm(tables=None):
 	ct = 100
 	pos = 0
 	items = []
+	musicpos = -1
+	moviespos = -1
 	while pos < ct:
 		pos += 1
 		table = tables[randint(0, len(tables) - 1)]
@@ -241,18 +254,23 @@ def new_rdm(tables=None):
 			#	items.append(sqlite3(f"select filepath from series where series_name like \'%{series_name}%\' order by season,episode_number;")[0])
 		elif table == 'movies':
 			try:
-				string = pl.npstring_from_path(get_next_movies())
+				moviespos += 1
+				string = pl.npstring_from_path(movies[moviespos])
 				items.append(string)
 			except Exception as e:
 				log(f"Reached end of movies list ({e})! Starting from 0...", 'warning')
-				string = pl.npstring_from_path(sqlite3("select filepath from movies;")[0])
+				moviespos = 0
+				string = pl.npstring_from_path(movies[moviespos])
 				items.append(string)
 		elif table == 'music':
 			try:
-				items.append(get_next_music())
+				musicpos += 1
+				items.append(music[musicpos])
 			except Exception as e:
 				log(f"Reached end of music list ({e})! Starting from 0...", 'warning')
-				items.append(sqlite3("select filepath from music;")[0])
+				musicpos = 0
+				items.append(music[musicpos])
+	log(f"playlist.new_rdm():new random playlist created! tables={tables}", 'info')
 	return pl.set(items)
 		
 if __name__ == "__main__":

@@ -1,7 +1,7 @@
 from np.core.db_editor import db_editor
 from np.core.core import create_media
 from np.core.nplayer import nplayer
-from np.core.xrandr import xrandr
+from np.utils.xrandr import xrandr
 import subprocess
 import os
 from np.core.log import np_logger

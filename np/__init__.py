@@ -1,12 +1,11 @@
 import vlc
 import os
 import pathlib
-from np.core.xrandr import xrandr
+from np.utils.xrandr import xrandr
 from np.core.log import np_logger
 log = np_logger().log_msg
 from np.utils.guess_intro import guess_intro
 from np.utils.insert_intro import insert_intro
-from np.utils.xrandr import xrandr
 from np.core import nplayer_db as sqldb
 from np.core.nplayer_db import querydb
 from np.core.nplayer_db import updatedb

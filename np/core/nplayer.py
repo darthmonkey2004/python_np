@@ -7,7 +7,7 @@ from urllib.parse import quote, unquote
 import np
 import vlc
 import time
-from np.utils.playlist import get_next
+#from np.utils.playlist import get_next
 from np.core.log import np_logger
 import PySimpleGUI as sg
 from np.core.playlist import *
@@ -79,7 +79,6 @@ class nplayer():
 			self.play_type = play_type
 		if mode is not None:
 			self.play_mode = mode
-		print(data, self.play_mode)
 		if data is None:
 			if self.play_mode == 'database':
 				self.playlist = new_rdm(self.play_type)
@@ -90,6 +89,7 @@ class nplayer():
 				self.playlist = db_playlist(data)
 			else:
 				self.playlist = playlist(data)
+		log(f"nplayer.get_playlist_object():Playlist created: play_type={self.play_type}, play_mode={self.play_mode}", 'info')
 		return self.playlist
 
 
@@ -226,6 +226,8 @@ class nplayer():
 		#			log(f"nplayer.get_next():Weird error...({e})", 'error')
 		#			self.next = self.playlist.next()
 		#else:
+		if type(self.playlist) == list:
+			self.playlist = self.get_playlist_object(data=self.playlist, mode=self.play_mode, play_type=self.play_type)
 		self.next = self.playlist.next()
 		return self.next
 
