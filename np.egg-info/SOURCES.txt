@@ -24,7 +24,9 @@ np/core/wsserver.py
 np/utils/__init__.py
 np/utils/ck_pycode.py
 np/utils/cleandb.py
+np/utils/cli_opts.py
 np/utils/db_rm_missing.py
+np/utils/get_poster.py
 np/utils/guess_intro.py
 np/utils/id3.py
 np/utils/insert_intro.py

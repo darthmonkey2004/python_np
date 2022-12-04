@@ -72,6 +72,8 @@ class nplayer():
 		self.update_needed = False
 		self.shuffle = True
 		self.img_url = None
+		self.POSTER = os.path.join(os.path.expanduser("~"), '.np', 'poster.png')
+		self.gui_visible = False
 
 	def get_playlist_object(self, data=None, mode=None, play_type=None):
 		#play type can be list: ['series', 'movies', etc]
@@ -87,8 +89,10 @@ class nplayer():
 		else:
 			if self.play_mode == 'database':
 				self.playlist = db_playlist(data)
+				print("playlist:", self.playlist)
 			else:
 				self.playlist = playlist(data)
+				print("playlist:", self.playlist)
 		log(f"nplayer.get_playlist_object():Playlist created: play_type={self.play_type}, play_mode={self.play_mode}", 'info')
 		return self.playlist
 
@@ -234,7 +238,7 @@ class nplayer():
 
 	def skip_next(self):
 		self.next = self.get_next()
-		log(f"Skipped next!", 'info')
+		log(f"nplayer.skip_next:Next set:{self.next}", 'info')
 		self.play(self.next)
 
 
@@ -387,11 +391,13 @@ class nplayer():
 		#if next is set, check if remains of playlist mode in next string...
 		if self.next is not None:
 			if 'series:' in self.next:
-				_id = self.next.split(':')[5]
+				chunks = self.next.split(':')
+				_id = chunks[len(chunks) - 1]
 				qstring = ("id = '" + _id + "'")
 				self.next = np.querydb(table='series', column='filepath', query=qstring)[0][0]
 			elif 'movies:' in self.next:
-				_id = self.next.split(':')[3]
+				chunks = self.next.split(':')
+				_id = chunks[len(chunks) - 1]
 				qstring = ("id = '" + _id + "'")
 				self.next = np.querydb(table='movies', column='filepath', query=qstring)[0][0]
 			elif 'music:' in self.next:
@@ -546,6 +552,9 @@ class nplayer():
 			except Exception as e:
 				log(f"nplayer.play:unable to get art! ({e})", 'error')
 				self.ART_UPDATE_NEEDED = False
+		elif self.play_type == 'movies' or self.play_type == 'series':
+			self.ART_UPDATE_NEEDED = True
+			log(f"nplayer.play:Art update needed flag set! (True)", 'info')
 		np.writeConf(self.conf)
 		log(f"nplayer.play(): Exited! (play_needed={self.play_needed}), object={self}", 'info')
 

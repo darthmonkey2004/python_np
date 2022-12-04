@@ -27,7 +27,7 @@ class db_playlist():
 				self.playlist = playlist
 		else:
 			self.playlist = []
-		log(f"db_playlist.set():Playlist data set! playlist={self.playlist}", 'info')
+		log(f"db_playlist.set():Playlist data set!", 'info')
 		return self
 
 
@@ -68,6 +68,8 @@ class db_playlist():
 
 
 	def next(self):
+		self.last = self.current
+		print(f"self.current_idx:{self.current_idx}")
 		if len(self.playlist) == 0:
 			log(f"No files in playlist yet!", 'warning')
 			return None
@@ -82,10 +84,11 @@ class db_playlist():
 				self.current = self.playlist[0]
 				self.current_idx = 0
 				log(f"Reached end of playlist! ({e}). Using 0...", 'warning')
+		print(self.current, self.current_idx)
 		if self.current is None:
-			self.current = self.playlist[0]
-			self.current_idx = 0
-			log(f"Reached end of playlist! ({e}). Using 0...", 'warning')
+			name = sqlite3(f"select series_name from series where filepath like '%{self.last}%';")
+			self.current = reset_series_history(name)
+			log(f"Reached end of playlist. Using index 0 for {name}...", 'warning')
 		if 'series' in self.current or 'movies' in self.current or 'music' in self.current:
 			self.current = self.path_from_npstring(self.current)
 		return self.current
@@ -130,7 +133,8 @@ class playlist():
 				self.playlist = playlist
 		else:
 			self.playlist = []
-		log(f"playlist.set():Playlist data set! playlist={self.playlist}", 'info')
+		log(f"playlist.set():Playlist data set!", 'info')
+		shuffle(self.playlist)
 		return self.playlist
 
 
@@ -186,38 +190,54 @@ def get_next_series(series_name=None):
 		series_name = random_series_name()
 	last = h[series_name]
 	if last is None or last == '':
-		last = sqlite3(f"select filepath from series where series_name like \'%{series_name}%\' order by season,episode_number;")[0]
+		last = sqlite3(f"select filepath from series where series_name like \'%{series_name}%\' and isactive = 1 order by season,episode_number;")[0]
 		h[series_name] = last
 		#write_history(h)
-	out = j.join(sqlite3(f"select filepath from series where series_name like \'%{series_name}%\' order by season, episode_number;"))
-	next = out.split(last)[1].strip().split("\n")[0]
-	h[series_name] = next
-	#write_history(h)
-	return series_name, next
+	try:
+		out = j.join(sqlite3(f"select filepath from series where series_name like \'%{series_name}%\' and isactive = 1 order by season, episode_number;"))
+		next = out.split(last)[1].strip().split("\n")[0]
+		h[series_name] = next
+		return series_name, next
+	except:
+		return None
 
 def get_shuffle_movies(title=None):
-	movies = sqlite3("select filepath from movies;")
+	movies = sqlite3("select filepath from movies where isactive = 1;")
 	shuffle(movies)
 	return movies
 
 def get_shuffle_music():
-	songs = sqlite3("select filepath from music;")
+	songs = sqlite3("select filepath from music where isactive = 1;")
 	shuffle (songs)
 	return songs
 
 
-def reset_series_history():
+def reset_series_history(name=None):
 	global h
-	for series_name in list(h.keys()):
-		files = sqlite3(f"select filepath from series where series_name like \'%{series_name}%\' order by season,episode_number;")
+	h = read_history()
+	if name is None:
+		for series_name in list(h.keys()):
+			files = sqlite3(f"select filepath from series where series_name like \'%{series_name}%\' and isactive = 1 order by season,episode_number;")
+			try:
+				last = files[0]
+			except:
+				last = None
+			if last is None:
+				txt = f"playlist.reset_series_history:Exception getting series file list: {name}, items={files}"
+				raise Exception(ValueError, txt)
+				return False
+			else:
+				h[series_name] = last
+	elif name is not None:
+		files = sqlite3(f"select filepath from series where series_name like '%{name}%' and isactive = 1 order by season,episode_number;")
 		try:
 			last = files[0]
 		except:
-			last = None
-		if last is None:
-			break
-		else:
-			h[series_name] = last
+			raise Exception(ValueError, f"playlist.reset_series_history:Exception getting series file list: {name}, items={files}")
+			return False
+		h[name] = last
+		write_history(h)
+		return last
 
 
 
@@ -239,15 +259,21 @@ def new_rdm(tables=None):
 		pos += 1
 		table = tables[randint(0, len(tables) - 1)]
 		if table == 'series':
-			series_name, next = get_next_series()
+			next = None
+			while next is None:
+				try:
+					series_name, next = get_next_series()
+				except:
+					pass
 			if next is not None:
 				string = pl.npstring_from_path(next)
 				items.append(string)
 			else:
-				last = sqlite3(f"select filepath from series where series_name like \'%{series_name}%\' order by season,episode_number;")[0]
+				last = sqlite3(f"select filepath from series where series_name like \'%{series_name}%\' where isactive = 1 order by season,episode_number;")[0]
 				if last is not None and last != '':
 					h[series_name] = last
 					write_history(h)
+				items.append(last)
 			
 			#except Exception as e:
 			#	log(f"Reached end of series list ({e})! Starting from 0...", 'warning')
@@ -276,5 +302,5 @@ def new_rdm(tables=None):
 if __name__ == "__main__":
 	hlist = create_media()
 	his = playlist(hlist)
-	print(his.playlist, his.current, his.current_idx)
+	#print(his.playlist, his.current, his.current_idx)
 		

@@ -206,7 +206,8 @@ def start(t='mgr'):
 	p = pbdl()
 	if t == 'mgr':
 		p.create_torrentmgr_ui()
-		p.torrents = merge_saved_data()
+		log(f"Loading torrents.. please wait!", 'info')
+		p.torrents = build_data(rebuild=True)
 		p.display_torrents()
 		while True:
 			p.read_windows()
@@ -228,12 +229,15 @@ def start(t='mgr'):
 			elif event in columns_keys:
 				log(f"EVENT:{event}", 'info')
 				val = values[event]
-				log(f"COLUMN CHANGE: ({event})={values[event]}", 'info')
-				field = p.get_field_from_key(event)
-				p.info[field] = val
-				p.torrents[p.tid]['files'][p.filepath]['info'] = p.info
-				save_data(p.torrents)
-				log(f"(Updated torrent ({p.tid}): {field}={val}", 'info')
+				if val is not None:
+					log(f"COLUMN CHANGE: ({event})={values[event]}", 'info')
+					field = p.get_field_from_key(event)
+					p.info[field] = val
+					p.torrents[p.tid]['files'][p.filepath]['info'] = p.info
+					save_data(p.torrents)
+					log(f"(Updated torrent ({p.tid}): {field}={val}", 'info')
+				else:
+					log(f"COLUMN CHANGE: Skipped field update (value is Null):field={field}, val={val}, tid={tid}", 'info')
 			elif event == '-TORRENT_SELECT-':
 				log(f"EVENT:{event}", 'info')
 				string = values[event][0]
@@ -243,6 +247,10 @@ def start(t='mgr'):
 				p.torrent_files = p.mgr.get_files(p.tid)
 				p.win['-TORRENT_FILES-'].update(p.torrent_files)
 				sg.fill_form_with_values(p.win, p.torrent)
+			elif event == '-START_TORRENT-':
+				log(f"EVENT:{event}:Starting torrent (id={p.tid})", 'info')
+				ret = p.mgr.start(p.tid)
+				log(f"EVENT:{event}:Results={ret}", 'info')
 			elif 'VPN' in event:
 				log(f"VPN : {event}", 'info')
 				if event == 'VPN Status':

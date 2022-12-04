@@ -97,8 +97,9 @@ def get_fullpath(query, t=None):
 	found = subprocess.check_output(com, shell=True).decode().strip().split("\n")	
 	for item in found:
 		if query in item:
-			found = item
-			return found
+			if '.srt' not in item and '.png' not in item and '.jpg' not in item and '.part' not in item:
+				found = item
+				return found
 	if found is None:
 		log(f"Unable to find full path for \"{query}\"", 'warning')
 		return None
@@ -138,6 +139,7 @@ def refresh_info(torrents, tid):
 
 
 def add_to_db(torrents):
+	dbfile = os.path.join(DATA_DIR, 'nplayer.db')
 	tids = []
 	for tid in list(torrents.keys()):
 		percent = torrents[tid]['percent']
@@ -151,32 +153,57 @@ def add_to_db(torrents):
 			if torrents[tid]['files'] is None:
 				break
 		for filepath in list(torrents[tid]['files'].keys()):
+			log(f"add_to_db:filepath={filepath}", 'info')
+			play_type = test_media(filepath)
 			try:
 				info = torrents[tid]['files'][filepath]['info']
 			except:
 				torrents[tid] = refresh_info(torrents, tid)
 				info = torrents[tid]['files'][filepath]['info']
 			if torrents[tid]['files'][filepath]['info']['title'] == 'Unknown':
-				title, year = test_media(filepath, True)
-				torrents[tid]['files'][filepath]['info']['title'] = title
-				torrents[tid]['files'][filepath]['info']['year'] = year
-			fname = os.path.basename(filepath).replace("'", "%27")
-			try:
-				play_type = info['play_type']
-			except:
-				play_type = test_media(filepath)
-			exists = None
-			dbfile = os.path.join(DATA_DIR, 'nplayer.db')
-			com = f"sqlite3 \"{dbfile}\" \"select id,title from {play_type} where title like \'%{torrents[tid]['files'][filepath]['info']['title']}%\';\""
-			exists = subprocess.check_output(com, shell=True).decode().strip().split("\n")
-			indb = False
-			title = torrents[tid]['files'][filepath]['info']['title']
-			for item in exists:
-				if title == item:
-					indb = True
-			if indb:
-				log(f"File already exists with id {exists} ({filepath}). Aborting...", 'warning')
-				break
+				torrents = build_data(rebuild=True)
+			else:
+				args = {}
+				args['lookup_type'] = '-TMDB-'
+				args['play_type'] = play_type
+				torrents[tid]['files'][filepath]['info']['play_type'] = play_type
+				_id = None
+				fname = os.path.basename(filepath)
+				if play_type == 'movies':
+					title, year = test_media(fname, True)
+					title = title.strip()
+					year = year.strip()
+					if title is None or title == '' or title == 'Unknown':
+						args['title'] = title
+						args['year'] = year
+						info = lookup(args=args)
+						title = info['title']
+						year = info['year']
+						torrents[tid]['files'][filepath]['info']['title'] = title
+						torrents[tid]['files'][filepath]['info']['year'] = year
+					com = f"sqlite3 \"{dbfile}\" \"select id from {play_type} where filepath like \'%{fname}%\';\""
+					_id = subprocess.check_output(com, shell=True).decode().strip().split("\n")
+				elif play_type == 'series':
+					series_name, season, episode_number = test_media(fname, True)
+					test_series_name = subprocess.check_output(f"sqlite3 \"{dbfile}\" \"select distinct series_name from series where UPPER(series_name) like UPPER(\'%{series_name}%\');\"", shell=True).decode().strip()
+					if test_series_name != series_name:
+						log(f"pbld.utils:Corrected caps in series name! {series_name} > {test_series_name}", 'info')
+						series_name = test_series_name
+					torrents[tid]['files'][filepath]['info']['series_name'] = series_name
+					torrents[tid]['files'][filepath]['info']['season'] = season
+					torrents[tid]['files'][filepath]['info']['episode_number'] = episode_number
+					com = f"sqlite3 \"{dbfile}\" \"select id from {play_type} where series_name like \'%{series_name}%\' and season = {season} and episode_number = {episode_number};\""
+					_id = subprocess.check_output(com, shell=True).decode().strip().split("\n")
+				fname = os.path.basename(filepath).replace("'", "%27")
+				if _id != ['']:
+					for item in _id:
+						log(f"File already exists with id {int(item)} ({filepath}). Removing stale db entries...", 'warning')
+						com = f"sqlite3 \"{dbfile}\" \"delete from {play_type} where id = {int(item)};\""
+						ret = subprocess.check_output(com, shell=True).decode().strip()
+						if ret == '':
+							log(f"pbdl.utils.add_to_db:Removed from db: '{filepath}'", 'info')
+						else:
+							log(f"Failed to remove item {ret}", 'warning')
 			fullpath = None
 			is_mounted = test_sftp_mount()
 			if is_mounted is False:
@@ -219,31 +246,26 @@ def add_to_db(torrents):
 			qstring = (f"INSERT INTO {play_type} ({kstring}) VALUES({vstring});")
 			dbfile = os.path.join(DATA_DIR, 'nplayer.db')
 			com = f"sqlite3 \"{dbfile}\" \"{qstring}\""
-			print("sql comand:", qstring)
 			ret = subprocess.check_output(com, shell=True).decode().strip()
 			if ret:
 				log(f"Error: Add to database failed for file '{filepath}': {ret}", 'error')
 			else:
 				log("Ok!")
+	return True
 
 
 def migrate(torrents=None):
 	if torrents is None:
-		try:
-			torrents = merge_saved_data()
-		except:
-			torrents = build_data(rebuild=True)
+		torrents = build_data(rebuild=True)
 	add_to_db(torrents)
 	log(f"Migrating series files...", 'info')
 	ret = migrate_series()
-	print("migrate series ret:", ret)
 	if ret:
 		log("Series migration finished!", 'info')
 	else:
 		log("Series migration failed!", 'error')
 	log(f"Migrating movie files...", 'info')
 	ret = migrate_movies()
-	print("migrate movies ret:", ret)
 	if ret:
 		log("Movies migration finished!", 'info')
 	else:
@@ -265,8 +287,7 @@ def migrate_series():
 		_id, series_name, season, episode_number, episode_name, filepath = item.split('|')
 		if '%27' in filepath:
 			filepath = filepath.replace("%27", "'")
-		l = len(filepath) - 4
-		ext = filepath[l:]
+		ext = os.path.splitext(filepath)[1]
 		newdir = (f"{media_dir}/{series_name}/S{season}")
 		com = (f"mkdir -p \"{newdir}\"")
 		ret = subprocess.check_output(com, shell=True).decode().strip()
@@ -282,16 +303,15 @@ def migrate_series():
 			return False
 		else:
 			log(f"File moved!", 'info')
-		if os.path.exists(filepath):
-			com = (f"sqlite3 {db} \"update series set filepath = \'{newpath}\' where id = {_id};\"")
-			ret = subprocess.check_output(com, shell=True).decode().strip()
-			if ret:
-				log(f"Error renaming file in database: id={_id}", 'error')
-				return False
-			return True
-		else:
-			log(f"Error migrating file: {filepath} to {newpath}. (File not found!)", 'error')
+		if not os.path.exists(filepath):
+			log(f"migrate_movies:ERROR!File not found!", 'error')
 			return False
+		com = (f"sqlite3 {db} \"update series set filepath = \'{newpath}\' where id = {_id};\"")
+		ret = subprocess.check_output(com, shell=True).decode().strip()
+		if ret:
+			log(f"Error renaming file in database: id={_id}", 'error')
+			return False
+		log(f"migrate_movies:Done with {pos} of {ct}..", 'info')
 
 
 def migrate_movies():
@@ -299,21 +319,28 @@ def migrate_movies():
 	media_dir = conf['media_directories']['movies']
 	db = os.path.join(DATA_DIR, 'nplayer.db')
 	com = (f"sqlite3 {db} \"select id,title,year,filepath from movies where filepath like \'%{SFTP_DIR}%\';\"")
+	print(f"migrate_movies: command=\'{com}\'", 'info')
+	#input()
 	results = subprocess.check_output(com, shell=True).decode().strip().split("\n")
-	if results is None:
+	log(f"pbdl.utils.migrate_movies:results({len(results)})={results}", 'info')
+	if results is None or len(results) == 0 or results == ['']:
+		log(f"No results for movies!", 'info')
 		return
+	pos = 0
+	ct = len(results)
 	for item in results:
+		pos += 1
+		log(f"Migrating {pos} of {ct}...({item})", 'info')
 		try:
 			_id, title, year, filepath = item.split('|')
-			if title is 'Unknown' or year is 'Unknown':
+			if title == 'Unknown' or year == 'Unknown':
 				title, year = test_media(filepath, True)
 		except Exception as e:
 			log(f"Unable to get info from movie: {e}. Data={item}")
 			return
 		if '%27' in filepath:
 			filepath = filepath.replace("%27", "'")
-		l = len(filepath) - 4
-		ext = filepath[l:]
+		ext = os.path.splitext(filepath)[1]
 		newdir = os.path.join(media_dir, f"{title} ({year})")
 		com = (f"mkdir -p \"{newdir}\"")
 		ret = subprocess.check_output(com, shell=True).decode().strip()
@@ -321,25 +348,34 @@ def migrate_movies():
 			log(f"Error creating directory: {newdir}. ({ret})", 'error')
 			return False
 		newpath = os.path.join(newdir, f"{title} ({year}){ext}").replace("'", "")
-		log(f"Migrating file '{filepath}' to '{newpath}'..", 'info')
-		com = (f"cp \"{filepath}\" \"{newpath}\"")
-		ret = subprocess.check_output(com, shell=True).decode().strip()
-		if ret:
-			log(f"Error migrating file: {filepath} to {newpath}. ({ret})", 'error')
-			return False
-		else:
-			log(f"File moved!", 'info')
-		if os.path.exists(newpath):
-			com = (f"sqlite3 {db} \"update movies set filepath = \'{newpath}\' where id = {_id};\"")
+		if not os.path.exists(filepath):
+			log(f"File doesn't exist ({filepath})! Removing from db...", 'warning')
+			com = f"sqlite3 {db} \"delete from movies where filepath = \'{filepath}\';\""
 			ret = subprocess.check_output(com, shell=True).decode().strip()
 			if ret:
-				log(f"Error renaming file in database: id={_id}", 'error')
+				log(f"pbdl.utils.migrate_movies:Removed from db: '{filepath}'", 'info')
+				return False
+		else:
+			log(f"Migrating file '{filepath}' to '{newpath}'..", 'info')
+			com = (f"cp \"{filepath}\" \"{newpath}\"")
+			try:
+				ret = subprocess.check_output(com, shell=True).decode().strip()
+			except:
+				ret = "pbdl.utils.migrate_movies:Unknown Error! ({filepath})!"
+			if ret:
+				log(f"Error migrating file: {filepath} to {newpath}. ({ret})", 'error')
 				return False
 			else:
-				return True
-		else:
-			log(f"Error migrating file: {filepath} to {newpath}. (File not found!)", 'error')
-			return False
+				log(f"File moved!", 'info')
+				if os.path.exists(newpath):
+					com = (f"sqlite3 {db} \"update movies set filepath = \'{newpath}\' where id = {_id};\"")
+					ret = subprocess.check_output(com, shell=True).decode().strip()
+					if ret:
+						log(f"Error renaming file in database: id={_id}", 'error')
+						return False
+				else:
+					log(f"Error migrating file: {filepath} to {newpath}. (File not found!)", 'error')
+					return False
 
 def get_torrents_kerploosh():
 	torrents = {}
@@ -487,7 +523,6 @@ def get_torrents_weirdness():
 		if eta != 'Unknown':
 			time_unit = line.strip().split(eta)[1].strip().split(' ')[0]
 			eta = f"{eta} {time_unit}"
-		print("eta:", eta)
 		try:
 			upload_speed = line.strip().split(eta)[1].strip().split(' ')[0]
 		except Exception as e:
@@ -537,7 +572,7 @@ def get_torrents_weirdness():
 	return torrents
 
 def get_files(tid):
-	com = (f"transmission-remote {conf['pbdl']['remote_ip']} -t{tid} -f | grep -v \'files):\' | grep -v \'#\' | grep -v \".jpg\" | grep -v \"sample\" | grep -v \".srt\" | grep -v \".nfo\" | grep -v \".txt\" | cut -d \"{os.path.sep}\" -f 2")
+	com = (f"transmission-remote {conf['pbdl']['remote_ip']} -t{tid} -f | grep -v \'Subs\' | grep -v \'Sample\' | grep -v '.png' | grep -v \'files):\' | grep -v \'#\' | grep -v \".jpg\" | grep -v \"sample\" | grep -v \".srt\" | grep -v \".nfo\" | grep -v \".txt\" | cut -d \"{os.path.sep}\" -f 2")
 	try:
 		data = send_command(com).split("\n")
 	except:
@@ -829,7 +864,12 @@ def files_empty(filepath):
 
 def get_torrents():
 	com = "transmission-remote -l | grep -v \"Ratio\" | grep -v \"Sum:\""
-	lines = subprocess.check_output(com, shell=True).decode().strip().split("\n")
+	try:
+		lines = subprocess.check_output(com, shell=True).decode().strip().split("\n")
+	except:
+		lines = []
+		log(f"pbdl.get_torrents:List is probably empty!", 'warning')
+		return {}
 	#lines = ['25     2%   47.02 MB  5 hrs        0.0   240.0    0.0  Downloading  Captain America - The First Avenger (2011)', '  26     2%   60.29 MB  Unknown      0.0     0.0    0.0  Downloading  Captain.Marvel.2019.1080p.BRRip.x264-MkvCage.ws.mkv', '  27     0%    9.30 MB  2 hrs        0.0   119.0    0.0  Downloading  Iron Man [1080p]', '  28   100%    1.72 GB  Done         0.0     0.0    0.0  Stopped      Iron Man 2 (2010) [1080p]', '  29     6%   123.1 MB  17 hrs       0.0     0.0    0.0  Downloading  The Incredible Hulk (2008) [1080p]', '  30     1%   42.64 MB  2965 days     0.0     0.0    0.0  Downloading  Thor.2011.1080p.BluRay.H264.AAC-RARBG', "  31    n/a       None  Unknown      0.0     0.0   None  Idle         Marvel's+The+Avengers+(2012)(Bitloks)(1920).mkv", '  32     5%   99.85 MB  Unknown      0.0     0.0    0.0  Downloading  Thor The Dark World (2013) [1080p]', '  33    20%   419.7 MB  52 days      0.0     1.0    0.0  Downloading  Iron Man 3 (2013) [1080p]', '  34     6%   140.3 MB  47 min       0.0  1153.0    0.0  Up & Down    Captain America The Winter Soldier (2014) [1080p]', '  35     3%   68.42 MB  22 hrs       0.0     6.0    0.0  Downloading  Guardians of the Galaxy (2014) [1080p]', '  36     0%   49.15 kB  Unknown      0.0     0.0    0.0  Queued       Guardians of the Galaxy Vol. 2 (2017) 720p BrRip x264 - VPPV', '  37    n/a       None  Done         0.0     0.0   None  Queued       Avengers:+Age+of+Ultron+(2015)+1080p+BrRip+x264+-+YIFY', '  38     0%   524.3 kB  Unknown      0.0     0.0    0.0  Queued       Avengers Infinity War (2018) [BluRay] [1080p] [YTS.AM]', '  39    n/a       None  Done         0.0     0.0   None  Queued       Captain+America+Civil+War+2016+1080p+BluRay+x264+DTS-JYK', '  40    n/a       None  Done         0.0     0.0   None  Queued       Black.Panther.2018.1080p.BRRip.x264-BRRIP', '  41    n/a       None  Done         0.0     0.0   None  Queued       Spider-Man.Homecoming.2017.720p.BluRay.x264-NeZu', '  42    n/a       None  Done         0.0     0.0   None  Queued       Thor+Ragnarok+2017+1080p+HDRip+x264+AAC+5.1+ESub+-xRG', '  43     0%       None  Unknown      0.0     0.0   None  Queued       Avengers Endgame (2019) [BluRay] [1080p] [YTS.LT]', '  44     0%       None  Unknown      0.0     0.0   None  Queued       The Good The Bart And The Loki (2021) [1080p] [WEBRip] [5.1] [YTS.MX]', '  45    n/a       None  Done         0.0     0.0   None  Queued       What.If.2021.S01.COMPLETE.720p.DSNP.WEBRip.x264-GalaxyTV', '  46     0%   86.83 MB  Unknown      0.0     0.0    0.0  Idle         WandaVision (2021) Season 1 S01 (1080p DSNP WEB-DL x265 HEVC 10bit EAC3 5.1 Silence)', '  47    n/a       None  Done         0.0     0.0   None  Queued       The+Falcon+and+the+Winter+Soldier+(2021)+Season+1+S01+(1080p+WEB', '  48    n/a       None  Done         0.0     0.0   None  Queued       Shang-Chi+and+the+Legend+of+the+Ten+Rings+(2021)+[1080p]+[BluRay', '  49    n/a       None  Done         0.0     0.0   None  Queued       Eternals+(2021)+[1080p]+[WEBRip]+[5.1]', '  50    n/a       None  Done         0.0     0.0   None  Queued       Hawkeye+2021+S01E01+Never+Meet+Your+Heroes+1080p+DSNP+WEB-DL+DDP', '  51    n/a       None  Done         0.0     0.0   None  Queued       Moon.Knight.2022.S01.2160p.10bit.DSNP.DDP5.1.HEVC.x265-Vyndros', '  52    n/a       None  Done         0.0     0.0   None  Queued       She-Hulk+Attorney+at+Law+(2022)+Season+1+S01+(1080p+DSNP+WEB-DL+x265+HEVC+10bit', '  53    n/a       None  Done         0.0     0.0   None  Queued       Ms.Marvel.2022.S01.2160p.10bit.DSNP.DDP5.1.HEVC.x265-Vyndros', '  54    n/a       None  Done         0.0     0.0   None  Queued       Thor+Love+and+Thunder+(2022)+[1080p]+[WEBRip]+[5.1]']
 	statuses = ['Queued', 'Downloading', 'Idle', 'Stopped', 'Finished', 'Up & Down']
 	torrents = {}
@@ -906,7 +946,7 @@ def build_data(rebuild=False, lookup_type=None):
 		for filepath in files:
 			play_type = test_media(filepath)
 			query_info = test_media(filepath, True)
-			log(f"filepath:{filepath}, play_type:{play_type}, query_info:{query_info}", 'error')
+			log(f"filepath:{filepath}, play_type:{play_type}, query_info:{query_info}", 'info')
 			try:
 				results = torrents[tid]['files'][filepath]['info']['results']
 			except Exception as e:
@@ -931,7 +971,7 @@ def build_data(rebuild=False, lookup_type=None):
 				elif torrents[tid]['files'][filepath]['info']['play_type'] == 'movies':
 					torrents[tid]['files'][filepath]['info']['title'] = query_info[0]
 					title, year = test_media(filepath, True)
-					log(f"filepath:{filepath}, data:{test_media(filepath, True)}", 'error')
+					log(f"filepath:{filepath}, data:{test_media(filepath, True)}", 'info')
 					torrents[tid]['files'][filepath]['info']['title'] = title
 					torrents[tid]['files'][filepath]['info']['year'] = year
 					torrents[tid]['files'][filepath]['info']['lookup_type'] = lookup_type
@@ -942,6 +982,7 @@ def build_data(rebuild=False, lookup_type=None):
 				try:
 					if ret['results'] == True:
 						torrents[tid]['files'][filepath]['info'] = ret
+						torrents[tid]['files'][filepath]['info']['filepath'] = filepath
 				except Exception as e:
 					log(f"Unable to get info for filepath {filepath}: {e}", 'warning')
 	save_data(torrents)
