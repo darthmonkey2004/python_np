@@ -121,16 +121,19 @@ def clean_music():
 	keep = []
 	trash = []
 	for item in _list:
-		chunks = item.split('|')
-		artist = chunks[0]
-		title = chunks[1]
-		_id = chunks[2]
-		string = (f"{artist}:{title}")
-		if string not in keep:
-			keep.append(string)
-		elif string in keep:
-			trash.append(_id)
-			log(f"Duplicate:{string}", 'info')
+		try:
+			chunks = item.split('|')
+			artist = chunks[0]
+			title = chunks[1]
+			_id = chunks[2]
+			string = (f"{artist}:{title}")
+			if string not in keep:
+				keep.append(string)
+			elif string in keep:
+				trash.append(_id)
+				log(f"Duplicate:{string}", 'info')
+		except:
+			pass
 	log(f"Found {len(trash)} duplicate entries (out of {len(_list)})...", 'info')
 	remove_items(trash, 'music')
 	log("Done!", 'info')

@@ -13,6 +13,7 @@ from np.utils.pbdl.query_series import query_series
 from np.utils.pbdl.query_movies import query_movies
 import os
 import pickle
+from urllib.parse import quote, unquote
 id3 = tag()
 log = np_logger().log_msg
 conf = readConf()
@@ -153,57 +154,35 @@ def add_to_db(torrents):
 			if torrents[tid]['files'] is None:
 				break
 		for filepath in list(torrents[tid]['files'].keys()):
+			lookup = False
 			log(f"add_to_db:filepath={filepath}", 'info')
 			play_type = test_media(filepath)
-			try:
-				info = torrents[tid]['files'][filepath]['info']
-			except:
-				torrents[tid] = refresh_info(torrents, tid)
-				info = torrents[tid]['files'][filepath]['info']
-			if torrents[tid]['files'][filepath]['info']['title'] == 'Unknown':
-				torrents = build_data(rebuild=True)
-			else:
-				args = {}
-				args['lookup_type'] = '-TMDB-'
-				args['play_type'] = play_type
-				torrents[tid]['files'][filepath]['info']['play_type'] = play_type
-				_id = None
-				fname = os.path.basename(filepath)
-				if play_type == 'movies':
-					title, year = test_media(fname, True)
-					title = title.strip()
-					year = year.strip()
-					if title is None or title == '' or title == 'Unknown':
-						args['title'] = title
-						args['year'] = year
-						info = lookup(args=args)
-						title = info['title']
-						year = info['year']
-						torrents[tid]['files'][filepath]['info']['title'] = title
-						torrents[tid]['files'][filepath]['info']['year'] = year
-					com = f"sqlite3 \"{dbfile}\" \"select id from {play_type} where filepath like \'%{fname}%\';\""
-					_id = subprocess.check_output(com, shell=True).decode().strip().split("\n")
-				elif play_type == 'series':
-					series_name, season, episode_number = test_media(fname, True)
-					test_series_name = subprocess.check_output(f"sqlite3 \"{dbfile}\" \"select distinct series_name from series where UPPER(series_name) like UPPER(\'%{series_name}%\');\"", shell=True).decode().strip()
-					if test_series_name != series_name:
-						log(f"pbld.utils:Corrected caps in series name! {series_name} > {test_series_name}", 'info')
-						series_name = test_series_name
-					torrents[tid]['files'][filepath]['info']['series_name'] = series_name
-					torrents[tid]['files'][filepath]['info']['season'] = season
-					torrents[tid]['files'][filepath]['info']['episode_number'] = episode_number
-					com = f"sqlite3 \"{dbfile}\" \"select id from {play_type} where series_name like \'%{series_name}%\' and season = {season} and episode_number = {episode_number};\""
-					_id = subprocess.check_output(com, shell=True).decode().strip().split("\n")
-				fname = os.path.basename(filepath).replace("'", "%27")
-				if _id != ['']:
-					for item in _id:
-						log(f"File already exists with id {int(item)} ({filepath}). Removing stale db entries...", 'warning')
-						com = f"sqlite3 \"{dbfile}\" \"delete from {play_type} where id = {int(item)};\""
-						ret = subprocess.check_output(com, shell=True).decode().strip()
-						if ret == '':
-							log(f"pbdl.utils.add_to_db:Removed from db: '{filepath}'", 'info')
-						else:
-							log(f"Failed to remove item {ret}", 'warning')
+			if play_type == 'movies':
+				title, year = test_media(filepath, True)
+				torrents[tid]['files'][filepath]['info'] = query_movies(title)
+				torrents[tid]['files'][filepath]['info']['title'] = title
+				torrents[tid]['files'][filepath]['info']['year'] = year
+			elif play_type == 'series':
+				series_name, season, episode_number = test_media(filepath, True)
+				torrents[tid]['files'][filepath]['info'] = query_series(series_name, season, episode_number)
+				torrents[tid]['files'][filepath]['info']['series_name'] = test_series_name(series_name)
+				torrents[tid]['files'][filepath]['info']['season'] = int(season)
+				torrents[tid]['files'][filepath]['info']['episode_number'] = int(episode_number)
+			info = torrents[tid]['files'][filepath]['info']
+			torrents[tid]['files'][filepath]['info']['play_type'] = play_type
+			_id = None
+			fname = os.path.basename(filepath)
+			exists, _id = test_exists(filepath)
+			if exists:
+				_id = _id.split("\n")
+				for item in _id:
+					log(f"File already exists with id {int(item)} ({filepath}). Removing stale db entries...", 'warning')
+					com = f"sqlite3 \"{dbfile}\" \"delete from {play_type} where id = {int(item)};\""
+					ret = subprocess.check_output(com, shell=True).decode().strip()
+					if ret == '':
+						log(f"pbdl.utils.add_to_db:Removed from db: '{filepath}'", 'info')
+					else:
+						log(f"Failed to remove item {ret}", 'warning')
 			fullpath = None
 			is_mounted = test_sftp_mount()
 			if is_mounted is False:
@@ -254,6 +233,20 @@ def add_to_db(torrents):
 	return True
 
 
+def test_exists(filepath, play_type=None):
+	if play_type is None:
+		play_type = test_media(filepath)
+	fname = os.path.basename(filepath)
+	dbfile = os.path.join(os.path.expanduser("~"), '.np', 'nplayer.db')
+	com = f"sqlite3 \"{dbfile}\" \"select id from {play_type} where filepath like \'%{fname}%\';\""
+	ret = subprocess.check_output(com, shell=True).decode().strip()
+	if ret != '':
+		return True, ret
+	else:
+		return False, None
+	
+
+
 def migrate(torrents=None):
 	if torrents is None:
 		torrents = build_data(rebuild=True)
@@ -280,7 +273,10 @@ def migrate_series():
 	db = os.path.join(DATA_DIR, 'nplayer.db')
 	com = (f"sqlite3 {db} \"select id,series_name,season,episode_number,episode_name,filepath from series where filepath like \'%{SFTP_DIR}%\';\"")
 	results = subprocess.check_output(com, shell=True).decode().strip().split("\n")
+	pos = 0
+	ct = len(results)
 	for item in results:
+		pos += 1
 		if item == '':
 			log(f"No series in database in sftp directory! (results={results})", 'warning')
 			return False
@@ -598,33 +594,78 @@ def get_files(tid):
 		pass
 	return files
 
+def sqlite3(query):
+	try:
+		if '%20' in query:
+			query = urllib.parse.unquote(query)
+		dbfile = os.path.join(os.path.expanduser("~"), '.np', 'nplayer.db')
+		com = (f"sqlite3 '{dbfile}' \"{query}\"")
+		out = subprocess.check_output(com, shell=True).decode().strip().split("\n")
+		try:
+			if MP.conf['debug'] == True:
+				log(f"SQLITE3 Query: {query}", 'info')
+				log(f"SQLITE3 Results: {out}", 'info')
+		except:
+			log(f"SQLITE3 Query: {query}", 'info')
+			log(f"SQLITE3 Results: {out}", 'info')
+		return out
+	except:
+		return []
+
 
 def test_media_type(filepath):
 	if '.mp3' in filepath:
 		return 'music'
+	if '/Series/' in filepath:
+		return 'series'
+	elif '/Music/' in filepath:
+		return 'music'
+	elif '/Movies/' in filepath:
+		return 'movies'
 	is_series = se_isin(filepath)
+	if is_series:
+		return 'series'
 	is_movie = ty_isin(filepath)
+	if is_movie:
+		return 'movies'
+	#print("is_series, is_movie:", is_series, is_movie)
 	if is_series is True:
 		return 'series'
-	elif is_movie is True:
-		return 'movies'
 	else:
-		log(f"Error: Unknown type, couldn't parse keys from filepath! File: {filepath}", 'error')
-		return False
+		#log(f"Error: Unknown type, couldn't parse keys from filepath! File: {filepath}", 'error')
+		txt = f"Error: Unknown type, couldn't parse keys from filepath! File: {filepath}"
+		raise Exception(Exception, txt)
+		#return False
 
 
-def test_media(filepath, return_data=False):
-	play_type = test_media_type(filepath)
+def test_media(query, return_data=False):
+	if type(query) == int:
+		play_type, filepath = test_type_from_db(query)
+	else:
+		filepath = query
+		play_type = test_media_type(filepath)
 	if return_data == False:
 		return play_type
 	elif return_data == True:
 		if play_type == 'series':
 			return parse_series(filepath)
 		elif play_type == 'movies':
-			return parse_movies(filepath)
+			title, year = ty_isin(filepath, True)	
+			return [title, year]
 		elif play_type == 'music':
 			return parse_music(filepath)
 
+def test_type_from_db(_id):
+	#helper function to get media type from id when filepath not immediately available
+	inseries = sqlite3(f"select filepath from series where id = '{_id}';")[0]
+	inmovies = sqlite3(f"select filepath from movies where id = '{_id}';")[0]
+	inmusic = sqlite3(f"select filepath from music where id = '{_id}';")[0]
+	if inseries != '':
+		return 'series', inseries
+	elif inmovies != '':
+		return 'movies', inmovies
+	elif inmusic  != '':
+		return 'music', inmusic
 
 def parse_music(filepath):
 	tag = id3.read(filepath)
@@ -635,9 +676,8 @@ def parse_series(filepath):
 	media_dir = conf['media_directories']['main']
 	if media_dir in filepath:
 		try:
-			n = filepath.split(media_dir)[1].split(f"{os.path.sep}Series{os.path.sep}")[1].split(os.path.sep)[0]
-			s = filepath.split(media_dir)[1].split(f"{os.path.sep}Series{os.path.sep}")[1].split(os.path.sep)[1].split('S')[1]
-			e = filepath.split(media_dir)[1].split(f"{os.path.sep}Series{os.path.sep}")[1].split(os.path.sep)[2].replace('.', ' ').split(f"S{s}E")[1].split(' ')[0]
+			s, e, sinfo = se_isin(filepath, True)
+			n = os.path.dirname(filepath).split(f"{media_dir}{os.path.sep}Series{os.path.sep}")[1].split(os.path.sep)[0]
 			return [n, s, e]
 		except Exception as e:
 			log(f"Error: Unknown issue! Structured filesystem wasn't parseable: {e}", 'error')
@@ -654,27 +694,6 @@ def parse_series(filepath):
 			series_name = series_name.split(os.path.sep)[1]
 		return [series_name, season, episode_number]
 	
-	
-def parse_movies(filepath):
-	title = None
-	year = None
-	if '(' in filepath and ')' in filepath:
-		year = int(filepath.split('(')[1].split(')')[0])
-		if year >= 1900:
-			string = f" ({year}) "
-			if string in filepath:
-				fname = os.path.basename(filepath)
-				title = fname.split(string)[0].strip()
-			else:
-				fname = os.path.basename(filepath)
-				string = ('(' + str(year) + ')')
-				title = fname.split(string)[0].strip()
-		else:
-			year = None
-	else:
-		title, year = ty_isin(filepath, True)
-		
-	return [title, year]
 
 
 def lookup(args):
@@ -699,9 +718,12 @@ def lookup(args):
 				return data
 		elif lookup_type == '-TMDB-':
 			data = query_movies(args['title'])
-			if data['results'] == True:
-				log("Lookup successful!", 'info')
-				return data
+			try:
+				if data['results'] == True:
+					log("Lookup successful!", 'info')
+					return data
+			except:
+				print("data:", data)
 
 
 def verify_series_name(series_name):
@@ -988,8 +1010,120 @@ def build_data(rebuild=False, lookup_type=None):
 	save_data(torrents)
 	return torrents
 
+def sqlite3(query):
+	if '%20' in query:
+		query = urllib.parse.unquote(query)
+	dbfile = os.path.join(os.path.expanduser("~"), '.np', 'nplayer.db')
+	com = (f"sqlite3 '{dbfile}' \"{query}\"")
+	out = subprocess.check_output(com, shell=True).decode().strip().split("\n")
+	try:
+		if MP.conf['debug'] == True:
+			log(f"SQLITE3 Query: {query}", 'info')
+			log(f"SQLITE3 Results: {out}", 'info')
+	except:
+		log(f"SQLITE3 Query: {query}", 'info')
+		log(f"SQLITE3 Results: {out}", 'info')
+	return out
+
+def get_id(filepath, play_type=None):
+	fname = os.path.basename(filepath)
+	if play_type is None:
+		play_type = test_media(filepath)
+	return sqlite3(f"select id from {play_type} where filepath like '%{fname}%';")[0]
+
+def get_filepath(_id, play_type):
+	return sqlite3(f"select filepath from {play_type} where id = {_id};")[0]
+
+
+#use series poster as failover, choose still_path if available
+def get_poster(query):
+	if type(query) == int:
+		play_type = test_media(query)
+		filepath = get_filepath(query, play_type)
+	elif type(query) == str:
+		filepath = query
+	play_type = test_media(filepath)
+	if play_type == 'series':
+		column = 'still_path'
+	elif play_type == 'movies' or play_type == 'music':
+		column = 'poster'
+	fname = os.path.basename(filepath)
+	indb = sqlite3(f"select {column} from {play_type} where filepath like '%{fname}%';")[0]
+	print(f"sqlite3 query poster results(query={query}): {indb}", 'info')
+	baseurl = None
+	if indb == 'No image data available.' or indb == 'null' or indb == '' or indb == 'Unknown' or 'Unknown' in indb:
+		url = None
+	else:
+		url = indb
+	if url is not None:
+		#return early if database has path.
+		return f"https://image.tmdb.org/t/p/original{url}"
+	#grab url from tmdb if not in database.
+	data = test_media(filepath, True)
+	if play_type == 'series':
+		series_name, season, episode_number = data
+		info = query_series(series_name, season, episode_number)
+		url = info['still_path']
+		print(f"(tmdb_query_series) url:{url}")
+	elif play_type == 'movies':
+		title, year = data
+		info = query_movies(title)
+		print("info:", info)
+		url = info['poster']
+		print(f"(tmdb_query_movies) url:{url}")
+	poster = f"https://image.tmdb.org/t/p/original{url}"
+	#update database
+	ret = sqlite3(f"update {play_type} set {column} = \'{poster}\' where filepath like '%{fname}%';")
+	if ret != ['']:
+		log(f"pbdl.utils.get_poster:Encountered an error updating poster in database: {ret}", 'error')
+	else:
+		log(f"pbdl.utils.get_poster:Updated database: (poster={poster})", 'info')
+	return poster
+
+def dl_poster(poster_url):
+	poster_path = os.path.join(os.path.expanduser("~"), '.np', 'poster.jpg')
+	com = f"curl -o \"{poster_path}\" {poster_url}"
+	ret = subprocess.check_output(com, shell=True).decode().strip()
+	if ret != '':
+		print(f"Error downloading poster ({poster_url}): {ret}", 'error')
+		return poster_path
+	else:
+		print("Ok!")
+		return poster_path
+
+def convert_png(filepath, w=None, h=None):
+	if w is None:
+		w = 320
+	if h is None:
+		h = 240
+	size = f"{w}x{h}"
+	ext = os.path.splitext(filepath)[1]
+	dname = os.path.dirname(filepath)
+	fname = os.path.basename(os.path.splitext(filepath)[0])
+	newpath = os.path.join(dname, f"{fname}.png")
+	#com = (f"convert --resize \"{filepath}\" \"{newpath}\"")
+	com = f"convert \"{filepath}\" -resize {size} \"{newpath}\""
+	#com = ("convert 'poster.jpg' -resize " + str(self.art_w) + "x" + str(self.art_h) + " 'poster.png'")
+	ret = subprocess.check_output(com, shell=True).decode().strip()
+	if ret != '':
+		print(f"Error converting jpg to png: {ret}", 'error')
+		return False
+	else:
+		print("Ok!")
+		return newpath
+
+
+def test_series_name(series_name):
+	dbfile = os.path.join(os.path.expanduser("~"), '.np', 'nplayer.db')
+	com = f"sqlite3 \"{dbfile}\" \"select distinct series_name from series where series_name like '%{series_name}%' COLLATE NOCASE;\""
+	ret = subprocess.check_output(com, shell=True).decode().strip()
+	if ret != '':
+		return ret
+	else:
+		log(f"pbdl.utils.test_series_name: Failed to find name: {series_name}!", 'error')
+		return None
+		
 
 if __name__ == "__main__":
 	data = build_torrents()
 	log(data, 'info')
-	

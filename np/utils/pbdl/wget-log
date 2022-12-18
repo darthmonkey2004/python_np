@@ -1,11 +1,0 @@
---2022-10-17 00:57:26--  https://m.media-amazon.com/images/I/51ah1dH01RL._SY580_.jpg
-Resolving m.media-amazon.com (m.media-amazon.com)... 143.204.160.222, 2600:9000:21d4:f600:1d:d7f6:39d0:c781, 2600:9000:21d4:fa00:1d:d7f6:39d0:c781, ...
-Connecting to m.media-amazon.com (m.media-amazon.com)|143.204.160.222|:443... connected.
-HTTP request sent, awaiting response... 200 OK
-Length: 45218 (44K) [image/jpeg]
-Saving to: ‘poster.jpg’
-
-poster.jpg            0%[                    ]       0  --.-KB/s               poster.jpg          100%[===================>]  44.16K  --.-KB/s    in 0.04s   
-
-2022-10-17 00:57:27 (1.21 MB/s) - ‘poster.jpg’ saved [45218/45218]
-

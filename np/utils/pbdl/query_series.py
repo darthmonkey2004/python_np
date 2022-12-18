@@ -1,180 +1,110 @@
-import json
-import PySimpleGUI as sg
-import requests
-import os.path
-from np.utils.xrandr import xrandr
-import urllib
-from np.utils.pbdl.se_isin import parse as se_isin
-from np.core.nplayer_db import get_columns
-from np.core.log import np_logger
-logger = np_logger().log_msg
-from np.core.conf import readConf, writeConf
-conf = readConf()
+import tmdbsimple as tmdb
+tmdb.API_KEY = 'ac1bdc4046a5e71ef8aa0d0bd93f8e9b'
 
+def get_series_id(series_name):
+	search = tmdb.Search()
+	r = search.tv(query=series_name)
+	return r['results'][0]['id']
 
-def log(msg, _type=None):
-	if _type is None:
-		_type = 'info'
-	if _type == 'error':
-		exc_info = sys.exc_info()
-		logger(msg, _type, exc_info)
-		return
-	else:
-		logger(msg, _type)
-
-
-
-def get_user_input(window_title='User Input', txt=None):
-	user_input = None
-	input_box = sg.Input(default_text='', enable_events=True, change_submits=True, do_not_clear=True, key='-USER_INPUT-', expand_x=True)
-	input_btn = sg.Button(button_text='Ok', auto_size_button=True, pad=(1, 1), key='-OK-')
-	if txt is not None:
-		input_txt = sg.Text(txt)
-		layout = [[input_box], [input_txt], [input_btn]]
-	else:
-		layout = [[input_box], [input_btn]]
-	input_window = sg.Window(window_title, layout, keep_on_top=False, element_justification='center', finalize=True)
-	while True:
-		event, values = input_window.read()
-		if event == sg.WIN_CLOSED:
-			break
-		elif event == '-OK-':
-			input_window.close()
-		elif event == '-USER_INPUT-':
-			user_input = values[event]
-	return user_input
-	
-
-
-def set_api_key_tmdb():
-	conf = readConf()
-	api_key = get_user_input("Enter TMDB api key:")
-	try:
-		haskeys = conf['api_keys']
-	except:
-		conf['api_keys'] = {}
-		log(f"Api keys not found in conf! Adding...", 'warning')
-	conf['api_keys']['TMDB'] = api_key
-	writeConf(conf)
-	log(f"Updated TMDB API Key: {api_key}", 'info')
-	return api_key
-
-
-try:
-	haskeys = conf['api_keys']
-	API_KEY = conf['api_keys']['TMDB']
-except:
-	API_KEY = set_api_key_tmdb()
-
-
-
-def set_empty():
-	pragma = get_columns('movies')
-	columns = list(pragma.keys())
+def get_seasons(_id):
+	if type(_id) == str:
+		_id = int(get_series_id(_id))
+	data = tmdb.TV(_id).info()['seasons']
 	info = {}
-	for key in columns:
-		dtype = pragma[key]['data_type']
-		if dtype == 'INTEGER' or dtype == 'BOOL':
-			info[key] = 0
-		elif dtype == 'TEXT':
-			info[key] = 'Unknown'
-	info['results'] = False
+	for item in data:
+		season = int(item['season_number'])
+		info[season] = {}
+		info[season]['tmdbid'] = item['id']
+		info[season]['air_date'] = item['air_date']
+		info[season]['episodes_ct'] = item['episode_count']
+		info[season]['series_name'] = item['name']
+		info[season]['description'] = item['overview']
+		info[season]['poster'] = f"https://image.tmdb.org/t/p/original{item['poster_path']}"
+	return info
+
+def get_season_data(_id, season):
+	season = int(season)
+	if type(_id) == str:
+		series_name = str(_id)
+		_id = int(get_series_id(series_name))
+	else:
+		series_name = 'Unknown'
+	try:
+		s = tmdb.TV_Seasons(_id, season).info()
+	except Exception as e:
+		print(f"Error looking up season:{season} ({e})", 'error')
+		return {}
+	info = {}
+	info[season] = {}
+	for k in s.keys():
+		if k == 'episodes':
+			info[season]['episodes'] = {}
+			for item in s[k]:
+				episode_number = int(item['episode_number'])
+				info[season]['episodes'][episode_number] = {}
+				info[season]['episodes'][episode_number]['air_date'] = item['air_date']
+				info[season]['episodes'][episode_number]['unique_id'] = item['id']
+				info[season]['episodes'][episode_number]['episode_name'] = item['name']
+				info[season]['episodes'][episode_number]['description'] = item['overview']
+				info[season]['episodes'][episode_number]['season'] = item['season_number']
+				info[season]['episodes'][episode_number]['still_path'] = f"https://image.tmdb.org/t/p/original{item['still_path']}"
+				info[season]['episodes'][episode_number]['guest_stars'] = item['guest_stars']
+				info[season]['episodes'][episode_number]['tmdbid'] = _id
+				info[season]['episodes'][episode_number]['isactive'] = 1
+				info[season]['episodes'][episode_number]['season'] = season
+				info[season]['episodes'][episode_number]['episode_number'] = episode_number
+		elif 'path' in k:
+			info[season][k] = f"https://image.tmdb.org/t/p/original{s[k]}"
+		else:
+			info[season][k] = s[k]
+	if series_name is not None:
+		info['series_name'] = series_name
+	return info
+
+def get_episode_data(_id, season, episode_number):
+	season = int(season)
+	episode_number = int(episode_number)
+	if type(_id) == str:
+		series_name = str(_id)
+		_id = int(get_series_id(series_name))
+	info = get_season_data(_id, season)
+	out = info[season]['episodes'][episode_number]
+	out['results'] = True
+	return out
+
+def get_all_series_data(query='Disenchantment'):
+	_id = get_series_id(query)
+	seasons = get_seasons(_id)
+	info = {}
+	info[_id] = {}
+	info[_id]['series_name'] = series_name
+	info[_id]['seasons'] = get_seasons(_id)
+	for season in info[_id]['seasons'].keys():
+		info[_id]['seasons'] = get_season_data(_id, season)
 	return info
 
 
-def query_series(series_name, season, episode_number):
-	info = set_empty()
-	info['series_name'] = str(series_name)
-	info['season'] = int(season)
-	info['episode_number'] = int(episode_number)
-	series_name_nw = urllib.parse.quote(series_name)
-	global API_KEY
-	url = ("https://api.themoviedb.org/3/search/tv?api_key=" + str(API_KEY) + "&language=en-US&query=" + series_name_nw)
-	r = requests.get(url)
-	if r.status_code != 200:
-		out = ("Error:", r.status_code)
-		return out
-	data = r.text
-	json_data = json.loads(data)
-	try:
-		tmdbid = json_data['results'][0]['id']
-	except Exception as e:
-		log(f"Error getting tmdbid: {e}", 'error')
-	try:
-		still_path = json_data['results'][0]['backdrop_path']
-	except Exception as e:
-		log("Still path was error: {e}", 'error')
-		try:
-			still_path = json_data['results'][0]['poster_path']
-		except:
-			still_path = 'No image found'
-	try:
-		if "'" in json_data['results'][0]['name']:
-			temp = json_data['results'][0]['name']
-			temp = temp.split("'")
-			j = "_"
-			json_data['results'][0]['name'] = j.join(temp)
-		url = "https://api.themoviedb.org/3/tv/" + str(tmdbid) + "/season/" + str(season) + "/episode/" + str(episode_number) + "?api_key=" + str(API_KEY) + "&language=en-US"
-		r = requests.get(url)
-		if r.status_code != 200:
-			out = ("Error:", r.status_code, "URL:", url)
-			info['error'] = True
-			info['response'] = out
-			info['filepath'] = filepath
-			info['tmdbid'] = tmdbid
-			info['series_name'] = series_name
-			info['season'] = season
-			info['episode_number'] = episode_number
-			info['episode_name'] = 'Unknown'
-			info['description'] = 'Unknown'
-			info['air_date'] = 'Unknown'
-			info['still_path'] = 'Unknown'
-			info['duration'] = 'Unknown'
-			info['md5'] = 'Unknown'
-			info['url'] = url
-			info['results'] = False
-			return info
-		else:
-			data = r.text
-			json_data = json.loads(data)
-			out = ("OK:", r.status_code, "URL:", url)
-			info['response'] = out
-			info['error'] = False
-			info['tmdbid'] = tmdbid
-			info['series_name'] = series_name
-			info['season'] = season
-			info['episode_number'] = episode_number
-			info['episode_name'] = json_data['name']
-			info['description'] = json_data['overview']
-			info['air_date'] = json_data['air_date']
-			info['still_path'] = json_data['still_path']
-			info['duration'] = 'null'
-			info['md5'] = 'null'
-			info['url'] = url
-			info['results'] = True
-			return info
-	except Exception as e:
-		out = ("Error:{e}", 'error')
-		info['error'] = True
-		info['response'] = out
-		info['tmdbid'] = 'Unknown'
-		info['series_name'] = series_name
-		info['season'] = season
-		info['episode_number'] = episode_number
-		info['episode_name'] = 'Unknown'
-		info['description'] = 'Unknown'
-		info['air_date'] = 'Unknown'
-		info['still_path'] = 'Unknown'
-		info['duration'] = 'Unknown'
-		info['md5'] = 'Unknown'
-		info['url'] = url
-		info['results'] = False
-		return info
-
+def query_series(series_name, season=None, episode_number=None):
+	if season is not None and episode_number is not None:
+		return get_episode_data(series_name, season, episode_number)
+	elif season is not None and episode_number is None:
+		return get_season_data(series_name, season)
+	elif season is None and episode_number is None:
+		return get_all_series_data(series_name)
 
 if __name__ == "__main__":
 	import sys
-	filepath = str(sys.argv[1])
-	data = lookup(filepath)
-	log(f"Query Series Results: {data}", 'info')
-	exit()
+	try:
+		series_name = sys.argv[1]
+	except:
+		print("No series name provided! Aborting...")
+		exit()
+	try:
+		season = int(sys.argv[2])
+	except:
+		season = None
+	try:
+		episode_number = int(sys.argv[3])
+	except:
+		episode_number = None
+	print(lookup_series(series_name, season, episode_number))

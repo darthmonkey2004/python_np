@@ -3,6 +3,7 @@
 #NOTE: This is not my creation, I just found it useful and modified it to fit my needs.
 #You can find the original websocket_server at 'https://github.com/Pithikos/python-websocket-server.git'
 
+import os
 import time
 import queue
 from np.core.log import np_logger
@@ -31,10 +32,11 @@ class server():
 		self.localip = self.get_localip
 		self.message = None
 		try:
-			self.server = WebsocketServer()
+			self.server = WebsocketServer(host=conf['remote']['server']['address'], port=int(conf['remote']['server']['port']))
 			self.server.set_fn_new_client(self.new_client)
 			self.server.set_fn_client_left(self.client_left)
 			self.server.set_fn_message_received(self.message_received)
+			log(f"Server running: pid={os.getpid()}", 'info')
 		except Exception as e:
 			log(f"Exception running server: {e}. (Already running?)", 'warning')
 

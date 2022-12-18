@@ -87,8 +87,13 @@ def query_series(filepath, series_name, season, episode_number):
 		j = "_"
 		json_data['results'][0]['name'] = j.join(temp)
 	url = "https://api.themoviedb.org/3/tv/" + str(tmdbid) + "/season/" + str(season) + "/episode/" + str(episode_number) + "?api_key=" + str(API_KEY) + "&language=en-US"
-	r = requests.get(url)
-	if r.status_code != 200:
+	try:
+		r = requests.get(url)
+		sc = r.status_code
+	except Exception as e:
+		log(f"Failed to get data from tmdb: {e}", 'error')
+		sc = 404
+	if sc != 200:
 		out = ("Error:", r.status_code, "URL:", url)
 		info['error'] = True
 		info['response'] = out
@@ -141,7 +146,11 @@ def scan_series(target_dir=None):
 		com = (f"find '{target_dir}' -name '*.{ext}'")
 		files = subprocess.check_output(com, shell=True).decode().strip()
 		files = files.split("\n")
+		ct = len(files)
+		pos = 0
 		for filepath in files:
+			pos += 1
+			log(f"progress: {pos}/{ct}", 'info')
 			go = False
 			series_name = None
 			season = None

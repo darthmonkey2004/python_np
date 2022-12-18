@@ -1,7 +1,7 @@
 import pickle
 import sys, traceback
 import os
-from np.utils.pbdl.utils import get_torrents, get_files, test_media_type, test_media, parse_series, parse_movies, lookup, verify_series_name, build_data, merge_saved_data, save_data, load_saved_data, clear_data, set_api_key_tmdb, set_api_key_rt, add_to_db, migrate
+from np.utils.pbdl.utils import get_torrents, get_files, test_media_type, test_media, parse_series, lookup, verify_series_name, build_data, merge_saved_data, save_data, load_saved_data, clear_data, set_api_key_tmdb, set_api_key_rt, add_to_db, migrate, test_series_name
 from np.utils.pbdl.torrentmgr import torrent_mgr
 from np.utils.pbdl.ty_isin import ty_isin
 from np.utils.pbdl.se_isin import se_isin
@@ -309,12 +309,20 @@ def start(t='mgr'):
 				log(f"Set lookup type to {p.lookup_type}", 'info')
 			elif event == '-LOOKUP-':
 				log(f"EVENT:{event}", 'info')
-				log(f"info:{p.info}", 'info')
-				p.info['lookup_type'] = p.lookup_type
-				p.info['play_type'] = p.play_type
 				fidx = list(get_columns(p.play_type).keys()).index('filepath')
 				key = f"dbcolumn{fidx}"
-				ret = lookup(p.info)
+				filepath = values[key]
+				p.play_type = test_media(filepath)
+				if p.play_type == 'series':
+					series_name, season, episode_number = test_media(filepath, True)
+					ret = query_series(series_name, season, episode_number)
+					ret['series_name'] = test_series_name(series_name)
+					ret['filepath'] = filepath
+				elif p.play_type == 'movies':
+					title, year = test_media(filepath, True)
+					ret = query_movies(title)
+					ret['title'] = title
+					ret['year'] = year
 				if ret is None:
 					log(f"Lookup failed for {p.info}", 'info')
 				try:

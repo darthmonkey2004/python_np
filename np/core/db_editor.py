@@ -380,14 +380,18 @@ def db_editor(table=None):
 				episode_name = None
 			elif event == '-lookup-':
 				info = None
+				args = {}
+				args['play_type'] = table
+				args['lookup_type'] = '-TMDB-'
 				if table == 'series':
-					series_name = values['-series_name-']
-					season = values['-season-']
-					episode_number['-episode_number-']
-					info = lookup(play_type=table, lookup_type='-TMDB-', series_name=series_name, season=season, episode_number=episode_number)
+					args['series_name'] = values['-series_name-']
+					args['season'] = values['-season-']
+					args['episode_number'] = values['-episode_number-']
+					info = lookup(args)
 				elif table == 'movies':
-					title = values['-title-']
-					info = lookup(play_type=table, lookup_type='-TMDB-', title=title)
+					args['title'] = values['-title-']
+					args['year'] = None
+					info = lookup(args)
 				if info is not None:
 					for key in info.keys():
 						k = f"-{key}-"

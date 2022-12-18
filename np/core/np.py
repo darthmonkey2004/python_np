@@ -1,7 +1,6 @@
 #!/usr/bin/python3
 
-from np.utils.pbdl.utils import test_media
-from np.utils.get_poster import *
+from np.utils.pbdl.utils import *
 from np.utils.pbdl.query_series import query_series
 from np.utils.pbdl.query_movies import query_movies
 import random
@@ -36,6 +35,7 @@ server = server(remote_com_q, remote_ret_q)
 VLC_VIDEO_FILTERS = ['video:adjust', 'video:alphamask', 'video:anaglyph', 'video:antiflicker', 'video:audiobargraph_v', 'video:ball', 'video:blendbench', 'video:bluescreen', 'video:canvas', 'video:chain', 'video:colorthres', 'video:croppadd', 'video:deinterlace', 'video:edgedetection', 'video:erase', 'video:extract', 'video:fps', 'video:freeze', 'video:gaussianblur', 'video:gradfun', 'video:gradient', 'video:grain', 'video:hqdn3d', 'video:invert', 'video:logo', 'video:magnify', 'video:mirror', 'video:motionblur', 'video:motiondetect', 'video:oldmovie', 'video:posterize', 'video:postproc', 'video:psychedelic', 'video:puzzle', 'video:ripple', 'video:rotate', 'video:scene', 'video:sepia', 'video:sharpen', 'video:transform', 'video:vaapi_filters', 'video:vaapi_filters', 'video:vaapi_filters', 'video:vaapi_filters', 'video:vaapi_filters', 'video:vdpau_adjust', 'video:vdpau_deinterlace', 'video:vdpau_sharpen', 'video:vhs', 'video:wave']
 VLC_AUDIO_FILTERS = ['audio:audiobargraph_a', 'audio:chorus_flanger', 'audio:compressor', 'audio:equalizer', 'audio:gain', 'audio:headphone', 'audio:karaoke', 'audio:mono', 'audio:normvol', 'audio:param_eq', 'audio:remap', 'audio:scaletempo', 'audio:scaletempo_pitch', 'audio:spatialaudio', 'audio:spatializer', 'audio:stereo_widen']
 VLC_CLI_OPTIONS = cli_opts()
+
 
 def run_server():
 	global server
@@ -643,49 +643,38 @@ def remote_handler(com, arg):
 	return True
 
 
-def update_poster(play_type, _id):
+def update_poster(query):
+	#quer can be either _id (int) or filepath (string)
 	try:
 		global UI, MP
-		poster_url = get_poster(_id, play_type)
-		print("poster url:", poster_url)
-		if 'No image data available' in poster_url or 'null' in poster_url:
-			log(f"Database didn't have image url! Attempting to find it...", 'warning')
-			if play_type == 'series':
-				data = sqlite3(f"select series_name, season, episode_number from series where id = {_id};")
-				series_name, season, episode_number = data[0].split('|')
-				info = query_series(series_name, season, episode_number)
-			elif play_type == 'movies':
-				filepath = sqlite3(f"select filepath from movies where id = {_id};")[0]
-				title, year = test_media(filepath, True)
-				info = query_movies(title)
-			else:
-				return None
-			path = info['poster']
-			poster_url = f"https://image.tmdb.org/t/p/original{path}"
-		if '.jpg' in poster_url:
-			log(f"Poster url is a jpeg. Converting...", 'warning')
-			jpg = dl_poster(poster_url)
-			png = convert_png(jpg)
-		elif 'png' in poster_url:
-			png = dl_poster(poster_url)
-		MP.poster = png
-		try:
-			test = subprocess.check_output(f"file \"{MP.poster}\" | grep \"HTML\"", shell=True).decode().strip()
-		except:
-			test = ''
-		if test != '':
-			log(f"Error: Bad data (html) in image file! Defaults restored...", 'error')
-			MP.Poster = os.path.join(os.path.expanduser("~"), '.np' 'np.jpeg')
-		if MP.gui_visible:
-			try:
-				UI.WINDOW['-POSTER-'].update(MP.POSTER)
-			except Exception as e:
-				log(f"np.update_poster:Unable to update UI with uri {MP.poster}!", 'error')
-		return MP.poster
-	except Exception as e:
-		log(f"Unable to get poster! Chances are the network is disconnected...(vpn???)", 'error')
-		return None
-
+		test = MP.POSTER
+	except:
+		MP = np.nplayer()
+	poster_url = get_poster(query)
+	log(f"poster_url:{poster_url}", 'info')
+	png = None
+	jpg = None
+	if '.jpg' in poster_url:
+		log(f"Poster url is a jpeg. Converting...", 'warning')
+		jpg = dl_poster(poster_url)
+		png = convert_png(jpg)
+	elif 'png' in poster_url:
+		png = dl_poster(poster_url)
+	poster = png
+	try:
+		test = subprocess.check_output(f"file \"{poster}\" | grep \"HTML\"", shell=True).decode().strip()
+	except:
+		test = ''
+	if test != '':
+		log(f"Error: Bad data (html) in image file! Defaults restored...", 'error')
+		poster = os.path.join(os.path.expanduser("~"), '.np' 'np.jpeg')
+	if MP.gui_visible:
+		UI.WINDOW['-POSTER-'].update(MP.POSTER)
+		log(f"UI Updated! poster:{MP.POSTER}", 'info')
+	else:
+		log(f"UI Update failed! (Hidden scene?)", 'info')
+	MP.poster = poster
+	return MP.poster
 
 
 def resize_gui():
@@ -747,7 +736,6 @@ def start():
 	log("UI created: np_main.py, Start, line 694", 'info')
 	UI.WINDOW.read(timeout=1)
 	UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.playlist.playlist)
-	#MP.viewer_win_w, MP.viewer_win_h = UI.WINDOW.get_screen_size()
 	try:
 		init = MP.conf['init']
 	except Exception as e:
@@ -894,9 +882,10 @@ def start():
 					columns = np.get_columns(table)
 					UI.WINDOW['-DBMGR_PICKED_COLUMNS-'].update(columns)
 				elif event == '-PLAY_TYPE-':
+					old = MP.conf['play_type']
 					MP.conf['play_type'] = values[event]
 					np.writeConf(conf)
-					log(f"Play type changed:{MP.conf['play_type']}", 'info')
+					log(f"Play type changed:{old} >> {MP.conf['play_type']}", 'info')
 					gui_reset()
 				elif event == '-setactive-':
 					val = values[event]
@@ -1332,19 +1321,20 @@ def start():
 				elif event == 'Toggle Window Size':
 					resize_gui()
 				elif event == '-UPDATE_POSTER-':
-					_id = None
+					query = None
 					if len(values['-CURRENT_PLAYLIST-']) > 0:
 						string = values['-CURRENT_PLAYLIST-'][0]
 						chunks = string.split(':')
-						_id = chunks[len(chunks) - 1]
+						query = int(chunks[len(chunks) - 1])
 					else:
-						MP.conf['nowplaying']['filepath']
-						_id = sqlite3(f"select id from {MP.play_type} where filepath like \'%{filepath}%\';")[0]
+						query = str(MP.conf['nowplaying']['filepath'])
+					print(f"query:{query}")
 					try:
-						MP.poster = update_poster(play_type=MP.play_type, _id=str(_id))
+						MP.poster = update_poster(query)
 						log(f"np.start:Update poster (btn onClick)!", 'info')
 					except Exception as e:
-						print(f"np.start:event('-UPDATE_POSTER-'):Couldn't update poster! {e}", 'error')
+						
+						log(f"np.start:event('-UPDATE_POSTER-'):Couldn't update poster! {e}", 'error')
 					print("id:", _id)
 				
 					
@@ -1429,7 +1419,7 @@ def start():
 						filepath = MP.conf['nowplaying']['filepath']
 						_id = sqlite3(f"select id from {MP.play_type} where filepath like \'%{filepath}%\';")[0]
 					try:
-						MP.poster = update_poster(play_type=MP.play_type, _id=str(_id))
+						MP.poster = update_poster(int(_id))
 						log(f"poster updated!", 'info')
 					except Exception as e:
 						print(f"np.start:event('-UPDATE_POSTER-'):Couldn't update poster! {e}", 'error')

@@ -187,7 +187,7 @@ def create_table_movies():
 def create_table_music():
 	conn = create_connection()
 	cur = conn.cursor()
-	sql = "CREATE TABLE IF NOT EXISTS music (id INTEGER PRIMARY KEY AUTOINCREMENT, isactive BOOL, title TEXT, mbid TEXT, album TEXT, album_id TEXT, artist_id TEXT, artist TEXT, genre TEXT, track INT, filepath TEXT NOT NULL);"
+	sql = "CREATE TABLE IF NOT EXISTS music (id INTEGER PRIMARY KEY AUTOINCREMENT, isactive BOOL, title TEXT, mbid TEXT, album TEXT, album_id TEXT, artist_id TEXT, artist TEXT, genre TEXT, track INT, poster TEXT, filepath TEXT NOT NULL);"
 	cur.execute(sql)
 	conn.commit()
 

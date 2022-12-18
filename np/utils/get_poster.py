@@ -4,6 +4,7 @@ import requests
 from bs4 import BeautifulSoup
 from lxml import etree
 import os
+from np.utils.pbdl.utils import query_series, query_movies
 
 def get_poster(query, play_type):
 	dbfile = os.path.join(os.path.expanduser("~"), '.np', 'nplayer.db')

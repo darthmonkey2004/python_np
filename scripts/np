@@ -22,7 +22,8 @@ def getpid():
 
 
 def npexec():
-	com = f"np.bin&"
+	#com = f"np.bin&"
+	com = f"python3 -c \"from np.core.np import start; start()\"&"
 	subprocess.call(com, shell=True)
 
 def ck_start():
