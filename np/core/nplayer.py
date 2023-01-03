@@ -551,6 +551,7 @@ class nplayer():
 				self.ART_UPDATE_NEEDED = True
 			except Exception as e:
 				log(f"nplayer.play:unable to get art! ({e})", 'error')
+				self.album_art = None
 				self.ART_UPDATE_NEEDED = False
 		elif self.play_type == 'movies' or self.play_type == 'series':
 			self.ART_UPDATE_NEEDED = True

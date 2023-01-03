@@ -1,3 +1,4 @@
+#from np.utils.pbdl.liteui import runui as liteui
 import pickle
 import sys, traceback
 import os
@@ -172,6 +173,10 @@ class pbdl():
 		log(f"Created torrent manager: ({win.Title})", 'info')
 		self.windows[win.Title] = win
 
+	#def create_liteui(self):
+	#	win = liteui()
+	#	return win
+
 	def read_windows(self):
 		try:
 			self.win, self.event, self.values = sg.read_all_windows(timeout=1)
@@ -313,6 +318,7 @@ def start(t='mgr'):
 				key = f"dbcolumn{fidx}"
 				filepath = values[key]
 				p.play_type = test_media(filepath)
+				log(f"Looking up: {filepath}, play_type={p.play_type}", 'info')
 				if p.play_type == 'series':
 					series_name, season, episode_number = test_media(filepath, True)
 					ret = query_series(series_name, season, episode_number)

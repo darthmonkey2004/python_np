@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 
+from np.utils.pbdl.liteui import run_ui as liteui
 from np.utils.pbdl.utils import *
 from np.utils.pbdl.query_series import query_series
 from np.utils.pbdl.query_movies import query_movies
@@ -36,6 +37,19 @@ VLC_VIDEO_FILTERS = ['video:adjust', 'video:alphamask', 'video:anaglyph', 'video
 VLC_AUDIO_FILTERS = ['audio:audiobargraph_a', 'audio:chorus_flanger', 'audio:compressor', 'audio:equalizer', 'audio:gain', 'audio:headphone', 'audio:karaoke', 'audio:mono', 'audio:normvol', 'audio:param_eq', 'audio:remap', 'audio:scaletempo', 'audio:scaletempo_pitch', 'audio:spatialaudio', 'audio:spatializer', 'audio:stereo_widen']
 VLC_CLI_OPTIONS = cli_opts()
 
+
+def test_connection(host='google.com'):
+	com = f"ping -c 1 -W 1 {host} | grep -v \"0% packet loss\" | grep -v \"{host}\""
+	try:
+		ret = subprocess.check_output(com, shell=True).decode().strip()
+		if ret == '':
+			ret = False
+		else:
+			ret = True
+	except:
+		ret = False
+	return ret
+	
 
 def run_server():
 	global server
@@ -644,38 +658,47 @@ def remote_handler(com, arg):
 
 
 def update_poster(query):
-	#quer can be either _id (int) or filepath (string)
-	try:
-		global UI, MP
-		test = MP.POSTER
-	except:
-		MP = np.nplayer()
-	poster_url = get_poster(query)
-	log(f"poster_url:{poster_url}", 'info')
-	png = None
-	jpg = None
-	if '.jpg' in poster_url:
-		log(f"Poster url is a jpeg. Converting...", 'warning')
-		jpg = dl_poster(poster_url)
-		png = convert_png(jpg)
-	elif 'png' in poster_url:
-		png = dl_poster(poster_url)
-	poster = png
-	try:
-		test = subprocess.check_output(f"file \"{poster}\" | grep \"HTML\"", shell=True).decode().strip()
-	except:
-		test = ''
-	if test != '':
-		log(f"Error: Bad data (html) in image file! Defaults restored...", 'error')
-		poster = os.path.join(os.path.expanduser("~"), '.np' 'np.jpeg')
-	if MP.gui_visible:
-		UI.WINDOW['-POSTER-'].update(MP.POSTER)
-		log(f"UI Updated! poster:{MP.POSTER}", 'info')
+	if test_connection():
+		#quer can be either _id (int) or filepath (string)
+		try:
+			global UI, MP
+			test = MP.POSTER
+		except:
+			MP = np.nplayer()
+		poster_url = get_poster(query)
+		log(f"poster_url:{poster_url}", 'info')
+		png = None
+		jpg = None
+		if '.jpg' in poster_url:
+			log(f"Poster url is a jpeg. Converting...", 'warning')
+			jpg = dl_poster(poster_url)
+			png = convert_png(jpg)
+		elif 'png' in poster_url:
+			png = dl_poster(poster_url)
+		poster = png
+		try:
+			test = subprocess.check_output(f"file \"{poster}\" | grep \"HTML\"", shell=True).decode().strip()
+		except:
+			test = ''
+		if test != '':
+			log(f"Error: Bad data (html) in image file! Defaults restored...", 'error')
+			poster = os.path.join(os.path.expanduser("~"), '.np' 'np.jpeg')
+		if MP.gui_visible:
+			UI.WINDOW['-POSTER-'].update(MP.POSTER)
+			log(f"UI Updated! poster:{MP.POSTER}", 'info')
+		else:
+			log(f"UI Update failed! (Hidden scene?)", 'info')
+		MP.poster = poster
+		return MP.poster
 	else:
-		log(f"UI Update failed! (Hidden scene?)", 'info')
-	MP.poster = poster
-	return MP.poster
-
+		log("No network found!", 'error')
+		MP.poster = os.path.join(os.path.expanduser("~"), '.np', 'np.png')
+		if MP.gui_visible:
+			UI.WINDOW['-POSTER-'].update(MP.POSTER)
+			log(f"UI Updated! poster:{MP.POSTER}", 'info')
+		else:
+			log(f"UI Update failed! (Hidden scene?)", 'info')
+		return MP.poster
 
 def resize_gui():
 	if UI.maximized is False:
@@ -1185,6 +1208,9 @@ def start():
 				elif event == 'Pirate Bay Downloader':
 					pbdl_win = start_pbdl('dl')
 					log(f"Loaded pirate bay downloader!", 'info')
+				elif event == 'PBDL Lite UI':
+					log(f"Loaded lite torrent manager!")
+					pbdl_win = liteui()
 				elif event == '-PBDL_SEARCH-':
 					pbdl.results = pbdl.get_magnet(pbdl.pbdl_query, pbdl.category)
 					UI.pbdl_dl_win['-PBDL_RESULTS-'].update(pbdl.results)
