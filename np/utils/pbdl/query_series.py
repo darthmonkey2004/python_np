@@ -86,11 +86,13 @@ def get_all_series_data(query='Disenchantment'):
 
 def query_series(series_name, season=None, episode_number=None):
 	if season is not None and episode_number is not None:
-		return get_episode_data(series_name, season, episode_number)
+		info = get_episode_data(series_name, season, episode_number)
 	elif season is not None and episode_number is None:
-		return get_season_data(series_name, season)
+		info = get_season_data(series_name, season)
 	elif season is None and episode_number is None:
-		return get_all_series_data(series_name)
+		info = get_all_series_data(series_name)
+	info['series_name'] = series_name
+	return info
 
 if __name__ == "__main__":
 	import sys

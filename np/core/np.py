@@ -7,7 +7,6 @@ from np.utils.pbdl.query_movies import query_movies
 import random
 from np.core.core import shell, get_version, match_repo_version, get_local_ip
 import np
-from np.utils.pbdl.pbdl import start as start_pbdl
 from np.utils.pbdl.pbdl import pbdl
 from np.utils.cleandb import run as cleandb
 from np.core.gui import folder_browse_window, file_browse_window
@@ -1202,12 +1201,6 @@ def start():
 					UI.window['-DBMGR_SELECTED_ROWS-'].update(MP.dbmgr_picked_items)
 					log(f"Remove selected:{MP.dbmgr_picked_items}", 'info')
 					UI.window['-PLAYLIST_ITEMS-'].update(sorted(MP.playlist.playlist))
-				elif event == 'Torrent Manager':
-					pbdl_win = start_pbdl('mgr')
-					log(f"Loaded torrent manager!", 'info')
-				elif event == 'Pirate Bay Downloader':
-					pbdl_win = start_pbdl('dl')
-					log(f"Loaded pirate bay downloader!", 'info')
 				elif event == 'PBDL Lite UI':
 					log(f"Loaded lite torrent manager!")
 					pbdl_win = liteui()

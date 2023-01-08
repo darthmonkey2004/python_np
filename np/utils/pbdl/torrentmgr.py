@@ -112,7 +112,10 @@ class torrent_mgr():
 		return status
 
 	def stop_vpn(self):
-		self.stop_all()
+		try:
+			self.stop_all()
+		except:
+			pass
 		com = f"nordvpn disconnect"
 		status = subprocess.check_output(com, shell=True).decode().strip()
 		self.vpn_state = self.vpn_status()

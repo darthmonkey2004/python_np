@@ -1,4 +1,9 @@
-from np.utils.pbdl.downloader import start as dlstart
+import math
+from np.utils.pbdl.utils import test_exists, migrate_series, migrate_movies, test_sftp_mount, mount_sftp, test_media
+from np.utils.pbdl.query_series import query_series
+from np.utils.pbdl.query_movies import query_movies
+from np.utils.pbdl.search import search
+from np.core.conf import *
 from urllib.parse import quote,unquote
 from np.utils.pbdl.torrentmgr import *
 import json
@@ -6,6 +11,9 @@ import requests
 import subprocess
 import PySimpleGUI as sg
 from np.utils.pbdl.pbdl import start as mgr_start
+from np.core.log import np_logger
+import os
+log = np_logger().log_msg
 win_x, win_y = None, None
 
 
@@ -16,6 +24,23 @@ def mk_torrent(filepath, target):
 		return True
 	else:
 		return False
+
+
+def migrate():
+	add_to_db()
+	log(f"Migrating series files...", 'info')
+	ret = migrate_series()
+	if ret:
+		log("Series migration finished!", 'info')
+	else:
+		log("Series migration failed!", 'error')
+	log(f"Migrating movie files...", 'info')
+	ret = migrate_movies()
+	if ret:
+		log("Movies migration finished!", 'info')
+	else:
+		log("Movies migration failed!", 'error')
+	log(f"Finished!", 'info')
 
 
 def getlocalip():
@@ -42,8 +67,30 @@ def post(com=None, transmission_remote_ip=None, transmission_remote_port=9091):
 		json_data = json.loads(r.text)
 		return json_data
 	else:
-		print(f"Failed to post to url: Status Code {r.status_code}, data={r.text}")
+		log(f"Failed to post to url: Status Code {r.status_code}, data={r.text}", 'error')
 		return None
+
+
+def get_files(tid, transmission_remote_ip=None, transmission_remote_port=9091):
+	if transmission_remote_ip is None:
+		transmission_remote_ip = getlocalip()
+	data = {"method":"torrent-get","arguments":{"fields":["files","id","activityDate","corruptEver","desiredAvailable","downloadedEver","fileStats","haveUnchecked","haveValid","peers","startDate","trackerStats"],"ids":[tid]}}
+	headers = getSessionId()
+	url = f"http://{transmission_remote_ip}:{transmission_remote_port}/transmission/rpc"
+	r = requests.post(url, json=data, headers=headers)
+	data = json.loads(r.text)
+	files = []
+	d = {"method":"session-get"}
+	r2 = requests.post(url, json=d, headers=headers)
+	d = json.loads(r2.text)
+	#download_dir = d['arguments']['download-dir']
+	for d in data['arguments']['torrents'][0]['files']:
+		string = os.path.join(os.path.expanduser("~"), '.np', 'sftp', d['name'])
+		files.append(string)
+	return files
+
+
+
 
 
 def get_torrents():
@@ -57,6 +104,78 @@ def get_torrents():
 		for key in keepers:
 			torrents[tid][key] = t[key]
 	return torrents
+
+
+def add_to_db():
+	is_mounted = test_sftp_mount()
+	if is_mounted is False:
+		mount_sftp()
+	extensions = ['.mp4', '.mov', '.wmv', '.avi', '.flv', '.f4v', '.swf', '.mkv', '.mpeg-2']
+	torrents = get_torrents()
+	for tid in torrents:
+		log(f"Tid: {tid}", 'info')
+		if not torrents[tid]['isFinished']:
+			pass
+		else:
+			files = get_files(tid)
+			for filepath in files:
+				fname = os.path.basename(filepath)
+				ext = os.path.splitext(fname)[1]
+				if ext.lower() in extensions:
+					play_type = test_media(fname)
+					if play_type == 'series':
+						series_name, season, episode_number = test_media(fname, True)
+						series_name = series_name.capitalize()
+						info = query_series(series_name, season, episode_number)
+					elif play_type == 'movies':
+						title, year = test_media(fname)
+						info = query_movies(title)
+					if play_type == 'music':
+						pass
+					vals = []
+					keys = []
+					pragma = get_columns(play_type)
+					columns = list(pragma.keys())
+					for column in columns:
+						if column != 'id':
+							keys.append(str(column))
+							if column == 'isactive':
+								vals.append("1")
+							elif column == 'filepath':
+								fullpath = filepath.replace("'", "%27")
+								log(f"Adding file: {fullpath}", 'info')
+								vals.append(f"\'{fullpath}\'")
+							else:
+								try:
+									dtype = pragma[column]['data_type']
+									val = info[column]
+									if val is None or val == '':
+										if dtype == 'TEXT':
+											val = 'Unknown'
+										elif dtype == 'INTEGER' or dtype == 'BOOL':
+											val = 0
+									else:	
+										if dtype == 'TEXT':
+											val = val.replace('"', '').replace("'", "")
+											vals.append(f"\'{val}\'")
+										elif dtype == 'INTEGER' or dtype == 'BOOL':
+											vals.append(str(val))
+								except Exception as e:
+									log(f"Exception {e}: Column:{column}", 'error')
+									val = 'Unknown'
+									vals.append(f"\'{val}\'")
+					j = ', '
+					kstring = j.join(keys)
+					vstring = j.join(vals)
+					qstring = (f"INSERT INTO {play_type} ({kstring}) VALUES({vstring});")
+					dbfile = os.path.join(os.path.expanduser("~"), '.np', 'nplayer.db')
+					com = f"sqlite3 \"{dbfile}\" \"{qstring}\""
+					ret = subprocess.check_output(com, shell=True).decode().strip()
+					if ret:
+						log(f"Error: Add to database failed for file '{filepath}': {ret}", 'error')
+					else:
+						log("Ok!")
+
 
 def secs_to_mins(secs):
 	mins = secs / 60
@@ -111,6 +230,17 @@ def convert_rate(rate):
 			gb = round(mb / 1024)
 			return f"{gb} GBps"
 
+
+def convert_size(size_bytes):
+	if size_bytes == 0:
+		return "0B"
+	size_name = ("B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB")
+	i = int(math.floor(math.log(size_bytes, 1024)))
+	p = math.pow(1024, i)
+	s = round(size_bytes / p, 2)
+	return "%s %s" % (s, size_name[i])
+
+
 def update_info(data=None):
 	if data is None:
 		data = get_torrents()
@@ -123,15 +253,15 @@ def update_info(data=None):
 		if s == 0:
 			status = 'Stopped'
 		elif s == 1:
-			print("Status unknown! 1")
+			log("Status unknown! 1", 'warning')
 		elif s == 2:
-			print("Status unknown! 2")
+			log("Status unknown! 2", 'warning')
 		elif s == 3:
 			status = f"Queued:{data[tid]['queuePosition']}"
 		elif s == 4:
 			status = 'Downloading'
-		
-		string = f"Status:{status}, Percent:{percent}%, ETA:{eta}, Download Rate:{rate}, Peers:{data[tid]['peersConnected']}, Name:{data[tid]['name']}"
+		size = convert_size(int(data[tid]['totalSize']))
+		string = f"Status:{status}, Percent:{percent}%, ETA:{eta}, Download Rate:{rate}, Peers:{data[tid]['peersConnected']}, Size:{size}, Name:{data[tid]['name']}"
 		info[tid] = string
 	return info
 
@@ -143,6 +273,14 @@ def gui(info):
 		win_x, win_y = 510, 1000
 		save_win_location(win_x, win_y)
 	layout = []
+	results = []
+	conf = readConf()
+	play_type_combo = [sg.Combo(['series', 'movies', 'music'], conf['play_type'] , enable_events=True,key='-DL_MEDIA_TYPE-'), sg.Checkbox(text="VPN On/Off", auto_size_text=True, change_submits=True, enable_events=True, key='-TOGGLE_VPN-')]
+	layout.append(play_type_combo)
+	search_line = [sg.Text('Enter search query here:'), sg.Input('', enable_events=True, change_submits=True, key='-PBDL_SEARCH_QUERY-', expand_x=True), sg.Button('Search', key='-PBDL_SEARCH-'), sg.Button('Quit!', key='-DOWNLOADER_EXIT-')]
+	layout.append(search_line)
+	results_box = [sg.Listbox(values=results, change_submits=True, auto_size_text=True, enable_events=True, expand_x=True, expand_y=True, key='-PBDL_RESULTS-')]
+	layout.append(results_box)
 	#torrent_info_box = [sg.Listbox([], select_mode = None, change_submits = True, enable_events = True, size = (None, None), auto_size_text = True, key = '-TORRENT_INFO-', expand_x = True, expand_y = True)]
 	torrent_info_box = []
 	for tid in list(info.keys()):
@@ -150,11 +288,11 @@ def gui(info):
 		torrent_info_box.append(line)
 	torrent_info_box.append(sg.Radio('all', key='-ALL-', group_id=0, enable_events=True))
 	layout.append(torrent_info_box)
-	magnet_line = [sg.Button('Add'), sg.Input('Enter magnet link here:', key='-MAGNET-', enable_events=True)]
+	magnet_line = [sg.Text('Enter magnet link here:'), sg.Input('', key='-MAGNET-', enable_events=True), sg.Button('Add')]
 	layout.append(magnet_line)
-	buttons = [sg.Button('Start!'), sg.Button('Stop'), sg.Button('Remove'), sg.Button('Delete'), sg.Button('Downloader'), sg.Button('Manager')]
+	buttons = [sg.Button('Start!'), sg.Button('Stop'), sg.Button('Remove'), sg.Button('Delete'), sg.Button('Manager'), sg.Button('Migrate Files')]
 	layout.append(buttons)
-	win = sg.Window(title='Torrent Info', layout=layout, size = (900, 200), location = (win_x, win_y))
+	win = sg.Window(title='Torrent Info', layout=layout, size = (1100, 400), location = (win_x, win_y))
 	win.finalize()
 	return win
 
@@ -176,7 +314,6 @@ def start():
 	global win_x, win_y
 	t = torrent_mgr()
 	info = update_info()
-	print(info)
 	try:
 		win_x, win_y = load_win_location()
 		win = gui(info)
@@ -191,7 +328,7 @@ def load_win_location(filepath='/home/monkey/.np/tmgr_location.txt'):
 	with open(filepath, 'r') as f:
 		win_x, win_y = f.read().split(':')
 		f.close()
-	print("Window location loaded!", win_x, win_y)
+	log(f"Window location loaded! x={win_x}, y={win_y}", 'info')
 	return int(win_x), int(win_y)
 
 def save_win_location(x, y, filepath='/home/monkey/.np/tmgr_location.txt'):
@@ -199,76 +336,110 @@ def save_win_location(x, y, filepath='/home/monkey/.np/tmgr_location.txt'):
 		data = f"{x}:{y}"
 		f.write(data)
 		f.close()
-	print("Window location saved!", x, y)
+	log(f"Window location saved! x={x}, y={y}", 'info')
 #com = {"method":"session-stats"}
+
+
+
 
 #data = {"method":"torrent-stop","arguments":{"ids":[2]}}
 def run_ui():
 	t, info, win, win_x, win_y = start()
+	win['-TOGGLE_VPN-'].update(t.vpn_status())
 	pos = 0
 	ct = 500
 	active = None
 	magnet = None
+	exit = False
 	while True:
+		if exit:
+			win_x, win_y = win.current_location()
+			save_win_location(win_x, win_y)
+			break
 		pos += 1
 		window, event, values = sg.read_all_windows(timeout=1)
 		if event != '__TIMEOUT__':
-			print(event, values)
+			#print("event:", event)
 			if event == 'Start!':
 				if active is None:
 					t.start_all()
-					print("Started all!")
+					log("Started all!", 'info')
 				else:
 					t.start(active)
-					print("Started id:", active)
+					log("Started id: {active}", 'info')
 			elif event == 'Stop':
 				if active is None:
 					t.stop_all()
-					print("Stopped all!")
+					log("Stopped all!", 'info')
 				else:
 					t.stop(active)
-					print("Stopped id:", active)
+					log("Stopped id: {active}", 'info')
 			elif event == '-MAGNET-':
 				magnet = unquote(values[event])
 				win['-MAGNET-'].update(magnet)
 			elif event == 'Add':
 				add(magnet)
-				print("adding magnet:", magnet)
+				log(f"adding magnet: {magnet}", 'info')
 				win.close()
 				t, info, win, win_x, win_y = start()
 			elif event == 'Delete':
 				if active is not None:
 					t.remove_and_delete(active)
-					print("Deleted id (plus data):", active)
+					log(f"Deleted id (plus data): {active}", 'info')
 					win.close()
 					t, info, win, win_x, win_y = start()
 				else:
-					print("Cannot delete all!")
+					log("Cannot delete all!", 'warning')
 			elif event == 'Remove':
 				if active is not None:
 					t.remove(active)
-					print("Removed id:", active)
+					log(f"Removed id: {active}", 'info')
 					win.close()
 					t, info, win, win_x, win_y = start()
 				else:
-					print("cannot remove all!")
-
-			elif event == 'Downloader':
-				dlwin = dlstart()
-				win.close()
-				t, info, win, win_x, win_y = start()
+					log(f"cannot remove all!", 'warning')
 			elif event == 'Manager':
 				mgr_start()
-			elif event == sg.WIN_CLOSED:
-				win_x, win_y = win.current_location()
-				save_win_location(win_x, win_y)
-				break
+			elif event == sg.WIN_CLOSED or event=='-Close PBDL-' or event == "Exit" or event == '-DOWNLOADER_EXIT-':
+				exit = True
+			elif event == '-DL_MEDIA_TYPE-':
+				play_type = values[event]
+				log(f"Play type set: {play_type}", 'info')
+			elif event == '-PBDL_SEARCH-':
+				log(f"pbdl.downloader():searching {pbdl_query}...", 'info')
+				results = search(pbdl_query)
+				window['-PBDL_RESULTS-'].update(results)
+
+			elif event == '-PBDL_SEARCH_QUERY-':
+				pbdl_query = values[event]
+			elif event == '-TOGGLE_VPN-':
+				state = t.vpn_status()
+				print(event, state)
+				if not state:
+					log("Starting vpn...", 'info')
+					t.start_vpn()
+					log("VPN Started!", 'info')
+				else:
+					log("Stopping vpn...", 'info')
+					t.stop_vpn()
+					log("VPN Stopped!", 'info')
+			elif event == '-PBDL_RESULTS-':
+				try:
+					picked = values[event][0]
+					log(f"pbdl.downloader():Downloading:{picked}", 'info')
+					magnet = results[picked]['magnet']
+					magnet = unquote(magnet)
+					win['-MAGNET-'].update(magnet)
+				except Exception as e:
+					log(f"pbdl.downloader():list empty? {e}", 'error')
+			elif event == 'Migrate Files':
+				migrate()
 			else:
 				try:
 					active = int(event.split('-')[1])
-					print("Selected:", active)
+					log("Selected: {active}", 'info')
 				except Exception as e:
-					print("can't parse key:", e, "event:", event)
+					log(f"can't parse key: {e} event: {event}", 'error')
 		if pos == ct:
 			pos = 0
 			info = update_info()
@@ -277,7 +448,8 @@ def run_ui():
 					key = f"-{tid}-"
 					win[f"info-{tid}"].update(info[tid])
 				except Exception as e:
-					print("Error updating window:", e)
+					log("Error updating window: {e}", 'error')
+		win.refresh()
 	win.close()
 
 

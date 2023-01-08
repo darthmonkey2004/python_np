@@ -139,6 +139,9 @@ def refresh_info(torrents, tid):
 			return None
 
 
+
+
+
 def add_to_db(torrents):
 	dbfile = os.path.join(DATA_DIR, 'nplayer.db')
 	tids = []

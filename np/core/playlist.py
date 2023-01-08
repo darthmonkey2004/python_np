@@ -188,7 +188,10 @@ def get_next_series(series_name=None):
 	j = "\n"
 	if series_name is None:
 		series_name = random_series_name()
-	last = h[series_name]
+	try:
+		last = h[series_name]
+	except:
+		last = None
 	if last is None or last == '':
 		last = sqlite3(f"select filepath from series where series_name like \'%{series_name}%\' and isactive = 1 order by season,episode_number;")[0]
 		h[series_name] = last
