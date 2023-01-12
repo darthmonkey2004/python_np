@@ -93,13 +93,16 @@ class torrent_mgr():
 
 	def vpn_status(self):
 		com = f"nordvpn status | grep \"Status:\" | cut -d ' ' -f 4"
-		status = subprocess.check_output(com, shell=True).decode().strip()
-		if status == 'Disconnected':
+		try:
+			status = subprocess.check_output(com, timeout=5, shell=True).decode().strip()
+			if status == 'Disconnected':
+				self.vpn_state = False
+			else:
+				self.vpn_state = True
+		except Exception as e:
+			log(f"Unable to get vpn status:{e}", 'error')
 			self.vpn_state = False
-			return False
-		else:
-			self.vpn_state = True
-			return True
+		return self.vpn_state
 
 	def get_user_input(self, window_title='User Input'):
 		return get_user_input(window_title)

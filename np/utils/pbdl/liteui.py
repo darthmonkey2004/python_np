@@ -250,6 +250,7 @@ def update_info(data=None):
 		eta = convert_eta(data[tid]['eta'])
 		rate = convert_rate(data[tid]['rateDownload'])
 		s = int(data[tid]['status'])
+		status = 'Stopped'
 		if s == 0:
 			status = 'Stopped'
 		elif s == 1:
@@ -339,8 +340,71 @@ def save_win_location(x, y, filepath='/home/monkey/.np/tmgr_location.txt'):
 	log(f"Window location saved! x={x}, y={y}", 'info')
 #com = {"method":"session-stats"}
 
+def send(com):
+	com = f"{com} 2>/dev/null"
+	try:
+		ret = subprocess.check_output(com, timeout=2, shell=True).decode().strip()
+		if ret == '':
+			ret = None
+		return ret
+	except Exception as e:
+		#print("Command failed:", e)
+		return None
 
 
+def get_gateway():
+	return send(com = "route -n | grep \"0.0.0.0\" | grep -v \"255.255\"").split('0.0.0.0 ')[1].strip()
+
+def test_vpn_ping():
+	addy = get_gateway()
+	ret = send(f"ping -c 1 -t 1 {addy} | grep \"100%\"")
+	if ret is None:
+		return True
+	else:
+		return False
+
+def test_vpn_status():
+	ret = send(f"nordvpn status")
+	if ret is None:
+		return False
+	else:
+		return True
+
+
+def test_vpn():
+	try:
+		active = test_vpn_status()
+	except:
+		active = test_vpn_ping()
+	if active:
+		return True
+	else:
+		print("VPN Not enabled! Msg:", errmsg)
+		return False
+
+
+def check_active_downloads():
+	data = get_torrents()
+	for tid in data.keys():
+		status = int(data[tid]['status'])
+		if status != 0:
+			return True
+		else:
+			pass
+	return False
+
+def ensure_safe_downloads(t):
+	have_active = check_active_downloads()
+	if have_active:
+		vpn_active = test_vpn()
+		if not vpn_active:
+			log(f"VPN not enabled and torrents are downloading! Executing stop all...", 'warning')
+			t.stop_all()
+			return False
+		else:
+			return True
+	else:
+		return True
 
 #data = {"method":"torrent-stop","arguments":{"ids":[2]}}
 def run_ui():
@@ -449,6 +513,7 @@ def run_ui():
 					win[f"info-{tid}"].update(info[tid])
 				except Exception as e:
 					log("Error updating window: {e}", 'error')
+			ensure_safe_downloads(t)
 		win.refresh()
 	win.close()
 
