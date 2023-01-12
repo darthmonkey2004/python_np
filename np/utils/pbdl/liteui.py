@@ -293,6 +293,8 @@ def gui(info):
 	layout.append(magnet_line)
 	buttons = [sg.Button('Start!'), sg.Button('Stop'), sg.Button('Remove'), sg.Button('Delete'), sg.Button('Manager'), sg.Button('Migrate Files')]
 	layout.append(buttons)
+	output_box = [sg.Multiline(default_text = "", enter_submits = True, disabled = False, autoscroll = False, border_width = None, size = (200, 400), auto_size_text = None, background_color = None, text_color = None, horizontal_scroll = False, change_submits = False, enable_events = True, do_not_clear = True, key = '-OUTPUT-', write_only = False, auto_refresh = True, reroute_stdout = True, reroute_stderr = True, reroute_cprint = True, echo_stdout_stderr = True, justification = 'left', no_scrollbar = False, expand_x = False, expand_y = False, rstrip = True)]
+	layout.append(output_box)
 	win = sg.Window(title='Torrent Info', layout=layout, size = (1100, 400), location = (win_x, win_y))
 	win.finalize()
 	return win
@@ -501,7 +503,7 @@ def run_ui():
 			else:
 				try:
 					active = int(event.split('-')[1])
-					log("Selected: {active}", 'info')
+					log(f"Selected: {active}", 'info')
 				except Exception as e:
 					log(f"can't parse key: {e} event: {event}", 'error')
 		if pos == ct:
