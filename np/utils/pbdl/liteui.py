@@ -106,13 +106,139 @@ def get_torrents():
 	return torrents
 
 
+def get_series_info(filepath, window_title='Enter Series Info', series_name=None, episode_number=None, season=None):
+	layout = []
+	user_input = None
+	fname_line = [sg.Text(filepath)]
+	series_name_line = [sg.Text('Series Name'), sg.Input(default_text=series_name, enable_events=True, change_submits=True, do_not_clear=True, key='-SERIES_NAME-', expand_x=True)]
+	season_line = [sg.Text('Season'), sg.Input(default_text=season, enable_events=True, change_submits=True, do_not_clear=True, key='-SEASON-', expand_x=True)]
+	episode_number_line = [sg.Text('Episode Number'), sg.Input(default_text=episode_number, enable_events=True, change_submits=True, do_not_clear=True, key='-EPISODE_NUMBER-', expand_x=True)]
+	output_line = [sg.Text('', key='-OUTPUT-')]
+	submit = [sg.Button(button_text='Ok', auto_size_button=True, pad=(1, 1), key='-SUBMIT-')]
+	layout.append(fname_line)
+	layout.append(series_name_line)
+	layout.append(season_line)
+	layout.append(episode_number_line)
+	layout.append(output_line)
+	layout.append(submit)
+	win = sg.Window(window_title, layout, keep_on_top=False, element_justification='center', finalize=True)
+	while True:
+		event, values = win.read()
+		if event == sg.WIN_CLOSED:
+			break
+		elif event == '-SUBMIT-':
+			if series_name is not None and season is not None and episode_number is not None:
+				win.close()
+			else:
+				win['-OUTPUT-'].update('Error: Ensure all fields complete before continuing!')
+		elif event == '-SERIES_NAME-':
+			series_name = values[event]
+			win['-OUTPUT-'].update(f"series_name set:{series_name}!")
+		elif event == '-SEASON-':
+			try:
+				season = int(values[event])
+				win['-OUTPUT-'].update(f"Season set:{season}!")
+			except Exception as e:
+				win['-OUTPUT-'].update(f"Error setting season:{e}!")
+				season = None
+		elif event == '-EPISODE_NUMBER-':
+			try:
+				episode_number = int(values[event])
+				win['-OUTPUT-'].update(f"Episode Number set:{episode_number}!")
+			except Exception as e:
+				win['-OUTPUT-'].update(f"Error setting season:{e}!")
+				episode_number = None
+	return 'series', series_name, season, episode_number
+
+
+def get_movie_info(filepath, title=None, year=None, window_title='Enter Series Info'):
+	layout = []
+	user_input = None
+	fname_line = [sg.Text(filepath)]
+	title_line = [sg.Text('Title'), sg.Input(default_text=title, enable_events=True, change_submits=True, do_not_clear=True, key='-TITLE-', expand_x=True)]
+	year_line = [sg.Text('Year'), sg.Input(default_text=year, enable_events=True, change_submits=True, do_not_clear=True, key='-YEAR-', expand_x=True)]
+	output_line = [sg.Text('', key='-OUTPUT-')]
+	submit = [sg.Button(button_text='Ok', auto_size_button=True, pad=(1, 1), key='-SUBMIT-')]
+	layout.append(fname_line)
+	layout.append(title_line)
+	layout.append(year_line)
+	layout.append(output_line)
+	layout.append(submit)
+	win = sg.Window(window_title, layout, keep_on_top=False, element_justification='center', finalize=True)
+	while True:
+		event, values = win.read()
+		if event == sg.WIN_CLOSED:
+			break
+		elif event == '-SUBMIT-':
+			if year is None:
+				year = 0000
+			if title is not None:
+				win.close()
+			else:
+				win['-OUTPUT-'].update('Error: Ensure all fields complete before continuing!')
+		elif event == '-TITLE-':
+			title = values[event]
+			win['-OUTPUT-'].update(f"title set:{title}!")
+		elif event == '-YEAR-':
+			try:
+				year = int(values[event])
+				win['-OUTPUT-'].update(f"Year set:{year}!")
+			except Exception as e:
+				win['-OUTPUT-'].update(f"Error setting year:{e}!")
+				year = None
+	return 'movies', title, year
+
+
+def get_play_type(filepath, play_type=None, title=None, year=None, series_name=None, season=None):
+	if title is not None:
+		play_type = 'movies'
+		data = get_movie_info(filepath=filepath, title=title, year=None)
+	elif series_name is not None:
+		play_type = 'series'
+		data = get_series_info(filepath, series_name=series_name, episode_number=None, season=season)
+	elif title is None and series_name is None:
+		data = get_series_info(filepath)
+	else:
+		layout = []
+		window_title = 'Select play type:'
+		fname_line = [sg.Text(f"Setting info for:{filepath}...")]
+		play_type_combo = [sg.Combo(['series', 'movies', 'music'], 'series', enable_events=True,key='-PLAY_TYPE-')]
+		layout.append(play_type_combo)
+		win = sg.Window(window_title, layout, size=(300, 50), keep_on_top=False, element_justification='center', finalize=True)
+		data = None
+		while True:
+			event, values = win.read()
+			if event == sg.WIN_CLOSED:
+				break
+			else:
+				play_type = values[event]
+				win.close()
+				if play_type == 'series':
+					data = get_series_info(filepath)
+				elif play_type == 'movies':
+					data = get_movie_info(filepath)
+				elif play_type == 'music':
+					print("Whoops, incomplete!")
+					return play_type
+	log(f"data:{data}", 'info')
+	return data
+
+
+
+
 def add_to_db():
+	string = None
 	is_mounted = test_sftp_mount()
 	if is_mounted is False:
 		mount_sftp()
 	extensions = ['.mp4', '.mov', '.wmv', '.avi', '.flv', '.f4v', '.swf', '.mkv', '.mpeg-2']
 	torrents = get_torrents()
 	for tid in torrents:
+		series_name = None
+		season = None
+		episode_number = None
+		title = None
+		year = None
 		log(f"Tid: {tid}", 'info')
 		if not torrents[tid]['isFinished']:
 			pass
@@ -122,16 +248,42 @@ def add_to_db():
 				fname = os.path.basename(filepath)
 				ext = os.path.splitext(fname)[1]
 				if ext.lower() in extensions:
-					play_type = test_media(fname)
-					if play_type == 'series':
-						series_name, season, episode_number = test_media(fname, True)
-						series_name = series_name.capitalize()
-						info = query_series(series_name, season, episode_number)
-					elif play_type == 'movies':
-						title, year = test_media(fname)
-						info = query_movies(title)
-					if play_type == 'music':
-						pass
+					try:
+						play_type = test_media(fname)
+						if play_type == 'series':
+							series_name, season, episode_number = test_media(fname, True)
+							series_name = series_name.capitalize()
+							info = query_series(series_name, season, episode_number)
+						elif play_type == 'movies':
+							title, year = test_media(fname)
+							info = query_movies(title)
+						elif play_type == 'music':
+							pass
+					except Exception as e:
+						if series_name is not None:
+							data = get_play_type(filepath=filepath, play_type='series', series_name=series_name, season=season)
+						elif title is not None:
+							data = get_play_type(filepath=filepath, play_type='movies', title=title)
+						else:
+							data = get_play_type(filepath=filepath)
+						
+						play_type = data[0]
+						if play_type == 'series':
+							series_name, season, episode_number = data[1], data[2], data[3]
+							if season is not None:
+								season = int(season)
+							if episode_number is not None:
+								episode_number = int(episode_number)
+							try:
+								info = query_series(series_name, season, episode_number)
+							except Exception as e:
+								log(f"Unable to get info for torrent id:{tid}! ({e})", 'error')
+								return False
+						elif play_type == 'movies':
+							title, year = data[1], data[2]
+							info = query_movies(title)
+						elif play_type == 'music':
+							pass
 					vals = []
 					keys = []
 					pragma = get_columns(play_type)
@@ -280,7 +432,7 @@ def gui(info):
 	layout.append(play_type_combo)
 	search_line = [sg.Text('Enter search query here:'), sg.Input('', enable_events=True, change_submits=True, key='-PBDL_SEARCH_QUERY-', expand_x=True), sg.Button('Search', key='-PBDL_SEARCH-'), sg.Button('Quit!', key='-DOWNLOADER_EXIT-')]
 	layout.append(search_line)
-	results_box = [sg.Listbox(values=results, change_submits=True, auto_size_text=True, enable_events=True, expand_x=True, expand_y=True, key='-PBDL_RESULTS-')]
+	results_box = [sg.Listbox(values=results, change_submits=True, size = (200, 10), auto_size_text=False, enable_events=True, expand_x=False, expand_y=False, key='-PBDL_RESULTS-')]
 	layout.append(results_box)
 	#torrent_info_box = [sg.Listbox([], select_mode = None, change_submits = True, enable_events = True, size = (None, None), auto_size_text = True, key = '-TORRENT_INFO-', expand_x = True, expand_y = True)]
 	torrent_info_box = []
@@ -293,9 +445,9 @@ def gui(info):
 	layout.append(magnet_line)
 	buttons = [sg.Button('Start!'), sg.Button('Stop'), sg.Button('Remove'), sg.Button('Delete'), sg.Button('Manager'), sg.Button('Migrate Files')]
 	layout.append(buttons)
-	output_box = [sg.Multiline(default_text = "", enter_submits = True, disabled = False, autoscroll = False, border_width = None, size = (200, 400), auto_size_text = None, background_color = None, text_color = None, horizontal_scroll = False, change_submits = False, enable_events = True, do_not_clear = True, key = '-OUTPUT-', write_only = False, auto_refresh = True, reroute_stdout = True, reroute_stderr = True, reroute_cprint = True, echo_stdout_stderr = True, justification = 'left', no_scrollbar = False, expand_x = False, expand_y = False, rstrip = True)]
+	output_box = [sg.Multiline(default_text = "", enter_submits = True, disabled = False, autoscroll = True, border_width = None, size = (200, 40), auto_size_text = None, background_color = None, text_color = None, horizontal_scroll = False, change_submits = True, enable_events = True, do_not_clear = True, key = '-OUTPUT-', write_only = False, auto_refresh = True, reroute_stdout = True, reroute_stderr = True, reroute_cprint = True, echo_stdout_stderr = True, justification = 'left', no_scrollbar = False, expand_x = False, expand_y = False, rstrip = True)]
 	layout.append(output_box)
-	win = sg.Window(title='Torrent Info', layout=layout, size = (1100, 400), location = (win_x, win_y))
+	win = sg.Window(title='Torrent Info', layout=layout, size = (1100, 600), location = (win_x, win_y))
 	win.finalize()
 	return win
 
@@ -359,18 +511,22 @@ def get_gateway():
 
 def test_vpn_ping():
 	addy = get_gateway()
-	ret = send(f"ping -c 1 -t 1 {addy} | grep \"100%\"")
+	ret = send(f"ping -c 1 -t 1 {addy}")
 	if ret is None:
 		return True
+	elif '0%' in ret and '100%' not in ret:
+		return False
 	else:
 		return False
 
 def test_vpn_status():
 	ret = send(f"nordvpn status")
-	if ret is None:
+	if 'Disconnected' in ret:
 		return False
-	else:
+	elif 'Connected' in ret:
 		return True
+	else:
+		return False
 
 
 def test_vpn():
@@ -381,7 +537,7 @@ def test_vpn():
 	if active:
 		return True
 	else:
-		print("VPN Not enabled! Msg:", errmsg)
+		print("VPN Not enabled!")
 		return False
 
 
@@ -395,10 +551,11 @@ def check_active_downloads():
 			pass
 	return False
 
-def ensure_safe_downloads(t):
+def ensure_safe_downloads(t, win):
 	have_active = check_active_downloads()
 	if have_active:
 		vpn_active = test_vpn()
+		win['-TOGGLE_VPN-'].update(vpn_active)
 		if not vpn_active:
 			log(f"VPN not enabled and torrents are downloading! Executing stop all...", 'warning')
 			t.stop_all()
@@ -515,7 +672,7 @@ def run_ui():
 					win[f"info-{tid}"].update(info[tid])
 				except Exception as e:
 					log("Error updating window: {e}", 'error')
-			ensure_safe_downloads(t)
+			ensure_safe_downloads(t, win)
 		win.refresh()
 	win.close()
 

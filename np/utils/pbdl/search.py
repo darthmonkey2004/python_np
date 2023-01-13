@@ -27,20 +27,13 @@ def search(query, cat=200):
 	lines = r.content.decode().strip().split("\n")
 	magnet = None
 	title = None
-	pos = -1
 	for line in lines:
-		t = 'class="detLink" title="'
 		m = '<a href="magnet:?'
-		if title is not None and magnet is not None:
+		if m in line:
+			magnet = line.split('"')[1]
+			title = magnet.split("&dn=")[1].split("&tr=")[0]
 			results[title] = {}
 			results[title]['magnet'] = magnet
-			magnet = None
-			title = None
-		if m in line:
-			pos = pos + 1
-			magnet = line.split('"')[1]
-		elif t in line:
-			title = line.split('title="')[1].split('"')[0]
 	return results
 	
 
