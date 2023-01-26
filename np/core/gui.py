@@ -6,8 +6,9 @@ import subprocess
 import os
 from np.core.log import np_logger
 import PySimpleGUI as sg
-from np.core.conf import readConf
+from np.core.conf import readConf, writeConf
 from np.core.nplayer_db import get_columns
+from np.core.conf import init_window_position
 log = np_logger().log_msg
 
 
@@ -160,6 +161,10 @@ def get_scaling():
     return scaling
 
 
+
+
+
+
 class gui():
 	def __init__(self):
 		self.TAB = '-player_control_layout-'
@@ -181,21 +186,29 @@ class gui():
 			scrnbtn0_val = False
 			scrnbtn1_val = True
 		viewer_screen = self.conf['screen']
-		if viewer_screen == 0:
-			screen = 1
-		elif viewer_screen == 1:
-			screen = 0
+		if self.test_screen(viewer_screen):
+			screens = self.get_screens()
+			screens.pop(viewer_screen)
+			screen = screens[0]
 		else:
-			screen = 0
+			log(f"screens changed... using what's available!", 'warning')
+			screen, viewer_screen, self.conf['windows'] = self.transfer_screens()
 		self.gui_win_x = self.conf['windows'][screen]['gui']['x']
 		self.gui_win_y = self.conf['windows'][screen]['gui']['y']
 		self.gui_win_w = self.conf['windows'][screen]['gui']['w'] - 300
 		self.gui_win_h = self.conf['windows'][screen]['gui']['h']
 		log(f"GUI window set: {self.gui_win_x}, {self.gui_win_y}, {self.gui_win_w}, {self.gui_win_y}", 'info')
-		self.viewer_win_x = self.conf['windows'][viewer_screen]['viewer']['x']
-		self.viewer_win_y = self.conf['windows'][viewer_screen]['viewer']['y']
-		self.viewer_win_w = self.conf['windows'][viewer_screen]['viewer']['w']
-		self.viewer_win_h = self.conf['windows'][viewer_screen]['viewer']['h']
+		try:
+			self.viewer_win_x = int(self.conf['windows'][viewer_screen]['viewer']['x'])
+			self.viewer_win_y = int(self.conf['windows'][viewer_screen]['viewer']['y'])
+			self.viewer_win_w = int(self.conf['windows'][viewer_screen]['viewer']['w'])
+			self.viewer_win_h = int(self.conf['windows'][viewer_screen]['viewer']['h'])
+		except:
+			self.conf['windows'] = init_window_position()
+			self.viewer_win_x = int(self.conf['windows'][viewer_screen]['viewer']['x'])
+			self.viewer_win_y = int(self.conf['windows'][viewer_screen]['viewer']['y'])
+			self.viewer_win_w = int(self.conf['windows'][viewer_screen]['viewer']['w'])
+			self.viewer_win_h = int(self.conf['windows'][viewer_screen]['viewer']['h'])
 		log(f"Viewer window set: {self.viewer_win_x}, {self.viewer_win_y}, {self.viewer_win_w}, {self.viewer_win_h}", 'info')
 		self.event = None
 		self.values = None
@@ -211,6 +224,9 @@ class gui():
 		sg.theme(self.theme)
 		self.WINDOW = self.create_gui_window()
 		if self.win_type == 'internal':
+			if self.viewer_win_w is None or self.viewer_win_h is None:
+				self.viewer_win_w = xrandr()[viewer_screen]['w']
+				self.viewer_win_h = xrandr()[viewer_screen]['h']
 			self.WINDOW2 = sg.Window('Viewer', self.player_window_layout, no_titlebar=True, location=(int(self.viewer_win_x), int(self.viewer_win_y)), size=(int(self.viewer_win_w), int(self.viewer_win_h)), grab_anywhere=True, keep_on_top=False, element_justification='center', finalize=True, resizable=True).Finalize()
 			self.WINDOW2.set_min_size((550, 300))
 			#self.WINDOW2['-VID_OUT-'].expand(True, True)
@@ -229,6 +245,52 @@ class gui():
 	def list_active_windows(self):
 		return self.windows
 
+
+
+
+	def get_screens(self):
+		screens = []
+		data = xrandr()
+		for screen in data:
+			if data[screen]['connected']:
+				screens.append(screen)
+		return screens
+
+
+	def test_screen(self, screen):
+		return xrandr()[screen]['connected']
+
+
+	def transfer_screens(self):
+		conf = readConf()
+		old_screen = conf['screen']
+		screens = self.get_screens()
+		old_viewer_screen = screens.pop(old_screen)
+		if len(screens) == 1:
+			screen = screens[0]
+			viewer_screen = screens[0]
+		elif len(screens) == 2:
+			screen = screens[0]
+			viewer_screen = screens[1]
+		try:
+			conf['windows'][screen]['gui']['x']
+			conf['windows'][screen]['gui']['y']
+			conf['windows'][screen]['gui']['w'] - 300
+			conf['windows'][screen]['gui']['h']
+		except:
+			d = conf['windows'][old_screen]
+			conf['windows'][screen] = d
+		try:
+			conf['windows'][viewer_screen]['viewer']['x']
+			conf['windows'][viewer_screen]['viewer']['y']
+			conf['windows'][viewer_screen]['viewer']['w']
+			conf['windows'][viewer_screen]['viewer']['h']
+		except:
+			d = conf['windows'][old_viewer_screen]
+			conf['windows'][screen] = d
+		writeConf(conf)
+		self.conf['windows'] = conf['windows']
+		return screen, viewer_screen, conf['windows']
 
 	def create_gui_window(self):
 		VLC_VIDEO_FILTERS = ['video:adjust', 'video:alphamask', 'video:anaglyph', 'video:antiflicker', 'video:audiobargraph_v', 'video:ball', 'video:blendbench', 'video:bluescreen', 'video:canvas', 'video:chain', 'video:colorthres', 'video:croppadd', 'video:deinterlace', 'video:edgedetection', 'video:erase', 'video:extract', 'video:fps', 'video:freeze', 'video:gaussianblur', 'video:gradfun', 'video:gradient', 'video:grain', 'video:hqdn3d', 'video:invert', 'video:logo', 'video:magnify', 'video:mirror', 'video:motionblur', 'video:motiondetect', 'video:oldmovie', 'video:posterize', 'video:postproc', 'video:psychedelic', 'video:puzzle', 'video:ripple', 'video:rotate', 'video:scene', 'video:sepia', 'video:sharpen', 'video:transform', 'video:vaapi_filters', 'video:vaapi_filters', 'video:vaapi_filters', 'video:vaapi_filters', 'video:vaapi_filters', 'video:vdpau_adjust', 'video:vdpau_deinterlace', 'video:vdpau_sharpen', 'video:vhs', 'video:wave']

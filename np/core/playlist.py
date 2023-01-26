@@ -1,16 +1,18 @@
+import pickle
 from np.core.core import read_history, write_history
 from random import randint, shuffle
 from np.utils.searchdb import *
 from np.core.nplayer_db import querydb
 from np.core.core import create_media
 from np.core.log import np_logger
+from np.core.conf import readConf
 
 log = np_logger().log_msg
 h = read_history()
 class db_playlist():
 	def __init__(self, _list=None):
 		self.current = None
-		self.current_idx = 0
+		self.current_idx = -1
 		if _list is None:
 			self.playlist = []
 		else:
@@ -86,11 +88,22 @@ class db_playlist():
 				log(f"Reached end of playlist! ({e}). Using 0...", 'warning')
 		print(self.current, self.current_idx)
 		if self.current is None:
-			name = sqlite3(f"select series_name from series where filepath like '%{self.last}%';")
-			self.current = reset_series_history(name)
-			log(f"Reached end of playlist. Using index 0 for {name}...", 'warning')
+			try:
+				name = sqlite3(f"select series_name from series where filepath like '%{self.last}%';")
+				self.current = reset_series_history(name)
+				log(f"Reached end of playlist. Using index 0 for {name}...", 'warning')
+			except:
+				from random import shuffle
+				h = read_history()
+				l = list(h.values())
+				shuffle(l)
+				self.current = l[0]
+				self.last = self.current
+				self.idx = 0
 		if 'series' in self.current or 'movies' in self.current or 'music' in self.current:
 			self.current = self.path_from_npstring(self.current)
+		self.playlist = self.playlist[self.current_idx:]
+		save_playlist(self.playlist)
 		return self.current
 
 	def previous(self):
@@ -116,13 +129,14 @@ class db_playlist():
 class playlist():
 	def __init__(self, _list=None):
 		self.current = None
-		self.current_idx = 0
+		self.current_idx = -1
 		if _list is None:
 			self.playlist = []
 		else:
 			self.playlist = self.set(_list)
 
 	def set(self, playlist=None):
+		print("data:", playlist)
 		if playlist is not None:
 			if type(playlist) != list:
 				try:
@@ -134,7 +148,6 @@ class playlist():
 		else:
 			self.playlist = []
 		log(f"playlist.set():Playlist data set!", 'info')
-		shuffle(self.playlist)
 		return self.playlist
 
 
@@ -156,6 +169,7 @@ class playlist():
 			log(f"No files in playlist yet!", 'warning')
 			return None
 		elif len(self.playlist) == 1:
+			conf = readConf()
 			self.current = self.playlist[0]
 			self.current_idx = 1
 		else:
@@ -166,6 +180,8 @@ class playlist():
 				self.current = self.playlist[0]
 				self.current_idx = 0
 				log(f"Reached end of playlist! ({e}). Using 0...", 'warning')
+		self.playlist = self.playlist[self.current_idx:]
+		save_playlist(self.playlist)
 		return self.current
 
 	def previous(self):
@@ -179,7 +195,7 @@ class playlist():
 
 
 def random_series_name():
-	items = sqlite3("select distinct series_name from series;")
+	items = sqlite3("select distinct series_name from series where isactive = 1;")
 	shuffle(items)
 	return items[0]
 	
@@ -201,7 +217,8 @@ def get_next_series(series_name=None):
 		next = out.split(last)[1].strip().split("\n")[0]
 		h[series_name] = next
 		return series_name, next
-	except:
+	except Exception as e:
+		log(f"Error getting next series:{e}! last:{last}, series_name:{series_name}", 'error')
 		return None
 
 def get_shuffle_movies(title=None):
@@ -218,6 +235,7 @@ def get_shuffle_music():
 def reset_series_history(name=None):
 	global h
 	h = read_history()
+	print("name:", name)
 	if name is None:
 		for series_name in list(h.keys()):
 			files = sqlite3(f"select filepath from series where series_name like \'%{series_name}%\' and isactive = 1 order by season,episode_number;")
@@ -242,6 +260,20 @@ def reset_series_history(name=None):
 		write_history(h)
 		return last
 
+def npstring_from_path(path):
+	string = None
+	qstring = f"filepath = \"{path}\""
+	in_series = querydb(table='series', column='series_name,season,episode_number,episode_name,id', query=qstring)
+	in_movies = querydb(table='movies', column='title,year,id', query=qstring)
+	in_music = querydb(table='music', column='artist,title,album,id', query=qstring)
+	if in_series != []:
+		string = f"series:{in_series[0][0]}:{in_series[0][1]}:{in_series[0][2]}:{in_series[0][3]}:{in_series[0][4]}"
+	elif in_movies != []:
+		string = f"movies:{in_movies[0][0]}:{in_movies[0][1]}:{in_movies[0][2]}"
+	elif in_music != []:
+		string = f"music:{im_music[0][0]}:{im_music[0][1]}:{im_music[0][2]}:{im_music[0][3]}"
+	return string
+
 
 
 def new_rdm(tables=None):
@@ -253,9 +285,18 @@ def new_rdm(tables=None):
 		tables = ['series', 'movies']
 	if type(tables) != list:
 		tables = [tables]
-	ct = 100
+	ct = 300
 	pos = 0
 	items = []
+	ret, items = load_playlist()
+	if ret:
+		log(f"Playlist loaded!", 'info')
+		return pl.set(items)
+	try:
+		conf = readConf()
+		items.append(npstring_from_path(conf['nowplaying']['filepath']))
+	except:
+		pass
 	musicpos = -1
 	moviespos = -1
 	while pos < ct:
@@ -266,21 +307,22 @@ def new_rdm(tables=None):
 			while next is None:
 				try:
 					series_name, next = get_next_series()
-				except:
-					pass
+					if next == '':
+						next = None
+				except Exception as e:
+					next = None
+					log(f"Unable to get next (None) for series:{series_name} {e}", 'error')
+					
 			if next is not None:
 				string = pl.npstring_from_path(next)
 				items.append(string)
 			else:
+				log(f"Next is None for:{series_name}", 'info')
 				last = sqlite3(f"select filepath from series where series_name like \'%{series_name}%\' where isactive = 1 order by season,episode_number;")[0]
 				if last is not None and last != '':
 					h[series_name] = last
 					write_history(h)
 				items.append(last)
-			
-			#except Exception as e:
-			#	log(f"Reached end of series list ({e})! Starting from 0...", 'warning')
-			#	items.append(sqlite3(f"select filepath from series where series_name like \'%{series_name}%\' order by season,episode_number;")[0])
 		elif table == 'movies':
 			try:
 				moviespos += 1
@@ -300,8 +342,39 @@ def new_rdm(tables=None):
 				musicpos = 0
 				items.append(music[musicpos])
 	log(f"playlist.new_rdm():new random playlist created! tables={tables}", 'info')
+	ret = save_playlist(items)
+	if not ret:
+		log(f"playlist.new_rdm():Playlist failed to save....", 'warning')
 	return pl.set(items)
+
+def load_playlist(filepath=None):
+	if filepath is None:
+		filepath = os.path.join(os.path.expanduser("~"), '.np', 'current_playlist.dat')
+	if os.path.exists(filepath):
+		with open(filepath, 'rb') as f:
+			items = pickle.load(f)
+			f.close()
+		return True, items
+	else:
+		log(f"playlist.load_playlist():Error: No playlist file found! Plese save items first!", 'error')
+		return False, []
+
+def save_playlist(items, filepath=None):
+	try:
+		if filepath is None:
+			filepath = os.path.join(os.path.expanduser("~"), '.np', 'current_playlist.dat')
+		with open(filepath, 'wb') as f:
+			pickle.dump(items, f)
+			f.close()
+		return True
+	except Exception as e:
+		log(f"playlist.save_playlist:Error: Couldn't save to playlist:{e}! filepath={filepath}", 'error')
+		return False
+	
+	
 		
+
+
 if __name__ == "__main__":
 	hlist = create_media()
 	his = playlist(hlist)

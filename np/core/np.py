@@ -10,7 +10,7 @@ import np
 from np.utils.pbdl.pbdl import pbdl
 from np.utils.cleandb import run as cleandb
 from np.core.gui import folder_browse_window, file_browse_window
-from np.utils.searchdb import querydb
+from np.utils.searchdb import querydb as searchdb
 from threading import *
 import queue
 import timeit
@@ -18,7 +18,7 @@ import urllib.parse
 import PySimpleGUI as sg
 import os
 import subprocess
-#querydb = np.querydb
+from np.core.nplayer_db import querydb
 xrandr = np.xrandr
 import pickle
 import vlc
@@ -126,14 +126,27 @@ def viewer_maximize():
 	else:
 		log(f"nplayer.viewer_maximize(): Skipping scale (play_type={MP.play_type})", 'info')
 
+
+def get_screens():
+	screens = []
+	data = xrandr()
+	for screen in data:
+		if data[screen]['connected']:
+			screens.append(screen)
+	return screens
+
+
 def recenter_ui():
 	viewer_screen = MP.conf['screen']
-	if viewer_screen == 0:
-		gui_screen = 1
-	elif viewer_screen == 1:
-		gui_screen = 0
-	else:
-		gui_screen = 0
+	screens = get_screens()
+	if not xrandr()[viewer_screen]['connected']:
+		MP.conf['screen'] = screens[0]
+		viewer_screen = MP.conf['screen']
+		gui_screen = screens[1]
+	if viewer_screen == screens[0]:
+		gui_screen = screens[1]
+	elif viewer_screen == screens[1]:
+		gui_screen = screens[1]
 	try:
 		state = 'visible'
 		gui_x = int(MP.conf['windows'][gui_screen]['gui']['x'])
@@ -321,7 +334,7 @@ def update_resume():
 
 def playlist_click(_id, table):
 	query_string = ("id = " + str(_id))
-	_file = np.querydb(table, 'filepath', query_string)[0][0]
+	_file = querydb(table, 'filepath', query_string)[0][0]
 	if MP.conf['debug'] == True:
 		np.log(f"{MP.history['history']}", 'info')
 	MP.play(_file)
@@ -336,7 +349,7 @@ def update_media_info(row):
 		table = row[0]
 		_id = row[5]
 		query_string = ("id = " + str(_id))
-		results = np.querydb(table='series', column='id,isactive,series_name,tmdbid,season,episode_number,episode_name,description,air_date,still_path,duration,filepath,md5,url', query=query_string)[0]
+		results = querydb(table='series', column='id,isactive,series_name,tmdbid,season,episode_number,episode_name,description,air_date,still_path,duration,filepath,md5,url', query=query_string)[0]
 		if MP.conf['play_type'] == 'movies':
 			columns_list = ['id', 'isactive', 'tmdbid', 'title', 'year', 'release_date', 'duration', 'description', 'poster', 'filepath', 'md5', 'url']
 		elif MP.conf['play_type'] == 'series' or MP.conf['play_type'] == 'videos':
@@ -727,7 +740,7 @@ def start():
 	btn = None
 	MP = np.nplayer()
 	P = MP.init_vlc()
-	MP.playlist = MP.get_playlist_object(play_type=MP.play_type)
+	#MP.playlist = MP.get_playlist_object(play_type=MP.play_type)
 	log(f"np.start:INIT:Created new playlist object({MP.play_type})", 'info')
 	tab = '-player_control_layout-'
 	MP.conf = np.readConf()
@@ -975,7 +988,7 @@ def start():
 						MP.play(MP.next)
 						log(f"ACTION:play", 'info')
 				elif event == 'Refresh from Database':
-					MP.media = MP.get_playlist_object(play_type=MP.play_type)
+					MP.media = MP.get_playlist_object(play_mode = MP.play_mode, play_type=MP.play_type)
 					log(f"np.start:EVENT:Refresh from database:Created new playlist object({MP.play_type})", 'info')
 					UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.playlist.playlist)
 				elif event == 'Refresh Log Data':
@@ -1081,8 +1094,9 @@ def start():
 						columns = str(j.join(columns))
 						if is_active == 1:
 							query_string = (query_string + " and isactive = '" + str(is_active) + "'")
-						rows = np.querydb(table=table, column=columns, query=query_string)
-						MP.playlist = MP.get_playlist_object(data=rows, mode='database', play_type=MP.play_type)
+						rows = querydb(table=table, column=columns, query=query_string)
+						MP.play_mode = 'database'
+						MP.playlist = MP.get_playlist_object(data=rows, mode=MP.play_mode, play_type=MP.play_type)
 						log(f"np.start:EVENT:SQL Search:Created new playlist object({MP.play_type})", 'info')
 						log(f"np.start:EVENT:Refresh from database:Created new playlist object({MP.play_type})", 'info')
 						if rows is not None:
@@ -1108,17 +1122,17 @@ def start():
 							table = table.split("'")
 					else:
 						table = MP.play_type
-					ret = querydb(tables=table, query=query_string)
+					ret = searchdb(tables=table, query=query_string)
 					log(f"np.start():search event:tabe:{table}, query={query_string}, ret:{ret}", 'info')
 					if type(ret) == str:
 						ret = ret.split("\n")
 					if ret:
 						log(f"np:start:EVENT=Search:query_string={query_string},table={table}", 'info')
-						MP.playlist = MP.get_playlist_object(data=ret, mode='playlist', play_type=MP.play_type)
+						MP.playlist = MP.get_playlist_object(data=ret, play_mode='playlist', play_type=MP.play_type)
 						log(f"np.start:EVENT:Search:Created new playlist object({MP.play_type})", 'info')
 						playlist = MP.playlist.playlist
 						#print(type(playlist), len(playlist), playlist)
-						UI.WINDOW['-CURRENT_PLAYLIST-'].update(sorted(playlist))
+						UI.WINDOW['-CURRENT_PLAYLIST-'].update(playlist)
 						MP.play_mode = 'playlist'
 						UI.WINDOW['-PLAY_MODE-'].update(MP.play_mode)
 						log(f"np:start:EVENT=Search:play_mode updated ({MP.play_mode})", 'info')
@@ -1244,7 +1258,7 @@ def start():
 					if path is not None:
 						try:
 							
-							MP.playlist = MP.get_playlist_object(data=sorted(MP.load_directory(path)), mode='playlist')
+							MP.playlist = MP.get_playlist_object(data=sorted(MP.load_directory(path)), play_mode='playlist')
 							log(f"np.start:EVENT:Load Directory:Created new playlist object({MP.play_type})", 'info')
 							if MP.playlist is not None:
 								UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.playlist.playlist)
@@ -1379,7 +1393,7 @@ def start():
 					UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.playlist.playlist)
 				except Exception as e:
 					log(f"Weird playlist mess! ({e})", 'error')
-					MP.playlist = MP.get_playlist_object(play_type=MP.play_type)
+					#MP.playlist = MP.get_playlist_object(play_type=MP.play_type)
 					log(f"np.start:GUI_RESET:Created new playlist object({MP.play_type})", 'info')
 					UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.playlist.playlist)
 				UI.WINDOW['-PLAY_TYPE-'].update(MP.conf['play_type'])

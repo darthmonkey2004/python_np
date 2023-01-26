@@ -7,7 +7,7 @@ log = np_logger().log_msg
 from np.utils.guess_intro import guess_intro
 from np.utils.insert_intro import insert_intro
 from np.core import nplayer_db as sqldb
-from np.core.nplayer_db import querydb
+from np.utils.searchdb import querydb
 from np.core.nplayer_db import updatedb
 from np.core.nplayer_db import removefromdb
 from np.core.nplayer_db import get_columns

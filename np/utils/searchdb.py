@@ -155,13 +155,9 @@ def querydb(tables, query):
 	for table in tables:
 		print("table:", table)
 		if table == 'series':
-			for item in query_series(query):
-				if item not in ret:
-					ret.append(item)
+			ret = query_series(query)
 		elif table == 'movies':
-			for item in query_movies(query):
-				if item not in ret:
-					ret.append(item)
+			ret = query_movies(query)
 		elif table == 'music':
 			for item in query_music(query):
 				if item not in ret:

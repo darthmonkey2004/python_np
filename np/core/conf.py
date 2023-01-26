@@ -217,40 +217,43 @@ def init_window_position(conf=None):
 	conf['screens'] = list(conf['xrandr'].keys())
 	conf['windows'] = {}
 	for screen in conf['screens']:
-		conf['windows'][screen] = {}
-		conf['windows']['is_default'] = test_primary_screen(screen)
-		for win_title in ui_windows:
-			conf['windows'][screen][win_title] = {}
-			if win_title == 'viewer':
-				conf['windows'][screen][win_title]['x'] = conf['xrandr'][screen]['pos_x']
-				conf['windows'][screen][win_title]['y'] = conf['xrandr'][screen]['pos_y']
-				conf['windows'][screen][win_title]['w'] = conf['xrandr'][screen]['w']
-				conf['windows'][screen][win_title]['h'] = conf['xrandr'][screen]['h']
-			elif win_title == 'gui':
-				conf['windows'][screen][win_title]['x'] = conf['xrandr'][screen]['pos_x']
-				conf['windows'][screen][win_title]['y'] = conf['xrandr'][screen]['pos_y']
-				conf['windows'][screen][win_title]['w'] = 1024
-				conf['windows'][screen][win_title]['h'] = 600
-			elif win_title == 'pbdl':
-				conf['windows'][screen][win_title]['x'] = conf['xrandr'][screen]['pos_x']
-				conf['windows'][screen][win_title]['y'] = conf['xrandr'][screen]['pos_y']
-				conf['windows'][screen][win_title]['w'] = 600
-				conf['windows'][screen][win_title]['h'] = 300
-			elif win_title == 'pbdl_dl':
-				conf['windows'][screen][win_title]['x'] = conf['xrandr'][screen]['pos_x']
-				conf['windows'][screen][win_title]['y'] = conf['xrandr'][screen]['pos_y']
-				conf['windows'][screen][win_title]['w'] = 600
-				conf['windows'][screen][win_title]['h'] = 300
-			elif win_title == 'ytdl':
-				conf['windows'][screen][win_title]['x'] = conf['xrandr'][screen]['pos_x']
-				conf['windows'][screen][win_title]['y'] = conf['xrandr'][screen]['pos_y']
-				conf['windows'][screen][win_title]['w'] = 750
-				conf['windows'][screen][win_title]['h'] = 300
-			elif win_title == 'browser':
-				conf['windows'][screen][win_title]['x'] = conf['xrandr'][screen]['pos_x']
-				conf['windows'][screen][win_title]['y'] = conf['xrandr'][screen]['pos_y']
-				conf['windows'][screen][win_title]['w'] = 600
-				conf['windows'][screen][win_title]['h'] = 150
+		if not xrandr()[screen]['connected']:
+			pass
+		else:
+			conf['windows'][screen] = {}
+			conf['windows'][screen]['is_default'] = test_primary_screen(screen)
+			for win_title in ui_windows:
+				conf['windows'][screen][win_title] = {}
+				if win_title == 'viewer':
+					conf['windows'][screen][win_title]['x'] = conf['xrandr'][screen]['pos_x']
+					conf['windows'][screen][win_title]['y'] = conf['xrandr'][screen]['pos_y']
+					conf['windows'][screen][win_title]['w'] = conf['xrandr'][screen]['w']
+					conf['windows'][screen][win_title]['h'] = conf['xrandr'][screen]['h']
+				elif win_title == 'gui':
+					conf['windows'][screen][win_title]['x'] = conf['xrandr'][screen]['pos_x']
+					conf['windows'][screen][win_title]['y'] = conf['xrandr'][screen]['pos_y']
+					conf['windows'][screen][win_title]['w'] = 1024
+					conf['windows'][screen][win_title]['h'] = 600
+				elif win_title == 'pbdl':
+					conf['windows'][screen][win_title]['x'] = conf['xrandr'][screen]['pos_x']
+					conf['windows'][screen][win_title]['y'] = conf['xrandr'][screen]['pos_y']
+					conf['windows'][screen][win_title]['w'] = 600
+					conf['windows'][screen][win_title]['h'] = 300
+				elif win_title == 'pbdl_dl':
+					conf['windows'][screen][win_title]['x'] = conf['xrandr'][screen]['pos_x']
+					conf['windows'][screen][win_title]['y'] = conf['xrandr'][screen]['pos_y']
+					conf['windows'][screen][win_title]['w'] = 600
+					conf['windows'][screen][win_title]['h'] = 300
+				elif win_title == 'ytdl':
+					conf['windows'][screen][win_title]['x'] = conf['xrandr'][screen]['pos_x']
+					conf['windows'][screen][win_title]['y'] = conf['xrandr'][screen]['pos_y']
+					conf['windows'][screen][win_title]['w'] = 750
+					conf['windows'][screen][win_title]['h'] = 300
+				elif win_title == 'browser':
+					conf['windows'][screen][win_title]['x'] = conf['xrandr'][screen]['pos_x']
+					conf['windows'][screen][win_title]['y'] = conf['xrandr'][screen]['pos_y']
+					conf['windows'][screen][win_title]['w'] = 600
+					conf['windows'][screen][win_title]['h'] = 150
 	return conf
 
 

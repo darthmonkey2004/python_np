@@ -44,7 +44,9 @@ class nplayer():
 		self.play_needed = 1
 		log(f"nplayer.init():play_needed set = 1", 'info')
 		self.scale_needed = 0
-		self.playlist = db_playlist(np.create_media(self.play_type))
+		self.play_mode = 'database'
+		#self.playlist = db_playlist(np.create_media(self.play_type))
+		self.playlist = self.get_playlist_object(play_mode=self.play_mode, play_type=self.play_type, debug=True)
 		self.dbmgr_picked_items = []
 		self.next = None
 		self.ART_UPDATE_NEEDED = False
@@ -75,12 +77,14 @@ class nplayer():
 		self.POSTER = os.path.join(os.path.expanduser("~"), '.np', 'poster.png')
 		self.gui_visible = False
 
-	def get_playlist_object(self, data=None, mode=None, play_type=None):
+	def get_playlist_object(self, data=None, play_mode=None, play_type=None, debug=False):
+		if not debug:
+			raise Exception('Find Me', 'wheee')
 		#play type can be list: ['series', 'movies', etc]
 		if play_type is not None:
 			self.play_type = play_type
-		if mode is not None:
-			self.play_mode = mode
+		if play_mode is not None:
+			self.play_mode = play_mode
 		if data is None:
 			if self.play_mode == 'database':
 				self.playlist = new_rdm(self.play_type)
@@ -169,7 +173,7 @@ class nplayer():
 	def get_info_string(self, filepath):
 		strings = []
 		qstring = ("filepath = '" + filepath + "'")
-		item = np.querydb(table='series', column='series_name,season,episode_number,episode_name,id', query=qstring)
+		item = querydb(table='series', column='series_name,season,episode_number,episode_name,id', query=qstring)
 		try:
 			series_name, season, episode_number, episode_name, _id = item[0]
 			string = ("series:" + series_name + ":" + str(season) + ":" + str(episode_number) + ":" + episode_name + ":" + str(_id))
@@ -230,8 +234,8 @@ class nplayer():
 		#			log(f"nplayer.get_next():Weird error...({e})", 'error')
 		#			self.next = self.playlist.next()
 		#else:
-		if type(self.playlist) == list:
-			self.playlist = self.get_playlist_object(data=self.playlist, mode=self.play_mode, play_type=self.play_type)
+		#if type(self.playlist) == list:
+		#	self.playlist = self.get_playlist_object(data=self.playlist, mode=self.play_mode, play_type=self.play_type)
 		self.next = self.playlist.next()
 		return self.next
 
@@ -390,11 +394,12 @@ class nplayer():
 			log(f"Resuming from file (nowplaying): {self.next}. Set as next...", 'info')
 		#if next is set, check if remains of playlist mode in next string...
 		if self.next is not None:
+			#from np.core.nplayer_db import querydb
 			if 'series:' in self.next:
 				chunks = self.next.split(':')
 				_id = chunks[len(chunks) - 1]
 				qstring = ("id = '" + _id + "'")
-				self.next = np.querydb(table='series', column='filepath', query=qstring)[0][0]
+				self.next = querydb(table='series', column='filepath', query=qstring)[0][0]
 			elif 'movies:' in self.next:
 				chunks = self.next.split(':')
 				_id = chunks[len(chunks) - 1]
