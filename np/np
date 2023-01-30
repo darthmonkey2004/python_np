@@ -3,7 +3,7 @@
 import os
 import subprocess
 from np.core.core import shell, get_local_ip
-from np.core.np import start
+from np.core.np import start, server_start_ok
 from threading import Thread
 
 def getpid():
@@ -27,12 +27,17 @@ def npexec():
 	subprocess.call(com, shell=True)
 
 def ck_start():
-	pids = getpid()
-	print("pids:", pids)
-	if len(pids) < 2:
-		isrunning = False
-	else:
+	if not server_start_ok:
 		isrunning = True
+		print("server already running!")
+	else:
+		print("server wasn't running, testing pids...")
+		pids = getpid()
+		print("pids:", pids)
+		if len(pids) < 2:
+			isrunning = False
+		else:
+			isrunning = True
 	if isrunning:
 		import websocket
 		localip = get_local_ip()
@@ -50,8 +55,10 @@ def ck_start():
 				t.start()
 		except Exception as e:
 			print(f"Exception connecting to socket: {e}. Starting main")
-			t = Thread(target=npexec)
-			t.start()
+			input("press enter to exit...")
+			exit()
+			#t = Thread(target=npexec)
+			#t.start()
 	else:
 		print ("starting")
 		t = Thread(target=npexec)

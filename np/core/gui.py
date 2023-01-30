@@ -340,7 +340,7 @@ class gui():
 			[]
 		]
 		dbitems = []
-		self.menu_def = [['&File', ['-&Load Directory-', '-&Load Playlist-', '-&Save Playlist-', 'E&xit']], ['&Tools', ['&PBDL Lite UI', '-&Database Editor-', '-ID3 Tag Editor-', '&Video Filters', [VLC_VIDEO_FILTERS], '&Audio Filters', [VLC_AUDIO_FILTERS]]], ['&Help', '&About...'], ['&Media', ['-Scan Movies-', '-Scan Series-', '-Scan Music-', '-Scan All-', '-Clean Database-']]]
+		self.menu_def = [['&File', ['-&Load Directory-', '-&Load Playlist-', '-&Save Playlist-', 'E&xit']], ['&Tools', ['&Resort Database Ids', '&PBDL Lite UI', '-&Database Editor-', '-ID3 Tag Editor-', '&Video Filters', [VLC_VIDEO_FILTERS], '&Audio Filters', [VLC_AUDIO_FILTERS]]], ['&Help', '&About...'], ['&Media', ['-Scan Movies-', '-Scan Series-', '-Scan Music-', '-Scan All-', '-Clean Database-']]]
 		self.layout = [[sg.MenubarCustom(self.menu_def, tearoff=True, key='-menubar_key-'), sg.Button('Hide UI'), sg.Button("Close")], [sg.TabGroup([[sg.Tab('MP Controls', self.player_control_layout, key='-player_control_layout-')], line_window_ctl], expand_x=True, expand_y=True, enable_events=True)]]
 		if 'GUI' not in self.windows:
 			self.windows.append('GUI')

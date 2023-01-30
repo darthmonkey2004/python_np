@@ -1,8 +1,10 @@
 README
-poster.png
 requirements.txt
 setup.py
 version.txt
+images/np.jpeg
+images/np.png
+images/poster.png
 np/__init__.py
 np.egg-info/PKG-INFO
 np.egg-info/SOURCES.txt

@@ -10,7 +10,7 @@ import time
 #from np.utils.playlist import get_next
 from np.core.log import np_logger
 import PySimpleGUI as sg
-from np.core.playlist_utils import *
+from np.core.playlist import *
 from random import shuffle
 
 log = np_logger().log_msg

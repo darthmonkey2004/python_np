@@ -29,17 +29,21 @@ class server():
 		self.com_q = com_q
 		self.ret_q = ret_q
 		self.clients = {}
-		self.localip = self.get_localip
+		self.localip = self.get_localip()
 		self.message = None
 		try:
-			self.server = WebsocketServer(host=conf['remote']['server']['address'], port=int(conf['remote']['server']['port']))
+			self.server = WebsocketServer(host=self.localip, port=int(conf['remote']['server']['port']))
 			self.server.set_fn_new_client(self.new_client)
 			self.server.set_fn_client_left(self.client_left)
 			self.server.set_fn_message_received(self.message_received)
 			connstr = f"{conf['remote']['server']['address']}:{conf['remote']['server']['port']}"
 			log(f"Server running: ({connstr}), pid={os.getpid()}", 'info')
 		except Exception as e:
-			log(f"Exception running server: {e}. (Already running?)", 'warning')
+			txt = f"Exception running server (host={conf['remote']['server']['address']}, port={conf['remote']['server']['port']}): {e}. (Already running?)"
+			log(txt, 'warning')
+			raise Exception(Exception, txt)
+			
+
 
 
 

@@ -24,7 +24,7 @@ import pickle
 import vlc
 import time
 import sys
-from np.core.playlist_utils import playlist as newplaylist
+from np.core.playlist import playlist as newplaylist
 from np.core.log import np_logger
 from np.ws.server import server
 from np.utils.cli_opts import cli_opts
@@ -33,12 +33,21 @@ log = np_logger().log_msg
 update_ct = 5
 remote_com_q = queue.Queue()
 remote_ret_q = queue.Queue()
-server = server(remote_com_q, remote_ret_q)
+from np.utils.transform_unique_id import *
+try:
+	server = server(remote_com_q, remote_ret_q)
+	server_start_ok = True
+except:
+	server_start_ok = False
 VLC_VIDEO_FILTERS = ['video:adjust', 'video:alphamask', 'video:anaglyph', 'video:antiflicker', 'video:audiobargraph_v', 'video:ball', 'video:blendbench', 'video:bluescreen', 'video:canvas', 'video:chain', 'video:colorthres', 'video:croppadd', 'video:deinterlace', 'video:edgedetection', 'video:erase', 'video:extract', 'video:fps', 'video:freeze', 'video:gaussianblur', 'video:gradfun', 'video:gradient', 'video:grain', 'video:hqdn3d', 'video:invert', 'video:logo', 'video:magnify', 'video:mirror', 'video:motionblur', 'video:motiondetect', 'video:oldmovie', 'video:posterize', 'video:postproc', 'video:psychedelic', 'video:puzzle', 'video:ripple', 'video:rotate', 'video:scene', 'video:sepia', 'video:sharpen', 'video:transform', 'video:vaapi_filters', 'video:vaapi_filters', 'video:vaapi_filters', 'video:vaapi_filters', 'video:vaapi_filters', 'video:vdpau_adjust', 'video:vdpau_deinterlace', 'video:vdpau_sharpen', 'video:vhs', 'video:wave']
 VLC_AUDIO_FILTERS = ['audio:audiobargraph_a', 'audio:chorus_flanger', 'audio:compressor', 'audio:equalizer', 'audio:gain', 'audio:headphone', 'audio:karaoke', 'audio:mono', 'audio:normvol', 'audio:param_eq', 'audio:remap', 'audio:scaletempo', 'audio:scaletempo_pitch', 'audio:spatialaudio', 'audio:spatializer', 'audio:stereo_widen']
 VLC_CLI_OPTIONS = cli_opts()
 
 
+def resort_db():
+	fixer = dbfixer()
+	ret = fixer.fix()
+	return ret
 
 def test_connection(host='google.com'):
 	com = f"ping -c 1 -W 1 {host} | grep -v \"0% packet loss\" | grep -v \"{host}\""
@@ -629,6 +638,9 @@ def remote_handler(com, arg):
 		else:
 			log(f"REMOTE: Skipping scale (play_type={MP.play_type})", 'info')
 			ret = f"Scaling skipped: Play Type:{MP.play_type}"
+	elif com == 'fixdb':
+		ret = resort_db()
+		print("database fixer finished! Results:{ret}")
 	elif com == 'debug':
 		try:
 			debug = bool(arg)
@@ -820,6 +832,10 @@ def start():
 					MP.conf['network_mode']['media_user'] = media_user
 					np.writeConf(MP.conf)
 					log(f"Network media mode changed:{media_mode}", 'info')
+				elif event == 'Resort Database Ids':
+					log(f"np.start():Resorting databse ids (ensuring unique..)")
+					ret = resort_db()
+					log(f"np.start():Finished sorting database! Results:{ret}")
 				elif event == '-PLAY_TYPE-':
 					MP.play_type = values[event]
 					MP.conf['play_type'] = MP.play_type

@@ -5,7 +5,7 @@ from np.utils.xrandr import xrandr
 from np.core.log import np_logger
 log = np_logger().log_msg
 from np.utils.guess_intro import guess_intro
-from np.utils.insert_intro import insert_intro
+#from np.utils.insert_intro import insert_intro
 from np.core import nplayer_db as sqldb
 from np.utils.searchdb import querydb
 from np.core.nplayer_db import updatedb
@@ -43,7 +43,7 @@ from np.ws import websocket_server
 from np.ws import server
 from np.ws import client
 from np.ws import thread
-from np.utils.insert_intro import fix3d
+#from np.utils.insert_intro import fix3d
 from np.core.conf import init_window_position
 
 
