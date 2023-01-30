@@ -188,7 +188,8 @@ class gui():
 		viewer_screen = self.conf['screen']
 		if self.test_screen(viewer_screen):
 			screens = self.get_screens()
-			screens.pop(viewer_screen)
+			idx = screens.index(viewer_screen)
+			screens.pop(idx)
 			screen = screens[0]
 		else:
 			log(f"screens changed... using what's available!", 'warning')
@@ -300,9 +301,12 @@ class gui():
 		scale = float(int(self.conf['scale']) * 10)
 		control_modes = self.conf['network_modes']['control_modes']
 		media_modes = self.conf['network_modes']['media_modes']
-		
-		search_line = [self.create_old('dropdown_menu', [self.tables, self.conf['play_type'], '-PLAY_TYPE-']), self.create_old('dropdown_menu', [list(self.conf['screens']), self.conf['screen'], '-SET_SCREEN-']), self.create_old('dropdown_menu', [['database', 'playlist'], 'database', '-PLAY_MODE-']), self.create_old('dropdown_menu', [control_modes, self.conf['network_mode']['control_mode'], '-CONTROL_MODE-']), self.create_old('dropdown_menu', [media_modes, self.conf['network_mode']['media_mode'], '-MEDIA_MODE-']), self.create_old('textbox', ['Search', '-SEARCH-']), sg.Input(default_text='', enable_events=False, do_not_clear=True, key='-SEARCH_QUERY-', expand_x=True), self.create_old('btn', ['Search', 'Search'])]
-		
+		screens = []
+		d = xrandr()
+		for screen in d:
+			if d[screen]['connected']:
+				screens.append(screen)
+		search_line = [self.create_old('dropdown_menu', [self.tables, self.conf['play_type'], '-PLAY_TYPE-']), self.create_old('dropdown_menu', [screens, self.conf['screen'], '-SET_SCREEN-']), self.create_old('dropdown_menu', [['database', 'playlist'], 'database', '-PLAY_MODE-']), self.create_old('dropdown_menu', [control_modes, self.conf['network_mode']['control_mode'], '-CONTROL_MODE-']), self.create_old('dropdown_menu', [media_modes, self.conf['network_mode']['media_mode'], '-MEDIA_MODE-']), self.create_old('textbox', ['Search', '-SEARCH-']), sg.Input(default_text='', enable_events=False, do_not_clear=True, key='-SEARCH_QUERY-', expand_x=True), self.create_old('btn', ['Search', 'Search'])]
 		#debug_element = sg.Multiline(default_text=log_data, enter_submits=True, autoscroll=True, auto_size_text=True, horizontal_scroll=True, change_submits=True, enable_events=True, key='-DEBUGGER-', auto_refresh=True, reroute_stdout=False, reroute_stderr=False, reroute_cprint=False, echo_stdout_stderr=False, focus=False, expand_x=True, expand_y=True, rstrip=True)
 		poster_element = sg.Image(None, size=(275, 250), subsample=4, expand_x=True, expand_y=True, enable_events=True, key='-POSTER-')
 		elem_media_list = [self.create_old('listbox', [self.playlist, '-CURRENT_PLAYLIST-']), poster_element]
