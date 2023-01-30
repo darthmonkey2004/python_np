@@ -21,7 +21,7 @@ def sqlite3(query):
 		#log(f"Error: sqlite3 command failed! {e}", 'error')
 		return None
 
-def query_music(query_string):
+def search_music(query_string):
 	results = []
 	for query in query_string.split(':'):
 		if query == '*':
@@ -71,7 +71,7 @@ def query_music(query_string):
 	return ret
 
 
-def query_movies(query_string):
+def search_movies(query_string):
 	results = []
 	if query_string == '*':
 		query = "select title,year,id from movies;"
@@ -104,7 +104,7 @@ def query_movies(query_string):
 		ret.append(f"movies:{item}")
 	return ret
 
-def query_series(query_string):
+def search_series(query_string):
 	if query_string == '*':
 		results = []
 		query = f"select series_name,season,episode_number,episode_name,id from series order by series_name,season,episode_number;"
@@ -155,25 +155,25 @@ def querydb(tables, query):
 	for table in tables:
 		print("table:", table)
 		if table == 'series':
-			ret = query_series(query)
+			ret = search_series(query)
 		elif table == 'movies':
-			ret = query_movies(query)
+			ret = search_movies(query)
 		elif table == 'music':
-			for item in query_music(query):
+			for item in search_music(query):
 				if item not in ret:
 					ret.append(item)
 		elif table == 'all':
-			results = query_series(query)
+			results = search_series(query)
 			if results:
 				for item in results:
 					if item not in ret:
 						ret.append(item)
-			results = query_movies(query)
+			results = search_movies(query)
 			if results:
 				for item in results:
 					if item not in ret:
 						ret.append(item)
-			results = query_music(query)
+			results = search_music(query)
 			if results:
 				for item in results:
 					if item not in ret:

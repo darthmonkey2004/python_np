@@ -271,7 +271,7 @@ def npstring_from_path(path):
 	elif in_movies != []:
 		string = f"movies:{in_movies[0][0]}:{in_movies[0][1]}:{in_movies[0][2]}"
 	elif in_music != []:
-		string = f"music:{im_music[0][0]}:{im_music[0][1]}:{im_music[0][2]}:{im_music[0][3]}"
+		string = f"music:{in_music[0][0]}:{in_music[0][1]}:{in_music[0][2]}:{in_music[0][3]}"
 	return string
 
 
@@ -291,6 +291,9 @@ def new_rdm(tables=None):
 	ret, items = load_playlist()
 	if ret:
 		log(f"Playlist loaded!", 'info')
+		l = []
+		print("Loaded playlist items:", items)
+		
 		return pl.set(items)
 	try:
 		conf = readConf()

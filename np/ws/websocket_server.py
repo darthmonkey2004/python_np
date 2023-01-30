@@ -106,7 +106,7 @@ class WebsocketServer(ThreadingMixIn, TCPServer, API):
 	allow_reuse_address = True
 	daemon_threads = True  # comment to keep threads alive until finished
 
-	def __init__(self, host='192.168.2.2', port=8000, loglevel=logging.WARNING, key=None, cert=None):
+	def __init__(self, host='192.168.2.3', port=8000, loglevel=logging.WARNING, key=None, cert=None):
 		self.conf = readConf()
 		self.host = host
 		self.port = port

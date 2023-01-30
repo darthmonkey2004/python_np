@@ -36,7 +36,8 @@ class server():
 			self.server.set_fn_new_client(self.new_client)
 			self.server.set_fn_client_left(self.client_left)
 			self.server.set_fn_message_received(self.message_received)
-			log(f"Server running: pid={os.getpid()}", 'info')
+			connstr = f"{conf['remote']['server']['address']}:{conf['remote']['server']['port']}"
+			log(f"Server running: ({connstr}), pid={os.getpid()}", 'info')
 		except Exception as e:
 			log(f"Exception running server: {e}. (Already running?)", 'warning')
 
@@ -136,11 +137,7 @@ class server():
 		self.clients = self.server.clients
 
 	def start(self):
-		state = conf['remote']['server']['state']
-		if state == 0:
-			log(f"Server running at '127.0.0.1' (state={state}) on port {conf['remote']['server']['port']}", 'info')
-		elif state == 1:
-			log(f"Server running at {conf['remote']['server']['address']} (state={state}) on port {conf['remote']['server']['port']}", 'info')
+		log(f"Server running at {conf['remote']['server']['address']} on port {conf['remote']['server']['port']}", 'info')
 		self.server.run_forever()
 
 if __name__ == "__main__":

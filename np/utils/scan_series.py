@@ -12,13 +12,13 @@ log = np_logger().log_msg
 conf = readConf()
 data_dir = os.path.join(os.path.expanduser("~"), '.np')
 def sqlite3(query):
+	log(f"sqlite3 query running from scan_series, query={query}", 'info')
 	query = (query.replace("'", "\'").replace('"', '\"'))
 	dbfile = os.path.join(data_dir, "nplayer.db")
 	com = (f"sqlite3 '{dbfile}' \"{query}\"")
 	out = subprocess.check_output(com, shell=True).decode().strip().split("\n")[0]
 	if conf['debug'] == True:
-		log(f"SQLITE3 Query: {query}", 'info')
-		log(f"SQLITE3 Results: {out}", 'info')
+		log(f"SQLITE3 Query: {query}, Results: {out}", 'info')
 	return out
 
 

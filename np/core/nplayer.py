@@ -10,7 +10,7 @@ import time
 #from np.utils.playlist import get_next
 from np.core.log import np_logger
 import PySimpleGUI as sg
-from np.core.playlist import *
+from np.core.playlist_utils import *
 from random import shuffle
 
 log = np_logger().log_msg
@@ -46,7 +46,7 @@ class nplayer():
 		self.scale_needed = 0
 		self.play_mode = 'database'
 		#self.playlist = db_playlist(np.create_media(self.play_type))
-		self.playlist = self.get_playlist_object(play_mode=self.play_mode, play_type=self.play_type, debug=True)
+		self.playlist = self.get_playlist_object(play_mode=self.play_mode, play_type=self.play_type)
 		self.dbmgr_picked_items = []
 		self.next = None
 		self.ART_UPDATE_NEEDED = False
@@ -77,26 +77,16 @@ class nplayer():
 		self.POSTER = os.path.join(os.path.expanduser("~"), '.np', 'poster.png')
 		self.gui_visible = False
 
-	def get_playlist_object(self, data=None, play_mode=None, play_type=None, debug=False):
-		if not debug:
-			raise Exception('Find Me', 'wheee')
+	def get_playlist_object(self, data=None, play_mode=None, play_type=None):
 		#play type can be list: ['series', 'movies', etc]
 		if play_type is not None:
 			self.play_type = play_type
 		if play_mode is not None:
 			self.play_mode = play_mode
 		if data is None:
-			if self.play_mode == 'database':
-				self.playlist = new_rdm(self.play_type)
-			else:
-				self.playlist = playlist()
+			self.playlist = build_playlist(play_mode=self.play_mode, tables=self.play_type, new=True, save=True)
 		else:
-			if self.play_mode == 'database':
-				self.playlist = db_playlist(data)
-				print("playlist:", self.playlist)
-			else:
-				self.playlist = playlist(data)
-				print("playlist:", self.playlist)
+			self.playlist = build_playlist(play_mode=self.play_mode, tables=self.play_type, items=data, save=True)
 		log(f"nplayer.get_playlist_object():Playlist created: play_type={self.play_type}, play_mode={self.play_mode}", 'info')
 		return self.playlist
 
@@ -213,29 +203,6 @@ class nplayer():
 
 			
 	def get_next(self):
-		#if self.play_mode == 'database':
-		#	if self.play_type == 'series':
-		#		series_name = self.get_next_series_name()
-		#		self.series_history = np.read_history()
-		#		last = self.series_history[series_name]
-		#		files = sqlite3(f"select filepath from {self.play_type} where series_name like \'%{series_name}%\' order by season,episode_number;")
-		#		idx = files.index(last) + 1
-		#		try:
-		#			self.next = files[idx]
-		#		except Exception as e:
-		#			log(f"nplayer.get_next():Reached end of series! Starting over...({e})", 'info')
-		#			self.next = files[0]
-		#	elif self.play_type == 'movies':
-		#		self.next = self.get_next_movie()
-		#	elif self.play_type == 'music':
-		#		try:
-		#			self.next = self.get_next_song()
-		#		except Exception as e:
-		#			log(f"nplayer.get_next():Weird error...({e})", 'error')
-		#			self.next = self.playlist.next()
-		#else:
-		#if type(self.playlist) == list:
-		#	self.playlist = self.get_playlist_object(data=self.playlist, mode=self.play_mode, play_type=self.play_type)
 		self.next = self.playlist.next()
 		return self.next
 

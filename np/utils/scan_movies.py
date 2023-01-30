@@ -21,12 +21,12 @@ def clean_string(string):
 
 conf = readConf()
 def sqlite3(query):
+	log(f"sqlite3 query running from scan_movies, query={query}", 'info')
 	dbfile = os.path.join(data_dir, "nplayer.db")
 	com = (f"sqlite3 '{dbfile}' \"{query}\"")
 	out = subprocess.check_output(com, shell=True).decode().strip().split("\n")[0]
 	if conf['debug'] == True:
-		log(f"SQLITE3 Query: {query}", 'info')
-		log(f"SQLITE3 Results: {out}", 'info')
+		log(f"SQLITE3 Query: {query}, Results: {out}", 'info')
 	return out
 
 def scan_movies(target_dir=None):

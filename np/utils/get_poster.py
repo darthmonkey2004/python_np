@@ -4,9 +4,14 @@ import requests
 from bs4 import BeautifulSoup
 from lxml import etree
 import os
-from np.utils.pbdl.utils import query_series, query_movies
+from np.utils.pbdl.utils import query_series, query_movies, test_media
+from np.core.conf import readConf
 
-def get_poster(query, play_type):
+def get_poster(query):
+	try:
+		play_type = test_media(query)
+	except:
+		play_type = readConf()['play_type']
 	dbfile = os.path.join(os.path.expanduser("~"), '.np', 'nplayer.db')
 	if os.path.exists(query):
 		qtype = 'filepath'
@@ -18,9 +23,12 @@ def get_poster(query, play_type):
 		column = 'still_path'
 	else:
 		column = 'poster'
-	
 	poster_url = subprocess.check_output(f"sqlite3 \"{dbfile}\" \"select {column} from {play_type} {query_string};\"", shell=True).decode().strip()
-	poster = f"https://image.tmdb.org/t/p/original/{poster_url}"
+	log(f"get_poster.get_poster():Creating url:{poster_url}", 'info')
+	if 'https://image.tmdb.org' not in poster_url:
+		poster = f"https://image.tmdb.org/t/p/original/{poster_url}"
+	else:
+		poster = poster_url
 	return poster
 
 def dl_poster(poster_url):

@@ -28,6 +28,7 @@ def npexec():
 
 def ck_start():
 	pids = getpid()
+	print("pids:", pids)
 	if len(pids) < 2:
 		isrunning = False
 	else:

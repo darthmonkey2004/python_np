@@ -598,6 +598,8 @@ def get_files(tid):
 	return files
 
 def sqlite3(query):
+	#raise Exception('toaster', query)
+	log(f"sqlite3 query running from utils.py, query={query}", 'info')
 	try:
 		if '%20' in query:
 			query = urllib.parse.unquote(query)
@@ -1013,20 +1015,6 @@ def build_data(rebuild=False, lookup_type=None):
 	save_data(torrents)
 	return torrents
 
-def sqlite3(query):
-	if '%20' in query:
-		query = urllib.parse.unquote(query)
-	dbfile = os.path.join(os.path.expanduser("~"), '.np', 'nplayer.db')
-	com = (f"sqlite3 '{dbfile}' \"{query}\"")
-	out = subprocess.check_output(com, shell=True).decode().strip().split("\n")
-	try:
-		if MP.conf['debug'] == True:
-			log(f"SQLITE3 Query: {query}", 'info')
-			log(f"SQLITE3 Results: {out}", 'info')
-	except:
-		log(f"SQLITE3 Query: {query}", 'info')
-		log(f"SQLITE3 Results: {out}", 'info')
-	return out
 
 def get_id(filepath, play_type=None):
 	fname = os.path.basename(filepath)

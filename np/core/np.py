@@ -24,9 +24,11 @@ import pickle
 import vlc
 import time
 import sys
+from np.core.playlist_utils import playlist as newplaylist
 from np.core.log import np_logger
 from np.ws.server import server
 from np.utils.cli_opts import cli_opts
+from urllib.parse import quote, unquote
 log = np_logger().log_msg
 update_ct = 5
 remote_com_q = queue.Queue()
@@ -37,6 +39,7 @@ VLC_AUDIO_FILTERS = ['audio:audiobargraph_a', 'audio:chorus_flanger', 'audio:com
 VLC_CLI_OPTIONS = cli_opts()
 
 
+
 def test_connection(host='google.com'):
 	com = f"ping -c 1 -W 1 {host} | grep -v \"0% packet loss\" | grep -v \"{host}\""
 	try:
@@ -45,7 +48,8 @@ def test_connection(host='google.com'):
 			ret = False
 		else:
 			ret = True
-	except:
+	except Exception as e:
+		log(f"np.test_connection():{e}", 'error')
 		ret = False
 	return ret
 	
@@ -60,21 +64,6 @@ def run_server():
 	except Exception as e:
 		log(f"Error starting socket server: {e}", 'error')
 
-def sqlite3(query):
-	if '%20' in query:
-		query = urllib.parse.unquote(query)
-	dbfile = os.path.join(os.path.expanduser("~"), '.np', 'nplayer.db')
-	com = (f"sqlite3 '{dbfile}' \"{query}\"")
-	out = subprocess.check_output(com, shell=True).decode().strip().split("\n")
-	try:
-		if MP.conf['debug'] == True:
-			log(f"SQLITE3 Query: {query}", 'info')
-			log(f"SQLITE3 Results: {out}", 'info')
-	except:
-		log(f"SQLITE3 Query: {query}", 'info')
-		log(f"SQLITE3 Results: {out}", 'info')
-	return out
-
 def lookup_series(series_name, season, episode_number):
 	return np.rt_series_query(series_name, season, episode_number)
 
@@ -84,8 +73,9 @@ def lookup_movies(title):
 
 
 def get_media(table=None, isactive=1):
+	conf = np.readConf()
 	if table == None:
-		table = MP.conf['play_type']
+		table = conf['play_type']
 	query_string = (f"select filepath from {table} where isactive = {isactive};")
 	return sqlite3(query_string)
 
@@ -155,7 +145,8 @@ def recenter_ui():
 		UI.WINDOW2.size = (int(MP.conf['windows'][viewer_screen]['viewer']['w']), int(MP.conf['windows'][viewer_screen]['viewer']['h']))
 		UI.WINDOW2.move(int(MP.conf['windows'][viewer_screen]['viewer']['x']), int(MP.conf['windows'][viewer_screen]['viewer']['y']))
 		np.writeConf(MP.conf)
-	except:
+	except Exception as e:
+		log(f"np.recenter_ui():Error={e}", 'error')
 		try:
 			test = MP.conf['windows']
 		except Exception as e:
@@ -169,29 +160,6 @@ def recenter_ui():
 		UI.WINDOW2.move(int(MP.conf['windows'][viewer_screen]['viewer']['x']), int(MP.conf['windows'][viewer_screen]['viewer']['y']))
 		np.writeConf(MP.conf)
 
-def dbmgr_add_items(items=None):
-	if items == None:
-		items = UI.window['-DBMGR_SELECTED_ROWS-']
-	all_items = UI.uivalues['-PLAYLIST_ITEMS-']
-	for add in items:
-		if add not in items:
-			MP.dbmgr_picked_items.append(add)
-	MP.dbmgr_picked_items = items
-	UI.WINDOW['-DBMGR_SELECTED_ROWS-'].update(MP.dbmgr_picked_items)
-	return MP.dbmgr_picked_items
-
-
-def dbmgr_remove_items(items=None):
-	if items == None:
-		items = UI.window['-DBMGR_SELECTED_ROWS-']
-	all_items = UI.uivalues['-PLAYLIST_ITEMS-']
-	for rm in items:
-		if rm in all_items:
-			all_items.remove(rm)
-	MP.dbmgr_picked_items = items
-	UI.WINDOW['-DBMGR_SELECTED_ROWS-'].update(MP.dbmgr_picked_items)
-	return MP.dbmgr_picked_items
-
 def dbmgr_clear_all():
 	MP.dbmgr_picked_items = []
 	UI.WINDOW['-DBMGR_SELECTED_ROWS-'].update(MP.dbmgr_picked_items)
@@ -202,16 +170,20 @@ def dbmgr_select_all():
 	UI.WINDOW['-DBMGR_SELECTED_ROWS-'].update(MP.dbmgr_picked_items)
 
 
+
 def store_window_location(reset=False):
 	MP.conf = np.readConf()
 	try:
 		viewer_screen = MP.conf['screen']
-		if viewer_screen == 0:
-			gui_screen = 1
-		elif viewer_screen == 1:
-			gui_screen = 0
-		else:
-			gui_screen = 0
+		screens = get_screens()
+		if not xrandr()[viewer_screen]['connected']:
+			MP.conf['screen'] = screens[0]
+			viewer_screen = MP.conf['screen']
+			gui_screen = screens[1]
+		if viewer_screen == screens[0]:
+			gui_screen = screens[1]
+		elif viewer_screen == screens[1]:
+			gui_screen = screens[1]
 		if reset is False:
 			MP.conf['windows'][viewer_screen]['viewer']['x'], MP.conf['windows'][viewer_screen]['viewer']['y'] = UI.WINDOW2.CurrentLocation()
 			MP.conf['windows'][viewer_screen]['viewer']['w'], MP.conf['windows'][viewer_screen]['viewer']['h'] = UI.WINDOW2.size
@@ -299,7 +271,7 @@ def rotate(deg):
 		filepath = MP.conf['nowplaying']['filepath']
 	else:
 		play_file = P.get_media().get_mrl().split("file://")[1]
-		filepath = urllib.parse.unquote(play_file)
+		filepath = unquote(play_file)
 	if MP.conf['nowplaying']['play_pos'] is not None and MP.conf['nowplaying']['play_pos'] != 0:
 		pos = float(MP.conf['nowplaying']['play_pos'])
 	else:
@@ -325,7 +297,7 @@ def update_resume():
 	j = ' '
 	s2 = 'file://'
 	filepath = P.get_media().get_mrl().split("file://")[1]
-	MP.conf['nowplaying']['filepath'] = urllib.parse.unquote(filepath)
+	MP.conf['nowplaying']['filepath'] = unquote(filepath)
 	MP.conf['nowplaying']['play_pos'] = P.get_position()
 	log(f"np_main.py, update_resume: modified conf with play_pos and now_playing: play_pos={MP.conf['nowplaying']['play_pos']}, now_playing={MP.conf['nowplaying']['filepath']}, Play Type:{MP.conf['play_type']}", 'info')
 	np.writeConf(MP.conf)
@@ -440,8 +412,8 @@ def remote_handler(com, arg):
 			if win == None:
 				win = UI.WINDOW
 				write_event(event, value, win)
-		except:
-			np.log(f"Unable to parse string! Expected event,value,win..", 'error')
+		except Exception as e:
+			np.log(f"np.remote_handler():Unable to parse string ({e})! Expected event,value,win..", 'error')
 		ret = "Event written!"
 	elif com == 'restore':
 		if arg is None:
@@ -522,8 +494,8 @@ def remote_handler(com, arg):
 			log(f"Unable to update poster from {poster_path}!", 'error')
 		try:
 			UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.playlist.playlist)
-		except:
-			log(f"Unable to update playlist items from current playlist!", 'error')
+		except Exception as e:
+			log(f"np.remote_handler():Unable to update playlist items from current playlist! ({e})", 'error')
 		#recenter_ui()
 		log("REMOTE:GUI Window created.", 'info')
 		MP.gui_visible = True
@@ -675,7 +647,8 @@ def update_poster(query):
 		try:
 			global UI, MP
 			test = MP.POSTER
-		except:
+		except Exception as e:
+			log(f"np.update_poster():Error={e}", 'error')
 			MP = np.nplayer()
 		poster_url = get_poster(query)
 		log(f"poster_url:{poster_url}", 'info')
@@ -690,7 +663,7 @@ def update_poster(query):
 		poster = png
 		try:
 			test = subprocess.check_output(f"file \"{poster}\" | grep \"HTML\"", shell=True).decode().strip()
-		except:
+		except Exception as e:
 			test = ''
 		if test != '':
 			log(f"Error: Bad data (html) in image file! Defaults restored...", 'error')
@@ -740,13 +713,13 @@ def start():
 	btn = None
 	MP = np.nplayer()
 	P = MP.init_vlc()
-	#MP.playlist = MP.get_playlist_object(play_type=MP.play_type)
 	log(f"np.start:INIT:Created new playlist object({MP.play_type})", 'info')
 	tab = '-player_control_layout-'
 	MP.conf = np.readConf()
 	try:
 		DEBUG = MP.conf['debug']
-	except:
+	except Exception as e:
+		log(f"np.start():Error={e}", 'error')
 		MP.conf['debug'] = False
 	if MP.conf is None:
 		np.log("conf is None, re-initializing...", 'warning')
@@ -771,6 +744,7 @@ def start():
 	log("UI created: np_main.py, Start, line 694", 'info')
 	UI.WINDOW.read(timeout=1)
 	UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.playlist.playlist)
+	log(f"np.start():Playlist window updated!", 'info')
 	try:
 		init = MP.conf['init']
 	except Exception as e:
@@ -790,14 +764,9 @@ def start():
 	evque = []
 	readct = 0
 	readmax = 1500
-	if MP.conf['remote']['server']['state'] == 1:
-		run_server()
+	run_server()
 	recenter_ui()
 	MP.version = get_version()
-	#try:
-	#	MP.update_needed = match_repo_version()
-	#except Exception as e:
-	#	log(f"np:start():Unable to check latest version! (Check network connection?): {e}", 'error')
 	log(f"Starting nplayer (V{MP.version})...", 'info')
 	while True:
 		readct += 1
@@ -851,6 +820,11 @@ def start():
 					MP.conf['network_mode']['media_user'] = media_user
 					np.writeConf(MP.conf)
 					log(f"Network media mode changed:{media_mode}", 'info')
+				elif event == '-PLAY_TYPE-':
+					MP.play_type = values[event]
+					MP.conf['play_type'] = MP.play_type
+					np.writeConf(MP.conf)
+					log(f"np.start():EVENT='-PLAY_TYPE-': Play type set! ({MP.play_type})", 'info')
 				elif event == 'Hide UI':
 					title = UI.WINDOW.Title
 					if title in UI.windows:
@@ -988,7 +962,7 @@ def start():
 						MP.play(MP.next)
 						log(f"ACTION:play", 'info')
 				elif event == 'Refresh from Database':
-					MP.media = MP.get_playlist_object(play_mode = MP.play_mode, play_type=MP.play_type)
+					MP.playlist = MP.get_playlist_object(play_mode = MP.play_mode, play_type=MP.play_type)
 					log(f"np.start:EVENT:Refresh from database:Created new playlist object({MP.play_type})", 'info')
 					UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.playlist.playlist)
 				elif event == 'Refresh Log Data':
@@ -1076,33 +1050,6 @@ def start():
 					UI.WINDOW.refresh()
 					if MP.conf['debug'] == True:
 						log(f"VALUES:picked={column}, string={string}")
-				elif event == 'SQL Search':
-					if values['-table_music-'] == True:
-						table = 'music'
-					elif values['-table_movies-'] == True:
-						table = 'movies'
-					elif values['-table_series-'] == True:
-						table = 'series'
-					query_string = values['-DBMGR_QUERY_STRING-']
-					if values['-QUERY_ACTIVE-'] == True:
-						is_active = 1
-					else:
-						is_active = 0
-					if query_string is not None:
-						columns = np.get_columns(table)
-						j = ','
-						columns = str(j.join(columns))
-						if is_active == 1:
-							query_string = (query_string + " and isactive = '" + str(is_active) + "'")
-						rows = querydb(table=table, column=columns, query=query_string)
-						MP.play_mode = 'database'
-						MP.playlist = MP.get_playlist_object(data=rows, mode=MP.play_mode, play_type=MP.play_type)
-						log(f"np.start:EVENT:SQL Search:Created new playlist object({MP.play_type})", 'info')
-						log(f"np.start:EVENT:Refresh from database:Created new playlist object({MP.play_type})", 'info')
-						if rows is not None:
-							UI.WINDOW['-PLAYLIST_ITEMS-'].update(MP.playlist.playlist)
-						else:
-							UI.WINDOW['-PLAYLIST_ITEMS-'].update("Looks like you better figure out how to search without that active flag....")
 				elif event == 'Search':
 					query_string = values['-SEARCH_QUERY-']
 					if 'all:' in query_string or ',' in query_string or 'music:' in query_string or 'movies:' in query_string or 'series:' in query_string:
@@ -1138,28 +1085,6 @@ def start():
 						log(f"np:start:EVENT=Search:play_mode updated ({MP.play_mode})", 'info')
 					else:
 						log(f"np:start:EVENT=Search:No results found!", 'warning')
-				elif event == '-PLAYLIST_ITEMS-':
-					if values['-table_series-'] == True:
-						table = 'series'
-					elif values['-table_music-'] == True:
-						table = 'music'
-					elif values['-table_movies-'] == True:
-						table = 'movies'
-					try:
-						_list = values['-PLAYLIST_ITEMS-'][0]
-						_id = int(_list[0])
-						sql_query = (f"select * from {table} where id = {_id};")
-						results = sqlite3(sql_query)[0].split('|')
-					except:
-						results = ['null', 'null', 'null', 'null', 'null', 'null', 'null', 'null', 'null', 'null', 'null', 'null', 'null', 'null']
-					columns = list(np.get_columns(table).keys())
-					pos = -1
-					for column in columns:
-						pos += 1
-						item = results[pos]
-						key = (f"-{column}-")
-						UI.WINDOW[key].update(item)
-					UI.window.refresh()
 				elif event == '-Update Info-':
 					if values['-table_series-'] == True:
 						table = 'series'
@@ -1200,21 +1125,6 @@ def start():
 				elif event == 'Volume Down':
 					MP.volume_down()
 					log(f"ACTION:Volume down,{MP.conf['volume']}", 'info')
-				elif event == '-Remove Selected-':
-					for line in MP.dbmgr_picked_items:
-						table = line.split(':')[0]
-						series_name = line.split(':')[1]
-						season = line.split(':')[2]
-						episode_number = line.split(':')[3]
-						episode_name = line.split(':')[4]
-						_id = line.split(':')[5]
-						query_string = ("id = " + str(_id))
-						ret = np.removefromdb(table, query_string)
-						MP.playlist.playlist.remove(line)
-					MP.dbmgr_picked_items = []
-					UI.window['-DBMGR_SELECTED_ROWS-'].update(MP.dbmgr_picked_items)
-					log(f"Remove selected:{MP.dbmgr_picked_items}", 'info')
-					UI.window['-PLAYLIST_ITEMS-'].update(sorted(MP.playlist.playlist))
 				elif event == 'PBDL Lite UI':
 					log(f"Loaded lite torrent manager!")
 					pbdl_win = liteui()
@@ -1250,15 +1160,15 @@ def start():
 								log(f"Save playlist: Success: {filepath}", 'info')
 							else:
 								log(f"Save playlist: Failed! {filepath}", 'info')
-						except:
-							log(f"No input provided! {e}", 'error')
+						except Exception as e:
+							log(f"np.start():EVENT='-Save Playlist-', Error={e}, No input provided! {e}", 'error')
 				elif event == "-Load Directory-":
 					MP.stop()
 					path = folder_browse_window()
 					if path is not None:
 						try:
-							
-							MP.playlist = MP.get_playlist_object(data=sorted(MP.load_directory(path)), play_mode='playlist')
+							data = sorted(MP.load_directory(path))
+							MP.playlist = newplaylist(data)
 							log(f"np.start:EVENT:Load Directory:Created new playlist object({MP.play_type})", 'info')
 							if MP.playlist is not None:
 								UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.playlist.playlist)
@@ -1282,7 +1192,7 @@ def start():
 					MP.play_mode = values[event]
 					log(f"Play mode changed:{MP.play_mode}", 'info')
 					if MP.play_mode == 'database':
-						MP.playlist = MP.get_playlist_object(play_type=MP.play_type)
+						MP.playlist = MP.get_playlist_object(play_type=MP.play_type, play_mode=MP.play_mode)
 						log(f"np.start:EVENT:-PLAY_MODE-:Created new playlist object(mode:{MP.play_mode}, type:{MP.play_type})", 'info')
 						UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.playlist.playlist)
 						MP.skip_next()
@@ -1361,7 +1271,6 @@ def start():
 						query = int(chunks[len(chunks) - 1])
 					else:
 						query = str(MP.conf['nowplaying']['filepath'])
-					print(f"query:{query}")
 					try:
 						MP.poster = update_poster(query)
 						log(f"np.start:Update poster (btn onClick)!", 'info')
@@ -1393,15 +1302,12 @@ def start():
 					UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.playlist.playlist)
 				except Exception as e:
 					log(f"Weird playlist mess! ({e})", 'error')
-					#MP.playlist = MP.get_playlist_object(play_type=MP.play_type)
 					log(f"np.start:GUI_RESET:Created new playlist object({MP.play_type})", 'info')
 					UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.playlist.playlist)
 				UI.WINDOW['-PLAY_TYPE-'].update(MP.conf['play_type'])
 				log("np_main.py: Resuming from reset = True...", 'info')
 				MP.play()
 				time.sleep(0.5)
-				#P.set_position(MP.conf['nowplaying']['play_pos'])
-				#log(f"np_main.start():RESUME:Skipped to {MP.conf['nowplaying']['play_pos']}", 'info')
 				MP.continuous = 1
 				MP.conf['GUI_RESET'] = False
 				log(f"np_main.py:Reset finished (Reset set to false)! Conf written.", 'info')
@@ -1412,7 +1318,7 @@ def start():
 				filepath = MP.conf['nowplaying']['filepath']
 				play_pos = MP.conf['nowplaying']['play_pos']
 				if filepath is not None:
-					filepath = urllib.parse.unquote(filepath)
+					filepath = unquote(filepath)
 					log(f"using resume from file:{filepath}", 'info')
 					MP.play(filepath)
 					P.set_position(play_pos)
@@ -1438,24 +1344,16 @@ def start():
 					UI.WINDOW2.refresh()
 					MP.ART_UPDATE_NEEDED = False
 				else:
+					filepath = unquote(P.get_media().get_mrl()).split('file://')[1]
+					#print(f"player object:{P.get_mrl()}", 'info')
 					log(f"np.start:Update poster (ART_UPDATE_NEEDED=True)!", 'info')
-					_id = None
-					try:
-						vals = values['-CURRENT_PLAYLIST-']
-					except:
-						vals = []
-					if len(vals) > 0:
-						string = vals[0]
-						chunks = string.split(':')
-						_id = chunks[len(chunks) - 1]
-					else:
-						filepath = MP.conf['nowplaying']['filepath']
-						_id = sqlite3(f"select id from {MP.play_type} where filepath like \'%{filepath}%\';")[0]
+					#_id = None
+					_id = sqlite3(f"select id from {MP.play_type} where filepath like \'%{filepath}%\';")[0]
 					try:
 						MP.poster = update_poster(int(_id))
 						log(f"poster updated!", 'info')
 					except Exception as e:
-						print(f"np.start:event('-UPDATE_POSTER-'):Couldn't update poster! {e}", 'error')
+						print(f"np.start:event('-UPDATE_POSTER-'):Couldn't update poster! {e}, filepath:{filepath}", 'error')
 					MP.ART_UPDATE_NEEDED = False
 			# update elapsed time if there is a video loaded and the media is playing
 			if P.is_playing() and MP.is_url == False:

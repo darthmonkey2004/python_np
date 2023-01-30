@@ -38,6 +38,9 @@ def initConf():
 	global user
 	log(f"WARNING: deprecated initConf running from conf.py!!!", 'warning')
 	conf = {}
+	conf['max_playlist_items'] = 200
+	conf['play_mode'] = 'database'
+	conf['load_inactive'] = False
 	conf['play_type'] = 'series'
 	conf['play_types'] = ['series', 'movies', 'videos', 'music']
 	conf['screen'] = 1
@@ -118,6 +121,8 @@ def run_setup():
 		writeConf(conf)
 	keys = ['play_type', 'play_types', 'screen', 'fullscreen', 'screens', 'scale', 'volume', 'rotate', 'shuffle', 'mute', 'video_methods', 'video_players', 'screens', 'nowplaying', 'vlc', 'network_modes', 'network_mode', 'remote', 'debug', 'init', 'GUI_RESET', 'window', 'pbdl_url', 'LOGFILE', 'CONFFILE', 'WSLOGFILE', 'CAPTURE_DIR', 'SFTP_DIR', 'media_directories', 'DEFAULT_POSTER']
 	conf = {}
+	conf['load_inactive'] = False
+	conf['max_playlist_items'] = 200
 	for key in keys:
 		conf[key] = {}
 	log("Starting interactive configuration setup...", 'info')
@@ -137,6 +142,7 @@ def run_setup():
 		conf['media_directories']['series'] = series_dir
 		log("Media directories configured! Continuing...", 'info')
 	conf['play_type'] = 'series'
+	conf['play_mode'] = 'database'
 	conf['play_types'] = ['series', 'movies', 'videos', 'music']
 	screen = 0
 	conf['screen'] = screen
