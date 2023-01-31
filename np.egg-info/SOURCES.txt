@@ -19,7 +19,6 @@ np/core/err.py
 np/core/gui.py
 np/core/log.py
 np/core/np.py
-np/core/nplayer.bak.py
 np/core/nplayer.py
 np/core/nplayer_db.py
 np/core/playlist.py
