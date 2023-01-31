@@ -97,8 +97,8 @@ class db_playlist():
 		if self.current is None:
 			log(f"playlist.previous():self.current returned None!", 'error')
 			return None
-		if self.is_npstring(self.current):
-			self.current = self.path_from_npstring(self.current)
+		if is_npstring(self.current):
+			self.current = path_from_npstring(self.current)
 		return self.current
 
 

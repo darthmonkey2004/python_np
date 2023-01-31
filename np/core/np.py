@@ -839,11 +839,6 @@ def start():
 					log(f"np.start():Resorting databse ids (ensuring unique..)")
 					ret = resort_db()
 					log(f"np.start():Finished sorting database! Results:{ret}")
-				elif event == '-PLAY_TYPE-':
-					MP.play_type = values[event]
-					MP.conf['play_type'] = MP.play_type
-					np.writeConf(MP.conf)
-					log(f"np.start():EVENT='-PLAY_TYPE-': Play type set! ({MP.play_type})", 'info')
 				elif event == 'Hide UI':
 					title = UI.WINDOW.Title
 					if title in UI.windows:
@@ -866,10 +861,6 @@ def start():
 							control_user = UI.get_user_input('Please enter remote username: ')
 					np.set_control_mode(control_mode=control_mode, control_host=control_host, control_user=control_user)
 					log(f"Network controller mode changed:{control_mode}", 'info')
-				elif event == 'Hide UI':
-					hide_ui()
-					MP.gui_visible = False
-					log("EVENT:UI Hidden", 'info')
 				elif event == '-Clean Database-':
 					cleandb()
 				elif event == 'Exit' or event == 'Close':
@@ -1276,8 +1267,8 @@ def start():
 					if MP.intro_start is None:
 						MP.intro_start = 0.0
 					np.log(f"Intro marked: start={MP.intro_start}, end={MP.intro_end}, duration={duration}", 'info')
-
-					com = (f"python3 \"{np.HOME}/.local/lib/python3.8/site-packages/np/utils/insert_intro.py\" \"{MP.conf['nowplaying']['filepath']}\" {MP.intro_start} {MP.intro_end}&")
+					home = os.path.expanduser("~")
+					com = (f"python3 \"{home}/.local/lib/python3.8/site-packages/np/utils/insert_intro.py\" \"{MP.conf['nowplaying']['filepath']}\" {MP.intro_start} {MP.intro_end}&")
 					subprocess.call(com, shell=True)
 					np.log("TODO: Finish np.insert_intro(filepath, start, end)")
 				elif event == 'Toggle Window Size':
@@ -1375,7 +1366,7 @@ def start():
 						print(f"np.start:event('-UPDATE_POSTER-'):Couldn't update poster! {e}, filepath:{filepath}", 'error')
 					MP.ART_UPDATE_NEEDED = False
 			# update elapsed time if there is a video loaded and the media is playing
-			if P.is_playing() and MP.is_url == False:
+			if P.is_playing():
 				if MP.scale_needed == 1:
 					if MP.play_type != 'music':
 						log(f"np.start(): scale_needed is set, calculating scale...", 'info')
@@ -1430,9 +1421,6 @@ def start():
 							P.video_set_scale(calculated_scale)
 						else:
 							log(f"Skipping scale (play_type={MP.play_type})", 'info')
-			# if media is playing but it's a url, skip info update
-			elif P.is_playing() and MP.is_url == True:
-				pass
 			# if media not playing, update status message
 			else:
 				MP.isplaying = False

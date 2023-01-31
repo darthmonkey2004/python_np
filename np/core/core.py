@@ -8,6 +8,7 @@ import requests
 from np.core.nplayer_db import querydb
 from np.core.log import np_logger
 from np.core.conf import readConf, writeConf
+from np.utils.xrandr import xrandr
 log = np_logger().log_msg
 
 def get_local_ip():
@@ -102,12 +103,13 @@ def get_scaling():
 
 
 def calculate_scale(_file, win_size=None, _type='file'):
+	xdata = xrandr()
 	conf = readConf()
 	if win_size is not None:
 		w, h = win_size
 	else:
 		screen = conf['screen']
-		w, h = int(conf['xrandr'][screen]['w']), int(conf['xrandr'][screen]['h'])
+		w, h = int(xdata[screen]['w']), int(xdata[screen]['h'])
 	if _file == None:
 		return 0
 	log(f"ACTION:calculate_scale, file='{_file}', type='{type(_file)}'", 'info')
