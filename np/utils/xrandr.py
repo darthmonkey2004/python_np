@@ -26,10 +26,10 @@ def xrandr():
 				split = 'connected '
 			geometry = item.split(split)[1].split(' ')[0]
 			out[pos]['geometry'] = geometry
-			out[pos]['w'] = geometry.split('x')[0]
-			out[pos]['h'] = geometry.split('x')[1].split('+')[0]
-			out[pos]['pos_x'] = geometry.split('x')[1].split('+')[1]
-			out[pos]['pos_y'] = geometry.split('x')[1].split('+')[2]
+			out[pos]['w'] = int(geometry.split('x')[0])
+			out[pos]['h'] = int(geometry.split('x')[1].split('+')[0])
+			out[pos]['pos_x'] = int(geometry.split('x')[1].split('+')[1])
+			out[pos]['pos_y'] = int(geometry.split('x')[1].split('+')[2])
 			out[pos]['connected'] = True
 		else:
 			out[pos]['connected'] = False

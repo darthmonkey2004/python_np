@@ -2,15 +2,126 @@ from np.utils.xrandr import xrandr
 from np.core.log import np_logger
 import os
 import pickle
-
+import subprocess
 log = np_logger().log_msg
 main_keys = ['viewer', 'gui', 'pbdl', 'w', 'h', 'x', 'y', 'pbdl_dl', 'ytdl', 'browser', 'is_default']
 ui_windows = ['browser', 'ytdl', 'pbdl', 'pbdl_dl', 'gui', 'viewer']
 
+def get_local_ip():
+	com = "ip -o -4 a s | awk -F'[ /]+' '$2!~/lo/{print $4}' | grep \"192.168\""
+	return subprocess.check_output(com, shell=True).decode().strip()
 
 
-def readConf():
-	conf_file = os.path.join(os.path.expanduser("~"), '.np', 'nplayer.conf')
+def get_opposite_screen(screen):
+	l = []
+	for s in xrandr().keys():
+		if xrandr()[s]['connected']:
+			l.append(s)
+	if len(l) > 1:
+		idx = l.index(screen)
+		_ = l.pop(idx)
+		return l[0]
+	elif len(l) == 1:
+		return l[0]
+
+
+def initConf(media_path=None):
+	if media_path is None:
+		print("No media path provided. Using default!")
+		media_path = '/var/storage'
+	user = os.getlogin()
+	conf = {}
+	conf['play_type'] = 'series'
+	conf['play_types'] = ['series', 'movies', 'videos', 'music']
+	screen = None
+	screens = []
+	for screen in xrandr().keys():
+		if xrandr()[screen]['connected']:
+			screens.append(screen)
+	screen = screens[0]
+	conf['screen'] = screen
+	conf['fullscreen'] = 1
+	conf['screens'] = screens
+	conf['scale'] = 0
+	conf['volume'] = 100
+	conf['rotate'] = 0
+	conf['shuffle'] = False
+	conf['mute'] = False
+	conf['video_method'] = 'internal'
+	conf['video_methods'] = ['external', 'internal']
+	conf['video_player'] = 'vlc'
+	conf['video_players'] = ['vlc', 'mplayer', 'mpv', 'cv2']
+	conf['nowplaying'] = {}
+	conf['nowplaying']['filepath'] = '/var/storage/Series/Archer/S9/Archer.S9E3.Different Modes of Preparing the Fruit.mp4'
+	conf['nowplaying']['play_pos'] = 0
+	conf['vlc'] = {}
+	conf['vlc']['opts'] = '--no-xlib'
+	conf['network_modes'] = {}
+	conf['network_modes']['control_modes'] = ['local', 'remote', 'server']
+	conf['network_modes']['media_modes'] = ['local', 'remote']
+	conf['network_mode'] = {}
+	conf['network_mode']['media_mode'] = 'local'
+	conf['network_mode']['media_host'] = None
+	conf['network_mode']['media_user'] = os.getlogin()
+	conf['network_mode']['control_mode'] = 'local'
+	conf['network_mode']['control_host'] = None
+	conf['network_mode']['control_user'] = os.getlogin()
+	conf['network_mode']['control_port'] = 4444
+	conf['remote'] = {}
+	conf['remote']['server'] = {}
+	conf['remote']['server']['pid'] = None
+	conf['remote']['server']['state'] = 1
+	conf['remote']['server']['port'] = 8000
+	conf['remote']['server']['address'] = get_local_ip()
+	conf['remote']['states'] = [0, 1]
+	conf['debug'] = True
+	conf['init'] = True
+	conf['GUI_RESET'] = False
+	conf['media_directories'] = {}
+	conf['media_directories']['main'] = media_path
+	conf['media_directories']['movies'] = os.path.join(media_path, 'Movies')
+	conf['media_directories']['music'] = os.path.join(media_path, 'Music')
+	conf['media_directories']['series'] = os.path.join(media_path, 'Series')
+	conf['pbdl_url'] = None
+	conf['DATA_DIR'] = os.path.join(os.path.expanduser("~"), '.np')
+	conf['LOGFILE'] = os.path.join(conf['DATA_DIR'], 'nplayer.log')
+	conf['CONFFILE'] = os.path.join(conf['DATA_DIR'], 'nplayer.conf')
+	conf['WSLOGFILE'] = os.path.join(conf['DATA_DIR'], 'nplayer.wslog')
+	conf['CAPTURE_DIR'] = os.path.join(os.path.expanduser("~"), 'Pictures', 'nplayer_caps')
+	conf['SFTP_DIR'] = os.path.join(conf['DATA_DIR'], 'sftp')
+	conf['DEFAULT_POSTER'] = os.path.join(os.path.expanduser("~"), '.local', 'poster.png')
+	conf['exit_ok'] = False
+	conf['windows'] = {}
+	for screen in screens:
+		xdata = xrandr()
+		conf['windows'][screen] = {}
+		#viewer_screen = get_opposite_screen(screen)
+		conf['windows'][screen]['browser'] = {}
+		conf['windows'][screen]['browser']['x'] = xdata[screen]['pos_x']
+		conf['windows'][screen]['browser']['y'] = xdata[screen]['pos_y']
+		conf['windows'][screen]['browser']['w'] = 600
+		conf['windows'][screen]['browser']['h'] = 150
+		conf['windows'][screen]['gui'] = {}
+		conf['windows'][screen]['gui']['x'] = xdata[screen]['pos_x']
+		conf['windows'][screen]['gui']['y'] = xdata[screen]['pos_y']
+		conf['windows'][screen]['gui']['w'] = 1024
+		conf['windows'][screen]['gui']['h'] = 600
+		conf['windows'][screen]['viewer'] = {}
+		conf['windows'][screen]['viewer']['x'] = xdata[screen]['pos_x']
+		conf['windows'][screen]['viewer']['y'] = xdata[screen]['pos_y']
+		conf['windows'][screen]['viewer']['w'] = xdata[screen]['w']
+		conf['windows'][screen]['viewer']['h'] = xdata[screen]['h']
+	conf['intro'] = {}
+	conf['intro']['start'] = None
+	conf['intro']['end'] = None
+	conf['load_inactive'] = False
+	conf['max_playlist_items'] = 200
+	conf['play_mode'] = 'database'
+	return conf
+
+
+
+def _readConf(conf_file):
 	try:
 		with open(conf_file, 'rb') as f:
 			data = pickle.load(f)
@@ -19,7 +130,6 @@ def readConf():
 	except Exception as e:
 		log(f"Exception in conf.py, readConf: {e}", 'error')
 		return None
-
 
 def writeConf(data):
 	conf_file = os.path.join(os.path.expanduser("~"), '.np', 'nplayer.conf')
@@ -34,80 +144,18 @@ def writeConf(data):
 		log(f"Exception in conf.py, writeConf: {e}", 'info')
 		return False
 
-def initConf():
-	global user
-	log(f"WARNING: deprecated initConf running from conf.py!!!", 'warning')
-	conf = {}
-	conf['max_playlist_items'] = 200
-	conf['play_mode'] = 'database'
-	conf['load_inactive'] = False
-	conf['play_type'] = 'series'
-	conf['play_types'] = ['series', 'movies', 'videos', 'music']
-	conf['screen'] = 1
-	conf['fullscreen'] = 1
-	conf['screens'] = {}
-	conf['scale'] = 0
-	conf['volume'] = 100
-	conf['rotate'] = 0
-	conf['shuffle'] = False
-	conf['mute'] = False
-	conf['video_method'] = 'internal'
-	conf['video_methods'] = ['external', 'internal']#select between external video player window and internal xwindow widget
-	conf['video_player'] = 'vlc'
-	conf['video_players'] = ['vlc', 'mplayer', 'mpv', 'cv2']# list of usuable playback engines (internal are cv2 and vlc, external are all
-	screens = xrandr()
-	conf['screens'] = screens
-	conf['nowplaying'] = {}
-	conf['nowplaying']['filepath'] = None
-	conf['nowplaying']['play_pos'] = None
-	conf['vlc'] = {}
-	conf['vlc']['opts'] = "--no-xlib"
-	conf['network_modes'] = {}
-	conf['network_modes']['control_modes'] = ['local', 'remote', 'server']
-	conf['network_modes']['media_modes'] = ['local', 'remote']
-	conf['network_mode'] = {}
-	conf['network_mode']['media_mode'] = 'local'
-	conf['network_mode']['media_host'] = None
-	conf['network_mode']['media_user'] = os.path.expanduser("~").split('/home/')[1]
-	conf['network_mode']['control_mode'] = 'local'
-	conf['network_mode']['control_host'] = None
-	conf['network_mode']['control_user'] = os.path.expanduser("~").split('/home/')[1]
-	conf['network_mode']['control_port'] = 4444
-	conf['remote'] = {}
-	conf['debug'] = False
-	conf['init'] = True
-	conf['GUI_RESET'] = False
-	conf['window'] = {}
-	conf['media_directories'] = {}
-	log("Starting interactive directory setup...", 'info')
-	media_dirs = None
-	media_dirs = input("Enter media storage directory (see readme file in git download folder for details) ")
-	if media_dirs is None:
-		txt = ("Error: no media directory entered! Aborting...")
-		return
+
+def readConf():
+	conf_file = os.path.join(os.path.expanduser("~"), '.np', 'nplayer.conf')
+	if os.path.exists(conf_file):
+		conf = _readConf(conf_file)
 	else:
-		conf['media_directories'] = {}
-		conf['media_directories']['main'] = media_dirs
-		music_dir = os.path.join(media_dirs, "Music")
-		movies_dir = os.path.join(media_dirs, "Movies")
-		series_dir = os.path.join(media_dirs, "Series")
-		conf['media_directories']['movies'] = movies_dir
-		conf['media_directories']['music'] = music_dir
-		conf['media_directories']['series'] = series_dir
-		log("Media directories configured! Continuing...", 'info')
-	home = os.path.expanduser("~")
-	conf['pbdl_url'] = None
-	conf['DATA_DIR'] = os.path.join(os.path.expanduser("~"), '.np')
-	conf['LOGFILE'] = os.path.join(conf['DATA_DIR'], 'nplayer.log')
-	conf['CONFFILE'] = os.path.join(conf['DATA_DIR'], 'nplayer.conf')
-	conf['WSLOGFILE'] = os.path.join(conf['DATA_DIR'], 'nplayer.wslog')
-	conf['CAPTURE_DIR'] = os.path.join(os.path.expanduser("~"), 'Pictures', 'nplayer_caps')
-	conf['SFTP_DIR'] = os.path.join(conf['DATA_DIR'], 'sftp')
-	conf['DEFAULT_POSTER'] = os.path.join(os.path.expanduser("~"), ".local", "poster.png")
-	#conf['EXEC_DIR'] = (f"{home}/.local/lib/python3.8/site-packages/np")
-	conf['exit_ok'] = False
-	#ret = writeConf(conf)
+		print("Conf file doesn't exist! Initializing...")
+		conf = initConf()
+		print("Saving new configuration file...")
+		writeConf(conf)
 	return conf
+
 
 def run_setup():
 	data_dir = os.path.join(os.path.expand_user("~"), '.np')

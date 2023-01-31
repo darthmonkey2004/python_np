@@ -126,6 +126,18 @@ def viewer_maximize():
 		log(f"nplayer.viewer_maximize(): Skipping scale (play_type={MP.play_type})", 'info')
 
 
+def get_opposite_screen(screen):
+	l = []
+	for s in xrandr().keys():
+		if xrandr()[s]['connected']:
+			l.append(s)
+	if len(l) > 1:
+		idx = l.index(screen)
+		_ = l.pop(idx)
+		return l[0]
+	elif len(l) == 1:
+		return l[0]
+
 def get_screens():
 	screens = []
 	data = xrandr()
@@ -134,18 +146,9 @@ def get_screens():
 			screens.append(screen)
 	return screens
 
-
 def recenter_ui():
 	viewer_screen = MP.conf['screen']
-	screens = get_screens()
-	if not xrandr()[viewer_screen]['connected']:
-		MP.conf['screen'] = screens[0]
-		viewer_screen = MP.conf['screen']
-		gui_screen = screens[1]
-	if viewer_screen == screens[0]:
-		gui_screen = screens[1]
-	elif viewer_screen == screens[1]:
-		gui_screen = screens[1]
+	gui_screen = get_opposite_screen(viewer_screen)
 	try:
 		state = 'visible'
 		gui_x = int(MP.conf['windows'][gui_screen]['gui']['x'])

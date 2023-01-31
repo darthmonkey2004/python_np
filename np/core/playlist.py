@@ -89,9 +89,10 @@ class db_playlist():
 				#if last is set, grab last item index in last list
 				item = self.last.pop(len(self.last) - 1)
 				#create temporary list in reverse order so item is put to end...
-				l = sorted(self.playlist, reverse=True).append(item)
+				l = self.playlist.reverse()
+				l.append(item)
 				#reverse again, so added item at front
-				self.playlist = sorted(l, reverse=True)
+				self.playlist = l.reverse()
 				self.current = item
 		if self.current is None:
 			log(f"playlist.previous():self.current returned None!", 'error')
