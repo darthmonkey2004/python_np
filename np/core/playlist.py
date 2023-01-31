@@ -9,6 +9,7 @@ import subprocess
 from np.core.conf import readConf, writeConf
 log = np_logger().log_msg
 
+
 def create_temp_history():
 	h = read_history()
 	ret = write_temp_history(h)
@@ -489,9 +490,10 @@ def build_playlist(play_mode=None, items=None, tables=None, max_items=200, shuff
 	resume_file = readConf()['nowplaying']['filepath']
 	resume_file = npstring_from_path(resume_file)
 	if resume_file is not None:
-		items.reverse()
-		items.append(resume_file)
-		items.reverse()
+		if resume_file not in items:
+			items.reverse()
+			items.append(resume_file)
+			items.reverse()
 	if pos >= max_items:
 		# if max items already exceeded (previous playlist loaded)...0000000000
 		log(f"Already have a full playlist!", 'warning')

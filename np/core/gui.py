@@ -170,8 +170,8 @@ class gui():
 		self.TAB = '-player_control_layout-'
 		self.RESET = False
 		self.win_type = 'internal'
-		self.player = nplayer()
-		self.playlist = create_media()
+		self.player = nplayer(build_playlist=False)
+		self.playlist = []
 		self.conf = readConf()
 		self.windows = []
 		self.conf['active_windows'] = self.windows

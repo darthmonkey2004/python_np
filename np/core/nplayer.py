@@ -14,14 +14,17 @@ log = np_logger().log_msg
 
 #-------------main player class=------------#
 class nplayer():
-	def __init__(self):
+	def __init__(self, build_playlist=True):
 		self.conf = readConf()
 		self.play_type = self.conf['play_type']
 		self.play_needed = 1
 		log(f"nplayer.init():play_needed set = 1", 'info')
 		self.scale_needed = 0
 		self.play_mode = 'database'
-		self.playlist = self.get_playlist_object(play_mode=self.play_mode, play_type=self.play_type)
+		if build_playlist:
+			self.playlist = self.get_playlist_object(play_mode=self.play_mode, play_type=self.play_type)
+		else:
+			self.playlist = []
 		self.next = None
 		self.ART_UPDATE_NEEDED = False
 		self.vlcInstance = None
@@ -53,7 +56,7 @@ class nplayer():
 		if play_mode is not None:
 			self.play_mode = play_mode
 		if data is None:
-			self.playlist = build_playlist(play_mode=self.play_mode, tables=self.play_type, new=True, save=True)
+			self.playlist = build_playlist(play_mode=self.play_mode, tables=self.play_type, new=False, save=True)
 		else:
 			self.playlist = build_playlist(play_mode=self.play_mode, tables=self.play_type, items=data, save=True)
 		log(f"nplayer.get_playlist_object():Playlist created: play_type={self.play_type}, play_mode={self.play_mode}", 'info')

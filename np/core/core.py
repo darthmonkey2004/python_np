@@ -11,6 +11,25 @@ from np.core.conf import readConf, writeConf
 from np.utils.xrandr import xrandr
 log = np_logger().log_msg
 
+
+def sqlite3(query):
+	dbfile = os.path.join(os.path.expanduser("~"), '.np', 'nplayer.db')
+	com = f"sqlite3 \"{dbfile}\" \"{query}\""
+	try:
+		ret = subprocess.check_output(com, shell=True).decode().strip().replace('|', ':')
+		if ret != '':
+			if '::' in ret:
+				ret = ret.replace('::', ':None:')
+			if "\n" in ret:
+				ret = ret.split("\n")
+			return ret
+		else:
+			return None
+	except Exception as e:
+		#log(f"Error: sqlite3 command failed! {e}", 'error')
+		return None
+
+
 def get_local_ip():
 	com = "ip -o -4 a s | awk -F'[ /]+' '$2!~/lo/{print $4}' | grep \"192.168\""
 	return sg.subprocess.check_output(com, shell=True).decode().strip()
@@ -219,3 +238,13 @@ def get_functions(pyfile):
 		if 'def ' in line:
 			lines.append(line.split('def ')[1].split('(')[0])
 	return lines
+
+
+
+def change_series_name(old, new):
+	ret = sqlite3(f"update series set series_name = \'{new}\' where series_name like \'{old}\';")
+	if ret is not None:
+		print("core.change_series_name():Error! {ret}", 'error')
+		return False
+	else:
+		return True

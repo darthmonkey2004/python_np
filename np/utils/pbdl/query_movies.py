@@ -1,19 +1,46 @@
+import os
 import tmdbsimple as tmdb
-tmdb.API_KEY = 'ac1bdc4046a5e71ef8aa0d0bd93f8e9b'
+import keyring
+
+def store_api_key(api_key=None):
+	if api_key is None:
+		api_key = input("enter your tmdb api key now:")
+	service_name = 'tmdb_api'
+	user = os.getlogin()
+	try:
+		keyring.set_password(service_name=service_name, username=user, password=api_key)
+		return api_key
+	except Exception as e:
+		print("Error storing api key in keyring:{e}")
+		return None
+
+def get_api_key():
+	try:
+		api_key = keyring.get_password(service_name='tmdb_api', username=os.getlogin())
+	except:
+		api_key = store_api_key()
+	return api_key
+tmdb.API_KEY = get_api_key()
 
 def query_movies(title, year=None):
 	data = tmdb.Search().movie(query=title, year=year)['results'][0]
 	info = {}
 	info['title'] = title
 	for k in data.keys():
+		if k == 'id':
+			info['tmdbid'] = data['id']
+		elif k == 'release_date':
+			info['year'] = int(data['release_date'].split('-')[0])
+			info['release_date'] = data['release_date']
+		elif k == 'overview':
+			info['description'] = data[k]
 		if 'path' in k:
 			if k == 'poster_path':
 				info['poster'] = f"https://image.tmdb.org/t/p/original{data[k]}"
 			else:
 				info[k] = f"https://image.tmdb.org/t/p/original{data[k]}"
-		elif k == 'overview':
-			info['description'] = data[k]
 	info['results'] = True
+	info['duration'] = 'None'
 	return info
 
 if __name__ == "__main__":

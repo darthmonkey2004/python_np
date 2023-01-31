@@ -25,6 +25,7 @@ np/core/playlist.py
 np/utils/__init__.py
 np/utils/cleandb.py
 np/utils/cli_opts.py
+np/utils/dbfixer.py
 np/utils/get_poster.py
 np/utils/guess_intro.py
 np/utils/id3.py

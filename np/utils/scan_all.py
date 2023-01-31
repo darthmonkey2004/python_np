@@ -9,6 +9,8 @@ log = np_logger().log_msg
 import subprocess
 import os
 import datetime
+from np.utils.dbfixer import dbfixer
+dbfixer = dbfixer()
 data_dir = os.path.join(os.path.expanduser("~"), '.np')
 
 def backup_db():
@@ -60,7 +62,7 @@ def scan_all(path=None):
 
 if __name__ == "__main__":
 	scan_all()
-
+	dbfixer.fix()
 
 
 

@@ -33,7 +33,7 @@ log = np_logger().log_msg
 update_ct = 5
 remote_com_q = queue.Queue()
 remote_ret_q = queue.Queue()
-from np.utils.transform_unique_id import *
+from np.utils.dbfixer import *
 try:
 	server = server(remote_com_q, remote_ret_q)
 	server_start_ok = True
@@ -151,9 +151,7 @@ def recenter_ui():
 	gui_screen = get_opposite_screen(viewer_screen)
 	try:
 		state = 'visible'
-		gui_x = int(MP.conf['windows'][gui_screen]['gui']['x'])
-		gui_y = int(MP.conf['windows'][gui_screen]['gui']['y'])
-		UI.WINDOW.move(gui_x, gui_y)
+		UI.WINDOW.move(UI.gui_win_x, UI.gui_win_y)
 		UI.WINDOW2.size = (int(MP.conf['windows'][viewer_screen]['viewer']['w']), int(MP.conf['windows'][viewer_screen]['viewer']['h']))
 		UI.WINDOW2.move(int(MP.conf['windows'][viewer_screen]['viewer']['x']), int(MP.conf['windows'][viewer_screen]['viewer']['y']))
 		np.writeConf(MP.conf)
@@ -187,15 +185,7 @@ def store_window_location(reset=False):
 	MP.conf = np.readConf()
 	try:
 		viewer_screen = MP.conf['screen']
-		screens = get_screens()
-		if not xrandr()[viewer_screen]['connected']:
-			MP.conf['screen'] = screens[0]
-			viewer_screen = MP.conf['screen']
-			gui_screen = screens[1]
-		if viewer_screen == screens[0]:
-			gui_screen = screens[1]
-		elif viewer_screen == screens[1]:
-			gui_screen = screens[1]
+		gui_screen = get_opposite_screen(viewer_screen)
 		if reset is False:
 			MP.conf['windows'][viewer_screen]['viewer']['x'], MP.conf['windows'][viewer_screen]['viewer']['y'] = UI.WINDOW2.CurrentLocation()
 			MP.conf['windows'][viewer_screen]['viewer']['w'], MP.conf['windows'][viewer_screen]['viewer']['h'] = UI.WINDOW2.size
@@ -726,7 +716,6 @@ def start():
 	btn = None
 	MP = np.nplayer()
 	P = MP.init_vlc()
-	log(f"np.start:INIT:Created new playlist object({MP.play_type})", 'info')
 	tab = '-player_control_layout-'
 	MP.conf = np.readConf()
 	try:
@@ -756,8 +745,11 @@ def start():
 	MP.gui_visible = True
 	log("UI created: np_main.py, Start, line 694", 'info')
 	UI.WINDOW.read(timeout=1)
-	UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.playlist.playlist)
-	log(f"np.start():Playlist window updated!", 'info')
+	try:
+		UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.playlist.playlist)
+		log(f"np.start():Playlist window updated!", 'info')
+	except Exception as e:
+		log(f"np.start():Playlist items empty?({e})", 'error')
 	try:
 		init = MP.conf['init']
 	except Exception as e:
@@ -842,9 +834,12 @@ def start():
 					if title in UI.windows:
 						UI.windows.remove(title)
 						MP.gui_visible = False
-						np.log("REMOTE: Closed gui (removed from active windows list)", 'info')
+						np.log("np.start():EVENT='Hide UI': Closed gui (removed from active windows list)", 'info')
+					MP.conf['windows'][screen]['gui']['x'], MP.conf['windows'][screen]['gui']['y'] = UI.WINDOW.CurrentLocation()
+					UI.gui_win_x, UI.gui_win_y = MP.conf['windows'][screen]['gui']['x'], MP.conf['windows'][screen]['gui']['y']
+					log(f"np.start():EVENT='Hide UI', gui hidden and location stored:{MP.conf['windows'][screen]['gui']['x']}, {MP.conf['windows'][screen]['gui']['y']}", 'info')
+					writeConf(MP.conf)
 					UI.WINDOW.close()
-					log("REMOTE:GUI Window closed.", 'info')
 				elif event == '-CONTROL_MODE-':
 					control_mode = values[event]
 					if media_mode == 'remote':
@@ -1423,6 +1418,7 @@ def start():
 			else:
 				MP.isplaying = False
 				UI.WINDOW['-MESSAGE_AREA-'].update('Load media to start')
+				UI.WINDOW['-PLAY_TYPE-'].update(MP.play_type)
 			stop_timer = timeit.default_timer()
 			loop_time = stop_timer - start_timer
 			ts = str(loop_time).split('.')[0]

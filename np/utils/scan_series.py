@@ -1,9 +1,11 @@
+from np.utils.pbdl.utils import test_media
 import os
 from os.path import basename
 from np.core.conf import readConf
 from np.core.log import np_logger
 from np import get_columns
 from np import cleandb
+from np.utils.pbdl.query_series import query_series
 import subprocess
 import urllib
 import requests
@@ -61,78 +63,7 @@ def set_empty(filepath):
 			info[column] = 'Unknown'
 	return info
 
-def query_series(filepath, series_name, season, episode_number):
-	info = {}
-	series_name_nw = urllib.parse.quote(series_name)
-	API_KEY="ac1bdc4046a5e71ef8aa0d0bd93f8e9b"
-	url = ("https://api.themoviedb.org/3/search/tv?api_key=" + str(API_KEY) + "&language=en-US&query=" + series_name_nw)
-	r = requests.get(url)
-	if r.status_code != 200:
-		out = ("Error:", r.status_code)
-		return out
-	data = r.text
-	json_data = json.loads(data)
-	try:
-		tmdbid = json_data['results'][0]['id']
-	except Exception as e:
-		log(f"Error getting tmdbid:{e}", 'error')
-	try:
-		still_path = json_data['results'][0]['backdrop_path']
-	except Exception as e:
-		log(f"Still path was error:{e}", 'error')
-		still_path = json_data['results'][0]['poster_path']
-	if "'" in json_data['results'][0]['name']:
-		temp = json_data['results'][0]['name']
-		temp = temp.split("'")
-		j = "_"
-		json_data['results'][0]['name'] = j.join(temp)
-	url = "https://api.themoviedb.org/3/tv/" + str(tmdbid) + "/season/" + str(season) + "/episode/" + str(episode_number) + "?api_key=" + str(API_KEY) + "&language=en-US"
-	try:
-		r = requests.get(url)
-		sc = r.status_code
-	except Exception as e:
-		log(f"Failed to get data from tmdb: {e}", 'error')
-		sc = 404
-	if sc != 200:
-		out = ("Error:", r.status_code, "URL:", url)
-		info['error'] = True
-		info['response'] = out
-		info['filepath'] = filepath
-		info['tmdbid'] = tmdbid
-		info['series_name'] = series_name
-		info['season'] = season
-		info['episode_number'] = episode_number
-		info['episode_name'] = 'null'
-		info['description'] = 'null'
-		info['air_date'] = 'null'
-		info['still_path'] = 'null'
-		info['duration'] = 'null'
-		info['md5'] = 'null'
-		info['isactive'] = 1
-		info['url'] = url
-	else:
-		data = r.text
-		json_data = json.loads(data)
-		out = ("OK:", r.status_code, "URL:", url)
-		info['error'] = False
-		info['response'] = out
-		info['filepath'] = filepath
-		info['tmdbid'] = tmdbid
-		info['series_name'] = series_name
-		info['season'] = season
-		info['episode_number'] = episode_number
-		info['episode_name'] = json_data['name']
-		info['description'] = json_data['overview']
-		info['air_date'] = json_data['air_date']
-		info['still_path'] = json_data['still_path']
-		info['duration'] = 'null'
-		info['md5'] = 'null'
-		info['isactive'] = 1
-		info['url'] = url
-	info['description'] = info['description'].replace("'", "").replace('"', "")
-	info['series_name'] = info['series_name'].replace("'", "").replace('"', "")
-	info['episode_name'] = info['episode_name'].replace("'", "").replace('"', "")
-	return info
+
 
 def scan_series(target_dir=None):
 	type = 'series'
@@ -143,9 +74,13 @@ def scan_series(target_dir=None):
 	if target_dir == None:
 		target_dir = conf['media_directories']['series']
 	for ext in exts:
-		com = (f"find '{target_dir}' -name '*.{ext}'")
-		files = subprocess.check_output(com, shell=True).decode().strip()
-		files = files.split("\n")
+		com = (f"find '{target_dir}' -name '*.{ext}' | grep -v \"Movies\"")
+		try:
+			files = subprocess.check_output(com, shell=True).decode().strip()
+			files = files.split("\n")
+		except Exception as e:
+			log(f"scan_series.scan_series():No files found for ext:{ext}!", 'info')
+			files = []
 		ct = len(files)
 		pos = 0
 		for filepath in files:
@@ -170,27 +105,14 @@ def scan_series(target_dir=None):
 				log(f"File already in database: '{filepath}'", 'info')
 				go = False
 			if go == True:
+				episode_name = None
+				add = False
 				try:
-					fname = basename(filepath)
-					l = len(fname) - 4
-					fname = fname[:l]
-					series_name = fname.split('.')[0]
-					sinfo = fname.split('.')[1]
-					season = sinfo.split('E')[0].split('S')[1]
-					episode_number = sinfo.split('E')[1]
-					episode_name = fname.split('.')[2]
+					series_name, season, episode_number = test_media(filepath, True)
 					if conf['debug'] == True:
 						log(f"series_name='{series_name}', season={season}, episode_number={episode_number}", 'info')
-
 				except Exception as e:
-					log(f"Exception:{e}, Filepath: {filepath}", 'error')
-					s = (f"{target_dir}/series")
-					series_name = input("Enter series name:")
-					season = input("Enter season:")
-					episode_number = input ("Enter episode number: ")
-					episode_name = input ("Enter episode name: (blank for none)")
-					if episode_name is None or episode_name == '':
-						episode_name = 'Unknown'
+					log(f"scan_series.scan_series():Error getting info:{e}", 'error')
 			
 				info = set_empty(filepath)
 				if series_name is not None:
@@ -201,11 +123,22 @@ def scan_series(target_dir=None):
 					info['episode_number'] = episode_number
 				if episode_name is not None:
 					info['episode_name'] = episode_name
-				info = query_series(filepath, series_name, season, episode_number)
-				ret = add_to_db(info)
-				if ret is not True:
-					log(f"Error:{ret}, Data:{info}", 'error')
-					input("Press a key...")
+				try:
+					info = query_series(series_name, season, episode_number)
+					add = True
+				except Exception as e:
+					log(f"Error getting info! msg:{e}, filepath:{filepath}, series_name:{series_name}, season:{season}, episode_number:{episode_number}", 'error')
+					add = False
+				info['description'] = info['description'].replace("'", '').replace('"', '')
+				info['episode_name'] = info['episode_name'].replace("'", '').replace('"', '')
+				if add:
+					info['filepath'] = filepath
+					try:
+						ret = add_to_db(info)
+						if ret is not True:
+							log(f"Error:{ret}, Data:{info}", 'error')
+					except Exception as e:
+						log(f"Error:{e}, info:{info}", 'error')
 
 
 
