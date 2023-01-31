@@ -318,10 +318,8 @@ def update_resume():
 
 def playlist_click(_id, table):
 	query_string = ("id = " + str(_id))
-	_file = querydb(table, 'filepath', query_string)[0][0]
-	if MP.conf['debug'] == True:
-		np.log(f"{MP.history['history']}", 'info')
-	MP.play(_file)
+	filepath = querydb(table, 'filepath', query_string)[0][0]
+	MP.play(filepath)
 
 
 def update_media_info(row):

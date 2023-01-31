@@ -9,10 +9,51 @@ import subprocess
 from np.core.conf import readConf, writeConf
 log = np_logger().log_msg
 
+def create_temp_history():
+	h = read_history()
+	ret = write_temp_history(h)
+	if not ret:
+		txt = f"Failed to create temp history! result:{ret}"
+		raise Exception(Exception, txt)
+	else:
+		return True
+
+def rm_temp_history():
+	tempfile = os.path.join(os.path.expanduser("~"), '.np', 'np.history.temp')
+	ret = subprocess.check_output(f"rm \"{tempfile}\"", shell=True).decode().strip()
+	if ret != '':
+		msg = ret
+		ret = False
+	else:
+		msg = None
+		ret = True
+	return ret, msg
+
+def write_temp_history(history):
+	try:
+		tempfile = os.path.join(os.path.expanduser("~"), '.np', 'np.history.temp')
+		with open(tempfile, 'wb') as f:
+			pickle.dump(history, f)
+			f.close()
+		return True
+	except Exception as e:
+		print(f"playlist.write_temp_history():Error - {e}", 'error')
+		return False
+	
+def read_temp_history():
+	try:
+		tempfile = os.path.join(os.path.expanduser("~"), '.np', 'np.history.temp')
+		with open(tempfile, 'rb') as f:
+			history = pickle.load(f)
+			f.close()
+		return history
+	except Exception as e:
+		print(f"playlist.read_temp_history():Error - {e}", 'error')
+		return None
 
 class db_playlist():
 	def __init__(self, _list=None):
-		self.playlist_min_ct = 20
+		self.playlist_min_ct = len(get_series_names())
 		self.last = []
 		self.current = None
 		if _list is None:
@@ -56,6 +97,7 @@ class db_playlist():
 	def next(self):
 		# pop item 0 from playlist...
 		last = self.playlist.pop(0)
+		log(f"playlist.next():set last ({last})!", 'info')
 		if len(self.playlist) <= self.playlist_min_ct:
 			#if minimum playlist items reached, execute build and append to current
 			self.playlist = build_playlist(items=self.playlist)
@@ -69,6 +111,7 @@ class db_playlist():
 
 			# set current to 0
 			self.current = self.playlist[0]
+			log(f"playlist.next():set current ({self.current})!", 'info')
 		else:
 			#End of playlist shouldn't happen, as it rebuilds after length <= self.playlist_min_ct
 			self.current = None
@@ -337,7 +380,7 @@ def save_playlist(items, filepath=None):
 def get_next_series(series_name=None, shuffle=True):
 	#if no series_name provided, grabs random name and tries to pull from history.
 	#if history fails, it grabs all episodes in db and starts with 0. updates history at end.
-	h = read_history()
+	h = read_temp_history()
 	j = "\n"
 	if series_name is None:
 		series_name = get_series_names(shuffle=True)[0]
@@ -348,7 +391,7 @@ def get_next_series(series_name=None, shuffle=True):
 	if last is None or last == '':
 		last = sqlite3(f"select filepath from series where series_name like \'%{series_name}%\' and isactive = 1 order by season,episode_number;")[0]
 		h[series_name] = last
-		write_history(h)
+		write_temp_history(h)
 	try:
 		#get all episodes of a series_name, split by last, and grab next item
 		episodes = get_episodes(series_name=series_name)
@@ -360,7 +403,7 @@ def get_next_series(series_name=None, shuffle=True):
 			next = episodes[0]
 		#update history with current next value
 		h[series_name] = next
-		write_history(h)
+		write_temp_history(h)
 		return series_name, next
 	except Exception as e:
 		log(f"Error getting next series:{e}! last:{last}, series_name:{series_name}", 'error')
@@ -368,7 +411,7 @@ def get_next_series(series_name=None, shuffle=True):
 
 
 def reset_series_history(series_names=None, write_changes=True):
-	h = read_history()
+	h = read_temp_history()
 	if series_names is not None:
 		if type(series_names) != list:
 			series_names = [series_names]
@@ -377,7 +420,7 @@ def reset_series_history(series_names=None, write_changes=True):
 	for series_name in series_names:
 		h[series_name] = get_episodes(series_name=series_name)[0]
 	if write_changes:
-		write_history(h)
+		write_temp_history(h)
 		log(f"playlist_utils.reset_series_history():Updated history file!", 'info')
 	return h
 
@@ -398,6 +441,7 @@ def get_random_table(tables=None):
 	return tables[pos]
 
 def build_playlist(play_mode=None, items=None, tables=None, max_items=200, shuffle=True, ret_type=None, new=False, save=True):
+	ret = create_temp_history()
 	if ret_type is not None:
 		if ret_type != 'playlist' and ret_type != 'items':
 			log(f"Error: Playlist return type must be 'playlist' or 'items'! Defaulting to 'playlist'...", 'error')
@@ -425,32 +469,47 @@ def build_playlist(play_mode=None, items=None, tables=None, max_items=200, shuff
 	if items is not None:
 		if type(items) != list:
 			items = splittolist(items)
-			i = len(items) - 1
+			pos = len(items) - 1
 	else:
 		if not new:
 			# if items not included, check curent playlist dat file and load items.
 			ret, items = load_playlist()
-			log(f"playlist_utils.build_playlist():loaded playlist items! ret:{ret}, items:{items}", 'info')
 			if not ret:
 				items = []
-				i = 0
+				pos = 0
 			else:
-				i = len(items) - 1
+				if type(items) == str:
+					items = [items]
+				pos = len(items)
+				log(f"playlist_utils.build_playlist():loaded playlist items! ret:{ret}, len(items):{pos}", 'info')
 		else:
 			items = []
-			i = 0
-	if i >= max_items:
+			pos = 0
+	#grab current resume and insert at beginning of list
+	resume_file = readConf()['nowplaying']['filepath']
+	resume_file = npstring_from_path(resume_file)
+	if resume_file is not None:
+		items.reverse()
+		items.append(resume_file)
+		items.reverse()
+	if pos >= max_items:
 		# if max items already exceeded (previous playlist loaded)...0000000000
 		log(f"Already have a full playlist!", 'warning')
+		save = False
 	else:
+		save = True
 		movielist = get_movies()
 		musiclist = get_music()
 		#iterate through max items range and create playlist from random selected tables
-		for i in range(max_items):
+		for i in range(pos, max_items):
+			log(f"Adding playlist item:{i}/{max_items}", 'info')
 			table = get_random_table(tables)
 			if table == 'series':
 				series_name, filepath = get_next_series(shuffle=shuffle)
-				items.append(npstring_from_path(filepath))
+				if filepath is not None:
+					npstring = npstring_from_path(filepath)
+					if npstring is not None:
+						items.append(npstring)
 			elif table == 'movies':
 				try:
 					filepath = movielist.pop(0)
@@ -465,6 +524,8 @@ def build_playlist(play_mode=None, items=None, tables=None, max_items=200, shuff
 				except:
 					log(f"All music in list added!", 'info')
 					break
+	#remove temp history file
+	rm_temp_history()
 	#return simple list of item filepaths for use in playlist.set()
 	if save:
 		log(f"playlist_utils.build_playlist():Playlist saved!", 'info')
