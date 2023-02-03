@@ -1,3 +1,4 @@
+from threading import Thread
 import subprocess
 from np.core.conf import readConf, writeConf
 from np.core.log import np_logger
@@ -44,6 +45,20 @@ def get_user_yn(window_title='Yes/No'):
 		break
 	return user_input
 
+
+def ipinfo():
+	ipinfo_api_token = '4d3f83adf329f8'
+	com = f"curl \"ipinfo.io?token={ipinfo_api_token}\""
+	try:
+		ret = '{\n  "ip": "45.128.36.194",\n  "city": "Chicago",\n  "region": "Illinois",\n  "country": "US",\n  "loc": "41.8798,-87.6285",\n  "org": "AS9009 M247 Europe SRL",\n  "postal": "60603",\n  "timezone": "America/Chicago"\n}'
+		#ret = subprocess.check_output(com, shell=True).decode().strip()
+	except Exception as e:
+		print(f"Error:{e}")
+		ret = None
+	print(ret)
+	input()
+
+
 class torrent_mgr():
 	def __init__(self, remote_ip=None):
 		conf = readConf()
@@ -62,7 +77,7 @@ class torrent_mgr():
 			writeConf(conf)
 			self.settings = conf['pbdl']
 		if remote_ip == None:
-			self.remote_ip = conf['pbdl_url']
+			self.remote_ip = conf['pbdl_url']['remote_ip']
 		else:
 			self.remote_ip = remote_ip
 		if self.settings['start_paused'] == False:
@@ -75,23 +90,23 @@ class torrent_mgr():
 	def set_remote_host(self, remote_ip=None):
 		conf = readConf()
 		if remote_ip == None:
-			self.remote_ip = conf['pbdl_url']
+			self.remote_ip = conf['pbdl_url']['remote_ip']
 		else:
 			self.remote_ip = remote_ip
-			conf['pbdl_url'] = self.remote_ip
+			conf['pbdl_url']['remote_ip'] = self.remote_ip
 			writeConf(conf)
 
 	def set_transmission_ip(self, remote_ip=None):
 		conf = readConf()
 		if remote_ip is None:
-			conf['pbdl_url'] = get_user_input("IP Address:", "Enter remote transmission-rpc server address:")
+			conf['pbdl_url']['remote_ip'] = get_user_input("IP Address:", "Enter remote transmission-rpc server address:")
 		else:
-			conf['pbdl_url'] = remote_ip
+			conf['pbdl_url']['remote_ip'] = remote_ip
 		writeConf(conf)
 		log(f"Updated transmision ip: {remote_ip}")
 		
 
-	def vpn_status(self):
+	def _vpn_status(self):
 		com = f"nordvpn status | grep \"Status:\" | cut -d ' ' -f 4"
 		try:
 			status = subprocess.check_output(com, timeout=5, shell=True).decode().strip()
@@ -108,13 +123,36 @@ class torrent_mgr():
 		return get_user_input(window_title)
 
 
-	def start_vpn(self):
+	def vpn_status(self):
+		try:
+			pid = subprocess.check_output(f"pgrep openvpn", shell=True).decode().strip()
+			if pid != '':
+				return True
+			else:
+				return False
+		except Exception as e:
+			print("VPN Status failed:", e)
+			return False
+
+
+	def _start_vpn(self):
 		com = f"nordvpn connect"
 		status = subprocess.check_output(com, shell=True).decode().strip()
 		self.vpn_state = self.vpn_status()
 		return status
 
-	def stop_vpn(self):
+	def _start_vpn(self):
+		com = f"cd /etc/openvpn; sudo openvpn torguard.ubuntu.chicago.ovpn"
+		subprocess.check_output(com, shell=True)
+
+	def start_vpn(self):
+		t = Thread(target=self._start_vpn)
+		t.setDaemon(True)
+		t.start()
+		print("VPN Client thread started!")
+
+
+	def _stop_vpn(self):
 		try:
 			self.stop_all()
 		except:
@@ -123,6 +161,14 @@ class torrent_mgr():
 		status = subprocess.check_output(com, shell=True).decode().strip()
 		self.vpn_state = self.vpn_status()
 		return status
+
+	def stop_vpn(self):
+		try:
+			subprocess.check_output(f"sudo kill $(pgrep openvpn)", shell=True)
+			return True
+		except Exception as e:
+			print("Couldn't kill torguard process:", e)
+			return False
 
 	def get_data(self):
 		self.tdata = {}

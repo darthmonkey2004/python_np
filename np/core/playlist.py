@@ -9,6 +9,37 @@ import subprocess
 from np.core.conf import readConf, writeConf
 log = np_logger().log_msg
 
+conf = readConf()
+
+def load_playlist_file(filepath):
+	if conf['network_mode']['media_mode'] == 'remote':
+		fpath = filepath.split('/var/storage/')[1]
+		filepath = (os.path.expanduser("~"), '.np', 'sftp', fpath)
+	if os.path.exists(filepath):
+		results = []
+		with open(filepath, 'r') as f:
+			lines = f.read().strip().split("\n")
+		f.close()
+		return lines
+	else:
+		print("Playlist file does not exist! '{filepath}'")
+		return None
+
+
+def load_directory(path):
+	try:
+		com = (f"mkmedialist '{path}'")
+		ret = subprocess.check_output(com, shell=True).decode().strip()
+		if ret:
+			print(f"Error: {ret}")
+		playlist_file = os.path.join(path, 'medialist.txt')
+		items = load_playlist_file(playlist_file)
+		return sorted(items)
+	except Exception as e:
+		print("Couldn't load directory:", e)
+		return []
+
+
 
 def create_temp_history():
 	h = read_history()
@@ -53,10 +84,13 @@ def read_temp_history():
 		return None
 
 class db_playlist():
-	def __init__(self, _list=None):
+	def __init__(self, _list=None, save=True, loop_one=False, loop_all=False):
 		self.playlist_min_ct = len(get_series_names())
 		self.last = []
 		self.current = None
+		self.loop_one = loop_one
+		self.loop_all = loop_all
+		self.save = save
 		if _list is None:
 			self.playlist = []
 		else:
@@ -96,23 +130,39 @@ class db_playlist():
 
 
 	def next(self):
-		# pop item 0 from playlist...
-		last = self.playlist.pop(0)
-		log(f"playlist.next():set last ({last})!", 'info')
-		if len(self.playlist) <= self.playlist_min_ct:
-			#if minimum playlist items reached, execute build and append to current
-			self.playlist = build_playlist(items=self.playlist)
-			
-			#update current saved playlist in pickle dat file
+		if self.loop_one:
+			#if repeat one, do nothing (leave current as current)
+			pass
+		else:
+			#if not repeat one, pop from playlist and append to last
+			last = self.playlist.pop(0)
+			self.last.append(last)# and store in last list
+			log(f"playlist.next():set last ({last})!", 'info')
+		if self.loop_all:
+			if len(self.playlist) == 0:
+				#if playlist is empty and in repeat mode, set playlist to history
+				self.playlist = self.last
+				self.last = []
+				log(f"Reset playlist items to last (loop_all=True)!", 'info')
+		else:
+			last = self.playlist.pop(0)
+			self.last.append(last)# and store in last list
+			if len(self.playlist) <= self.playlist_min_ct:
+				#if minimum playlist items reached, execute build and append to current
+				self.playlist = build_playlist(items=self.playlist)		
+				#update current saved playlist in pickle dat file
+		if self.save:
+			log(f"Saving playlist (save is True)...")
 			save_playlist(self.playlist)
-		self.last.append(last)# and store in last list
-
 		#if we haven't reached the end of playlist...
 		if len(self.playlist) > 0:
-
-			# set current to 0
-			self.current = self.playlist[0]
-			log(f"playlist.next():set current ({self.current})!", 'info')
+			if not self.loop_one:
+				# if not repeat one, set current to 0 (assuming pop earlier)
+				self.current = self.playlist[0]
+				log(f"playlist.next():set current ({self.current})!", 'info')
+			else:
+				self.current = self.current
+				log(f"Repeating: {self.current} (loop_one=True)", 'info')
 		else:
 			#End of playlist shouldn't happen, as it rebuilds after length <= self.playlist_min_ct
 			self.current = None
@@ -147,15 +197,206 @@ class db_playlist():
 
 
 class playlist():
-	def __init__(self, _list=None):
+	def __init__(self, items=None, media_path=None, shuffle=False, loop_one=False, loop_all=False):
+		self.playlist = items
+		self.media_path = media_path
+		self.shuffle = shuffle
+		self.loop_one = loop_one
+		self.loop_all = loop_all
+		self.last = []
+		conf = readConf()
+		self.network_mode = conf['network_mode']['media_mode']
+		self.current = None
+		if self.media_path is not None:
+			self.playlist = self.load_directory(self.media_path)
+			if self.shuffle:
+				random(self.playlist)	
+				#print("random, by directory", len(self.playlist))
+			else:
+				self.playlist = sorted(self.playlist)
+		elif self.playlist is not None:
+			log("No parent directory provided! Attempting to find common path...")
+			try:
+				self.media_path = self.find_parent_dir(self.playlist)
+			except Exception as e:
+				log(f"Won't be able to auto build playlist on end of playlist...", 'warning')
+				self.media_path = None
+			if self.shuffle:
+				self.playlist = random(self.playlist)
+			else:
+				self.playlist = sorted(self.playlist)
+		if self.media_path is not None:
+			self.playlist_file = os.path.join(self.media_path, 'medialist.txt')
+
+	def load_playlist_file(self, filepath=None):
+		if filepath is not None:
+			self.playlist_file = filepath
+		if os.path.exists(self.playlist_file):
+			with open(self.playlist_file, 'r') as f:
+				lines = f.read().strip().split("\n")
+			f.close()
+			return lines
+		else:
+			log("Playlist file does not exist! '{self.playlist_file}'", 'error')
+			return None
+
+
+	def load_directory(self, path=None):
+		if path is not None:
+			self.media_path = path
+		try:
+			com = (f"mkmedialist '{self.media_path}'")
+			ret = subprocess.check_output(com, shell=True).decode().strip()
+			if ret:
+				log(f"Error: {ret}")
+			self.playlist_file = os.path.join(self.media_path, 'medialist.txt')
+			self.playlist = self.load_playlist_file(self.playlist_file)
+			return self.playlist
+		except Exception as e:
+			log(f"Couldn't load directory ({self.media_path}):{e}", 'error')
+			return []
+
+
+	def test_common_dir(self, t, items=None):
+		if items is not None:
+			self.playlist = items
+		ct = len(self.playlist)
+		string = "\n".join(self.playlist)
+		if t in string:
+			l = string.split(t)
+			if l[0] == '':
+				_ = l.pop(0)
+			tct = len(l)
+			print(ct, tct)
+			if ct == tct:
+				print("matched!", t)
+				return True
+			else:
+				print("No match...", t)
+				return False
+
+	def find_parent_dir(self, items=None):
+		if items is not None:
+			self.playlist = items
+		depth = len(self.playlist[0].split('/'))
+		ct = len(self.playlist)
+		#compares a list and determines common parent directory,
+		# to serve as media_dir for playlist reconstruction
+		#grab item for pathing
+		pos = 1
+		t1 = os.path.dirname(self.playlist[0])
+		if self.test_common_dir(t1):
+			#if test is true, return t1
+			return t1
+		else:
+			pos += 1
+		if pos <= depth:
+			#if not true, continue with process
+			t2 = os.path.dirname(t1)
+			if self.test_common_dir(t2):
+				return t2
+			else:
+				pos += 1
+		if pos <= depth:
+			t3 = os.path.dirname(t2)
+			if test_common_dir(t3, items):
+				return t3
+			else:
+				pos += 1
+		if pos <= depth:
+			t4 = os.path.dirname(t3)
+			if self.test_common_dir(t4):
+				return t4
+			else:
+				pos += 1
+		#if not common directory found after 4 tries, fail as sparse directory.
+		return None
+
+
+	def next(self):
+		if self.current is None:
+			self.current = self.playlist[0]
+			return self.current
+		if self.loop_one:
+			self.current = self.playlist[0]
+			return self.current
+		elif self.loop_all:
+			if len(self.playlist) > 0:
+				self.last.append(self.playlist.pop(0))
+				self.current = self.playlist[0]
+				return self.current
+			else:
+				log("Reached end of playlist! Restarting... (loop_all=True)")
+				self.playlist = self.last
+				self.last = []
+				self.current = self.playlist[0]
+				return self.current
+		else:	
+			l = len(self.playlist)
+			if l == 1:
+				if self.media_path is not None:
+					self.playlist = self.load_directory(self.media_path)
+					if self.shuffle:
+						random(self.playlist)	
+						log("Rebuilt playlist from {self.media_path}!", 'info')
+					else:
+						self.playlist = sorted(self.playlist)
+					self.current = self.playlist[0]
+					return self.current
+			elif l > 1:
+				print("playlist length:", l)
+				self.last.append(self.playlist.pop(0))
+				self.current = self.playlist[0]
+				return self.current
+
+	def previous(self):
+		if self.loop_one:
+			self.current = self.playlist[0]
+			return self.current
+		elif self.loop_all:
+			if len(self.last) > 0:
+				self.playlist.append(self.last.pop(0))
+				self.current = self.playlist[0]
+				return self.current
+			else:
+				log(f"Reached end of history!")
+				self.current = self.playlist[0]
+				return self.current
+		else:
+			l = len(self.last)
+			if l == 0:
+				log(f"Reached end of history!")
+				self.current = self.playlist[0]
+				return self.current
+			else:
+				#reverse history
+				self.last.reverse()
+				self.playlist.reverse()
+				#transfer item
+				self.playlist.append(self.last.pop(0))
+				#un-reverse history
+				self.last.reverse()
+				self.playlist.reverse()
+				self.current = self.playlist[0]
+				return self.current
+
+
+class playlist_old():
+	def __init__(self, _list=None, save=True, shuffle=True, loop_one=False, loop_all=False):
 		self.current = None
 		self.current_idx = -1
+		self.loop_one = loop_one
+		self.loop_all = loop_all
+		self.last = []
+		self.save = save
+		self.shuffle = shuffle
 		if _list is None:
 			self.playlist = []
 		else:
-			self.playlist = self.set(_list)
+			print("_list:", len(_list))
+			self.playlist = self.set(playlist=_list)
 
-	def set(self, playlist=None):
+	def set(self, playlist=None, playlist_file=None):
 		if playlist is not None:
 			if type(playlist) != list:
 				try:
@@ -164,9 +405,16 @@ class playlist():
 					log(f"playlist():provided playlist object not a list! ({e})", 'error')
 			else:
 				self.playlist = playlist
+		elif playlist_file is not None:
+			self.playlist = load_playlist_file(playlist_file)
 		else:
 			self.playlist = []
+		if len(self.playlist) > 0 and self.shuffle:
+			random(self.playlist)
 		log(f"playlist.set():Playlist data set!", 'info')
+		self.current_idx = 0
+		self.current = self.playlist[0]
+		self.last = []
 		return self.playlist
 
 
@@ -190,26 +438,48 @@ class playlist():
 		elif len(self.playlist) == 1:
 			conf = readConf()
 			self.current = self.playlist[0]
-			self.current_idx = 1
+			return self.current
 		else:
-			self.current_idx += 1
-			try:
-				self.current = self.playlist[self.current_idx]
-			except Exception as e:
+			log(f"loop one:{self.loop_one}, loop_all:{self.loop_all}", 'info')
+			if self.loop_one:
+				# if repeat one...
+				if self.current is None:
+					#init current idx to first playlist item
+					self.current = self.playlist[0]
+					#return early to avoid saving one item to playlist
+					return self.current
+				else:
+					#else leave current unchanged, and set idx to current index
+					pass
+			elif self.loop_all:
+				self.last.append(self.playlist.pop(0))
 				self.current = self.playlist[0]
-				self.current_idx = 0
-				log(f"Reached end of playlist! ({e}). Using 0...", 'warning')
-		self.playlist = self.playlist[self.current_idx:]
-		save_playlist(self.playlist)
+			elif not self.loop_one and not self.loop_all:
+				if len(self.playlist) <= 1:
+					self.playlist = self.last
+					self.last = []
+					self.current = self.playlist[0]
+					log(f"Playlist restarted!", 'info')
+				else:
+					self.last.append(self.playlist.pop(0))
+					self.current = self.playlist[0]
+		if self.save:
+			save_playlist(self.playlist)
 		return self.current
 
 	def previous(self):
-		idx = self.playlist.index(self.current) - 1
-		if idx >= 0:
-			self.current_idx = idx
-			self.current = self.playlist[self.current_idx]
-		else:
-			log(f"playlist():No previous item available!", 'warning')
+		if len(self.last) > 0:
+			self.playlist.append(self.last.pop(0))
+			self.current = self.playlist[0]
+		elif len(self.last) == 0:
+			log(f"Reached beginning of history! Rebuilding...")
+			idx = len(self.playlist) - 1
+			path = os.path.dirname(os.path.dirname(self.playlist[idx]))
+			self.playlist = load_directory(path)
+			if self.shuffle:
+				random(self.playlist)
+			self.last = [self.current]
+			self.current = self.playlist[0]
 		return self.current
 
 
@@ -441,7 +711,7 @@ def get_random_table(tables=None):
 	pos = randint(0, len(tables) - 1)
 	return tables[pos]
 
-def build_playlist(play_mode=None, items=None, tables=None, max_items=200, shuffle=True, ret_type=None, new=False, save=True):
+def build_playlist(play_mode=None, items=None, tables=None, max_items=200, shuffle=False, ret_type=None, new=False, save=True):
 	ret = create_temp_history()
 	if ret_type is not None:
 		if ret_type != 'playlist' and ret_type != 'items':
@@ -528,6 +798,9 @@ def build_playlist(play_mode=None, items=None, tables=None, max_items=200, shuff
 					break
 	#remove temp history file
 	rm_temp_history()
+	if shuffle:
+		# if shuffle, randomize items list
+		random(items)
 	#return simple list of item filepaths for use in playlist.set()
 	if save:
 		log(f"playlist_utils.build_playlist():Playlist saved!", 'info')

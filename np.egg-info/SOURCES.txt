@@ -37,6 +37,7 @@ np/utils/scan_series.py
 np/utils/searchdb.py
 np/utils/tadb_search.py
 np/utils/tag_editor.py
+np/utils/testvpn.py
 np/utils/transform_unique_id.py
 np/utils/xrandr.py
 np/ws/__init__.py

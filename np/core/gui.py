@@ -176,7 +176,7 @@ class gui():
 		self.windows = []
 		self.conf['active_windows'] = self.windows
 		self.conf['gui_data'] = {}
-		self.tables = ['series', 'movies', 'music']
+		self.tables = ['series', 'movies', 'music', 'videos']
 		self.theme = 'DarkBlue'
 		self.play_type = self.conf['play_type']
 		if self.conf['screen'] == 0:
@@ -197,7 +197,7 @@ class gui():
 		self.gui_win_x = self.conf['windows'][screen]['gui']['x']
 		self.gui_win_y = self.conf['windows'][screen]['gui']['y']
 		self.gui_win_w = self.conf['windows'][screen]['gui']['w'] - 300
-		self.gui_win_h = self.conf['windows'][screen]['gui']['h']
+		self.gui_win_h = self.conf['windows'][screen]['gui']['h'] + 20
 		log(f"GUI window set: {self.gui_win_x}, {self.gui_win_y}, {self.gui_win_w}, {self.gui_win_y}", 'info')
 		try:
 			self.viewer_win_x = int(self.conf['windows'][viewer_screen]['viewer']['x'])
@@ -306,7 +306,8 @@ class gui():
 		for screen in d:
 			if d[screen]['connected']:
 				screens.append(screen)
-		search_line = [self.create_old('dropdown_menu', [self.tables, self.conf['play_type'], '-PLAY_TYPE-']), self.create_old('dropdown_menu', [screens, self.conf['screen'], '-SET_SCREEN-']), self.create_old('dropdown_menu', [['database', 'playlist'], 'database', '-PLAY_MODE-']), self.create_old('dropdown_menu', [control_modes, self.conf['network_mode']['control_mode'], '-CONTROL_MODE-']), self.create_old('dropdown_menu', [media_modes, self.conf['network_mode']['media_mode'], '-MEDIA_MODE-']), self.create_old('textbox', ['Search', '-SEARCH-']), sg.Input(default_text='', enable_events=False, do_not_clear=True, key='-SEARCH_QUERY-', expand_x=True), self.create_old('btn', ['Search', 'Search'])]
+		play_mode_line = [self.create_old('dropdown_menu', [self.tables, self.conf['play_type'], '-PLAY_TYPE-']), self.create_old('dropdown_menu', [screens, self.conf['screen'], '-SET_SCREEN-']), self.create_old('dropdown_menu', [['database', 'playlist'], 'database', '-PLAY_MODE-']), self.create_old('dropdown_menu', [control_modes, self.conf['network_mode']['control_mode'], '-CONTROL_MODE-']), self.create_old('dropdown_menu', [media_modes, self.conf['network_mode']['media_mode'], '-MEDIA_MODE-']), self.create_old('checkbox', ['Repeat One', '-REPEAT_ONE-']), self.create_old('checkbox', ['Repeat All', '-REPEAT_ALL-']), self.create_old('checkbox', ['Shuffle', '-SHUFFLE-'])]
+		search_line = [self.create_old('textbox', ['Search', '-SEARCH-']), sg.Input(default_text='', enable_events=False, do_not_clear=True, key='-SEARCH_QUERY-', expand_x=True), self.create_old('btn', ['Search', 'Search'])]
 		#debug_element = sg.Multiline(default_text=log_data, enter_submits=True, autoscroll=True, auto_size_text=True, horizontal_scroll=True, change_submits=True, enable_events=True, key='-DEBUGGER-', auto_refresh=True, reroute_stdout=False, reroute_stderr=False, reroute_cprint=False, echo_stdout_stderr=False, focus=False, expand_x=True, expand_y=True, rstrip=True)
 		poster_element = sg.Image(None, size=(275, 250), subsample=4, expand_x=True, expand_y=True, enable_events=True, key='-POSTER-')
 		elem_media_list = [self.create_old('listbox', [self.playlist, '-CURRENT_PLAYLIST-']), poster_element]
@@ -332,6 +333,7 @@ class gui():
 		radio_sql_table_select = [[sg.Radio('series', "TABLES", default=False, enable_events=True, key='-table_series-'), sg.Radio('movies', "TABLES", default=False, enable_events=True, key='-table_movies-'), sg.Radio('music', "TABLES", default=True, enable_events=True, key='-table_music-'), self.create_old('btn', ['Select All', '-Select All-']), self.create_old('btn', ['Clear All', '-Clear All-'])]]
 		radio_frame = sg.Frame(title='', layout=radio_sql_table_select, key='table_select', expand_x=True, grab=True, element_justification="left", vertical_alignment="top")
 		self.player_control_layout = [
+			play_mode_line,
 			search_line,
 			elem_media_list,
 			update_line,

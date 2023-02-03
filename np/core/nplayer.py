@@ -49,14 +49,21 @@ class nplayer():
 		self.POSTER = os.path.join(os.path.expanduser("~"), '.np', 'poster.png')
 		self.gui_visible = False
 
-	def get_playlist_object(self, data=None, play_mode=None, play_type=None):
+	def get_playlist_object(self, data=None, play_mode=None, play_type=None, shuffle=False):
 		#play type can be list: ['series', 'movies', etc]
 		if play_type is not None:
 			self.play_type = play_type
 		if play_mode is not None:
 			self.play_mode = play_mode
 		if data is None:
-			self.playlist = build_playlist(play_mode=self.play_mode, tables=self.play_type, new=False, save=True)
+			if not shuffle:
+				if self.play_type == 'music' or self.play_type == 'movies' or self.play_type == 'videos':
+					shuffle = True
+				elif self.play_type == 'series':
+					shuffle = False
+			else:
+				pass
+			self.playlist = build_playlist(play_mode=self.play_mode, tables=self.play_type, shuffle=shuffle, new=False, save=True)
 		else:
 			self.playlist = build_playlist(play_mode=self.play_mode, tables=self.play_type, items=data, save=True)
 		log(f"nplayer.get_playlist_object():Playlist created: play_type={self.play_type}, play_mode={self.play_mode}", 'info')
@@ -388,8 +395,11 @@ class nplayer():
 		if self.next is not None:
 			if is_npstring(self.next):
 				self.next = path_from_npstring(self.next)
-			self.play_type = test_media(self.next)
-			log(f"nplayer.play():Play Type set (from test_media()): {self.play_type}", 'info')
+			try:
+				self.play_type = test_media(self.next)
+				log(f"nplayer.play():Play Type set (from test_media()): {self.play_type}", 'info')
+			except:
+				self.play_type = 'videos'
 		# if next is not set...
 		else:
 			#if mode is  playlist

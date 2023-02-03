@@ -657,6 +657,8 @@ def run_ui():
 					log(f"pbdl.downloader():list empty? {e}", 'error')
 			elif event == 'Migrate Files':
 				migrate()
+			elif event == 'VID_OUT':
+				pass
 			else:
 				try:
 					active = int(event.split('-')[1])
@@ -672,7 +674,7 @@ def run_ui():
 					win[f"info-{tid}"].update(info[tid])
 				except Exception as e:
 					log("Error updating window: {e}", 'error')
-			ensure_safe_downloads(t, win)
+			#ensure_safe_downloads(t, win)
 		win.refresh()
 	win.close()
 

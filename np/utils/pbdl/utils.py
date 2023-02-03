@@ -1,3 +1,4 @@
+import re
 from np.utils.id3 import tag
 import PySimpleGUI as sg
 import sys, traceback
@@ -627,20 +628,31 @@ def test_media_type(filepath):
 		return 'music'
 	elif '/Movies/' in filepath:
 		return 'movies'
-	is_series = se_isin(filepath)
-	if is_series:
-		return 'series'
-	is_movie = ty_isin(filepath)
-	if is_movie:
-		return 'movies'
-	#print("is_series, is_movie:", is_series, is_movie)
-	if is_series is True:
-		return 'series'
-	else:
-		#log(f"Error: Unknown type, couldn't parse keys from filepath! File: {filepath}", 'error')
-		txt = f"Error: Unknown type, couldn't parse keys from filepath! File: {filepath}"
-		raise Exception(Exception, txt)
-		#return False
+	elif len(re.findall("[/]", filepath)) >= 1:
+		#if filepath looks like an actual filepath...
+		#check to see if in database
+		is_series = se_isin(filepath)
+		if is_series:
+			return 'series'
+		is_movie = ty_isin(filepath)
+		if is_movie:
+			return 'movies'
+		#print("is_series, is_movie:", is_series, is_movie)
+		if conf['media_directories']['music'] in filepath:
+			return 'music'
+		try:
+			is_music = sqlite3(f"select id from music where filepath like '%{filepath}%';")
+			if is_music == ['']:
+				is_music = False
+			else:
+				is_music = True
+		except:
+			is_music = False
+		if not is_music and not is_movie and not is_series:
+			#log(f"Error: Unknown type, couldn't parse keys from filepath! File: {filepath}", 'error')
+			txt = f"Error: Unknown type, couldn't parse keys from filepath! File: {filepath}. Assuming video playlist..."
+			return 'videos'
+			#return False
 
 
 def test_media(query, return_data=False):

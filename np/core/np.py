@@ -44,6 +44,16 @@ VLC_AUDIO_FILTERS = ['audio:audiobargraph_a', 'audio:chorus_flanger', 'audio:com
 VLC_CLI_OPTIONS = cli_opts()
 
 
+def del_playlist_file(playlistfile=None):
+	if playlistfile is None:
+		playlistfile = os.path.join(os.path.expanduser("~"), '.np', 'current_playlist.dat')
+		ret = subprocess.check_output(f"rm \"{playlistfile}\"", shell=True).decode().strip()
+		if ret != '':
+			log("error removing old playlist file: {ret}!", 'error')
+			return False
+		else:
+			return True
+
 def resort_db():
 	fixer = dbfixer()
 	ret = fixer.fix()
@@ -232,10 +242,10 @@ def change_filter(f):#sets audio filters to vlc instance. returns true on succes
 	P.release()
 	if t == 'audio':
 		f_string = ("--audio-filter=" + f)
-	elif t == 'video':
+	elif t == 'videos':
 		f_string = ("--video-filter=" + f)
 	else:
-		txt = ("Unknown type:" + t + ", Available: 'audio', 'video'")
+		txt = ("Unknown type:" + t + ", Available: 'audio', 'videos'")
 		np.log(txt, 'info')
 		return False
 	if a == 'add':
@@ -306,9 +316,19 @@ def update_resume():
 
 
 
+def isint(n):
+	try:
+		t = int(n)
+		return True
+	except:
+		return False
+
 def playlist_click(_id, table):
-	query_string = ("id = " + str(_id))
-	filepath = querydb(table, 'filepath', query_string)[0][0]
+	if isint(_id):
+		query_string = ("id = " + str(_id))
+		filepath = querydb(table, 'filepath', query_string)[0][0]
+	else:
+		filepath = _id
 	MP.play(filepath)
 
 
@@ -829,6 +849,21 @@ def start():
 					log(f"np.start():Resorting databse ids (ensuring unique..)")
 					ret = resort_db()
 					log(f"np.start():Finished sorting database! Results:{ret}")
+				elif event == '-REPEAT_ONE-':
+					MP.playlist.repeat_one = values[event]
+					if MP.playlist.repeat_one:
+						MP.playlist.repeat_all = False
+					else:
+						MP.playlist.repeat_all = True
+					UI.WINDOW['-REPEAT_ALL-'].update(MP.playlist.repeat_all)
+					log(f"np.start():Set playlist repeat to True!", 'info')
+				elif event == '-REPEAT_ALL-':
+					MP.playlist.repeat_all = values[event]
+					if MP.playlist.repeat_all:
+						MP.playlist.repeat_one = False
+					else:
+						MP.playlist.repeat_one = True
+					UI.WINDOW['-REPEAT_ONE-'].update(MP.playlist.repeat_one)
 				elif event == 'Hide UI':
 					title = UI.WINDOW.Title
 					if title in UI.windows:
@@ -897,6 +932,7 @@ def start():
 					old = MP.conf['play_type']
 					MP.conf['play_type'] = values[event]
 					np.writeConf(conf)
+					del_playlist_file()
 					log(f"Play type changed:{old} >> {MP.conf['play_type']}", 'info')
 					gui_reset()
 				elif event == '-setactive-':
@@ -1340,7 +1376,7 @@ def start():
 				log(f"Exit (break)!", 'info')
 				break
 			#If nplayer's art update class attribute is set, update art.
-			if MP.ART_UPDATE_NEEDED == True and P.is_playing():
+			if MP.ART_UPDATE_NEEDED == True and P.is_playing() and MP.play_type != 'playlist' and MP.play_type != 'videos':
 				if MP.play_type == 'music':
 					UI.WINDOW2['-VID_OUT-'].update(MP.album_art)
 					log(f"art updated:{MP.album_art}", 'info')
