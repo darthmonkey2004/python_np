@@ -368,10 +368,11 @@ def load_playlist(filepath=None):
 		MP.play(filepath)
 	else:
 		if ".txt" in filepath:
-			MP.playlist = sorted(MP.load_playlist(filepath))
-			if MP.shuffle is True:
-				random.shuffle(MP.playlist)
-			UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.playlist)
+			MP.playlist = newplaylist(playlist_file=filepath, shuffle=True)
+			if type(MP.playlist) == list:
+				UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.playlist)
+			else:
+				UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.playlist.playlist)
 			MP.play_mode = 'playlist'
 			UI.WINDOW['-PLAY_MODE-'].update(MP.play_mode)
 			filepath = MP.playlist[0]
@@ -1112,7 +1113,7 @@ def start():
 					log(f"np.start():search event:tabe:{table}, query={query_string}, ret:{ret}", 'info')
 					if type(ret) == str:
 						ret = ret.split("\n")
-					if ret:
+					if type(ret) == list:
 						log(f"np:start:EVENT=Search:query_string={query_string},table={table}", 'info')
 						MP.playlist = MP.get_playlist_object(data=ret, play_mode='playlist', play_type=MP.play_type)
 						log(f"np.start:EVENT:Search:Created new playlist object({MP.play_type})", 'info')

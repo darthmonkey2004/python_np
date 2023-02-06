@@ -84,30 +84,35 @@ def read_temp_history():
 		return None
 
 class db_playlist():
-	def __init__(self, _list=None, save=True, loop_one=False, loop_all=False):
+	def __init__(self, items=None, save=True, loop_one=False, loop_all=False, shuffle=False, play_type=None):
+		if play_type is None:
+			conf = readConf()
+			self.play_type = conf['play_type']
+		else:
+			self.play_type = play_type
 		self.playlist_min_ct = len(get_series_names())
+		self.shuffle = shuffle
 		self.last = []
 		self.current = None
 		self.loop_one = loop_one
 		self.loop_all = loop_all
 		self.save = save
-		if _list is None:
-			self.playlist = []
+		if items is not None:
+			self.playlist = self.set(items)
 		else:
-			self.playlist = self.set(_list)
+			self.playlist = None
 
-	def set(self, playlist=None):
-		if playlist is not None:
-			if type(playlist) != list:
-				try:
-					self.playlist = list(playlist)
-				except Exception as e:
-					log(f"playlist():provided playlist object not a list! ({e})", 'error')
-			else:
-				self.playlist = playlist
-		else:
-			self.playlist = []
-		log(f"db_playlist.set():Playlist data set!", 'info')
+	def set(self, items):
+		if isinstance(items, playlist) or isinstance(items, db_playlist):
+			items = items.playlist
+		elif items == str:
+			items = items.splitlines()
+		if type(items) == list:
+			print("items:", len(items))
+			self.playlist = items
+		if self.shuffle:
+			random(self.playlist)
+		log(f"db_playlist.set():Playlist data set! ({len(self.playlist)})", 'info')
 		return self
 
 
@@ -197,7 +202,8 @@ class db_playlist():
 
 
 class playlist():
-	def __init__(self, items=None, media_path=None, shuffle=False, loop_one=False, loop_all=False):
+	def __init__(self, playlist_file=None, items=None, media_path=None, shuffle=False, loop_one=False, loop_all=False):
+		self.playlist_file = playlist_file
 		self.playlist = items
 		self.media_path = media_path
 		self.shuffle = shuffle
@@ -212,6 +218,12 @@ class playlist():
 			if self.shuffle:
 				random(self.playlist)	
 				#print("random, by directory", len(self.playlist))
+			else:
+				self.playlist = sorted(self.playlist)
+		elif self.playlist_file is not None:
+			self.playlist = subprocess.check_output(f"cat \"{self.playlist_file}\"", shell=True).decode().strip().split("\n")
+			if self.shuffle:
+				random(self.playlist)
 			else:
 				self.playlist = sorted(self.playlist)
 		elif self.playlist is not None:
@@ -382,7 +394,7 @@ class playlist():
 
 
 class playlist_old():
-	def __init__(self, _list=None, save=True, shuffle=True, loop_one=False, loop_all=False):
+	def __init__(self, items=None, save=True, shuffle=True, loop_one=False, loop_all=False):
 		self.current = None
 		self.current_idx = -1
 		self.loop_one = loop_one
@@ -390,11 +402,11 @@ class playlist_old():
 		self.last = []
 		self.save = save
 		self.shuffle = shuffle
-		if _list is None:
+		if items is None:
 			self.playlist = []
 		else:
-			print("_list:", len(_list))
-			self.playlist = self.set(playlist=_list)
+			print("items:", len(items))
+			self.playlist = self.set(playlist=items)
 
 	def set(self, playlist=None, playlist_file=None):
 		if playlist is not None:
@@ -622,6 +634,12 @@ def npstring_from_path(path):
 		string = f"music:{in_music[0][0]}:{in_music[0][1]}:{in_music[0][2]}:{in_music[0][3]}"
 	return string
 
+def test_isnpstring(filepath):
+	npstring = npstring_from_path(filepath)
+	if npstring is not None:
+		return True
+	else:
+		return False
 
 def load_playlist(filepath=None):
 	if filepath is None:
@@ -727,7 +745,7 @@ def build_playlist(play_mode=None, items=None, tables=None, max_items=200, shuff
 	if play_mode == 'database':
 		pl = db_playlist()
 	elif play_mode == 'playlist':
-		pl = playlist(items)
+		pl = playlist(items=items)
 		return pl
 	if tables is None:
 		#if tables is None, grab current play_type from conf and create list object

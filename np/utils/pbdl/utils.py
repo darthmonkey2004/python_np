@@ -14,6 +14,8 @@ from np.utils.pbdl.query_series import query_series
 from np.utils.pbdl.query_movies import query_movies
 import os
 import pickle
+import json
+import requests
 from urllib.parse import quote, unquote
 id3 = tag()
 log = np_logger().log_msg
@@ -22,6 +24,14 @@ DATA_DIR = os.path.join(os.path.expanduser("~"), '.np')
 SFTP_DIR = os.path.join(DATA_DIR, 'sftp')
 HOME = os.path.expanduser("~")
 
+
+def get_public_ip():
+	url = 'https://www.showmyip.com/'
+	r = requests.get(url)
+	data = r.text.split("\n")
+	for line in data:
+		if 'Your IPv4' in line:
+			return line.split('<b>')[1].split('</b>')[0]
 
 def set_empty(table='movies'):
 	pragma = get_columns(table)
@@ -48,7 +58,7 @@ def mount_sftp():
 		#media_dir  = ("/var/lib/transmission-daemon/downloads")
 		#com = (f"sshfs \"{string}:{media_dir}\" \"{SFTP_DIR}\"")
 	
-		com = (f"sshfs \"{user}@{conf['pbdl_url']}:/var/lib/transmission-daemon/downloads\" \"{SFTP_DIR}\"")
+		com = (f"sshfs \"{user}@{conf['pbdl_url']['remote_ip']}:/var/lib/transmission-daemon/downloads\" \"{SFTP_DIR}\"")
 		log(f"Com:{com}", 'info')
 	
 		ret = subprocess.check_output(com, shell=True).decode().strip()
@@ -168,6 +178,7 @@ def add_to_db(torrents):
 				torrents[tid]['files'][filepath]['info']['year'] = year
 			elif play_type == 'series':
 				series_name, season, episode_number = test_media(filepath, True)
+				series_name = series_name.title()
 				torrents[tid]['files'][filepath]['info'] = query_series(series_name, season, episode_number)
 				torrents[tid]['files'][filepath]['info']['series_name'] = test_series_name(series_name)
 				torrents[tid]['files'][filepath]['info']['season'] = int(season)
@@ -628,13 +639,14 @@ def test_media_type(filepath):
 		return 'music'
 	elif '/Movies/' in filepath:
 		return 'movies'
-	elif len(re.findall("[/]", filepath)) >= 1:
+	else:
+		fname = os.path.basename(filepath)
 		#if filepath looks like an actual filepath...
 		#check to see if in database
-		is_series = se_isin(filepath)
+		is_series = se_isin(fname)
 		if is_series:
 			return 'series'
-		is_movie = ty_isin(filepath)
+		is_movie = ty_isin(fname)
 		if is_movie:
 			return 'movies'
 		#print("is_series, is_movie:", is_series, is_movie)
@@ -653,6 +665,7 @@ def test_media_type(filepath):
 			txt = f"Error: Unknown type, couldn't parse keys from filepath! File: {filepath}. Assuming video playlist..."
 			return 'videos'
 			#return False
+	
 
 
 def test_media(query, return_data=False):

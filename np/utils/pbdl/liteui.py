@@ -246,10 +246,11 @@ def add_to_db():
 			files = get_files(tid)
 			for filepath in files:
 				fname = os.path.basename(filepath)
+				play_type = test_media(fname)
+				print(f"fname:{fname}, play_type:{play_type}")
 				ext = os.path.splitext(fname)[1]
 				if ext.lower() in extensions:
 					try:
-						play_type = test_media(fname)
 						if play_type == 'series':
 							series_name, season, episode_number = test_media(fname, True)
 							series_name = series_name.capitalize()
@@ -428,7 +429,7 @@ def gui(info):
 	layout = []
 	results = []
 	conf = readConf()
-	play_type_combo = [sg.Combo(['series', 'movies', 'music'], conf['play_type'] , enable_events=True,key='-DL_MEDIA_TYPE-'), sg.Checkbox(text="VPN On/Off", auto_size_text=True, change_submits=True, enable_events=True, key='-TOGGLE_VPN-')]
+	play_type_combo = [sg.Combo(['series', 'movies', 'music'], conf['play_type'] , enable_events=True,key='-DL_MEDIA_TYPE-'), sg.Checkbox(text="VPN On/Off", auto_size_text=True, change_submits=True, enable_events=True, key='-TOGGLE_VPN-'), sg.Text('Public IP Address:'), sg.Text('', key='-PUBLIC_IP-')]
 	layout.append(play_type_combo)
 	search_line = [sg.Text('Enter search query here:'), sg.Input('', enable_events=True, change_submits=True, key='-PBDL_SEARCH_QUERY-', expand_x=True), sg.Button('Search', key='-PBDL_SEARCH-'), sg.Button('Quit!', key='-DOWNLOADER_EXIT-')]
 	layout.append(search_line)
@@ -467,13 +468,14 @@ def add(magnet, paused=False, download_dir="/var/lib/transmission-daemon/downloa
 
 def start():
 	global win_x, win_y
-	t = torrent_mgr()
 	info = update_info()
 	try:
 		win_x, win_y = load_win_location()
 		win = gui(info)
+		t = torrent_mgr(win)
 	except:
 		win = gui(info)
+		t = torrent_mgr(win)
 		win_x, win_y = win.current_location()
 		save_win_location(win_x, win_y)
 	return t, info, win, win_x, win_y
@@ -509,31 +511,20 @@ def send(com):
 def get_gateway():
 	return send(com = "route -n | grep \"0.0.0.0\" | grep -v \"255.255\"").split('0.0.0.0 ')[1].strip()
 
-def test_vpn_ping():
-	addy = get_gateway()
-	ret = send(f"ping -c 1 -t 1 {addy}")
-	if ret is None:
-		return True
-	elif '0%' in ret and '100%' not in ret:
-		return False
-	else:
-		return False
 
 def test_vpn_status():
-	ret = send(f"nordvpn status")
-	if 'Disconnected' in ret:
+	try:
+		ret = send(f"pgrep openvpn").split("\n")
+	except:
+		ret = []
+	if len(ret) == 0:
 		return False
-	elif 'Connected' in ret:
+	elif len(ret) >= 1:
 		return True
-	else:
-		return False
 
 
 def test_vpn():
-	try:
-		active = test_vpn_status()
-	except:
-		active = test_vpn_ping()
+	active = test_vpn_status()
 	if active:
 		return True
 	else:
@@ -570,7 +561,7 @@ def run_ui():
 	t, info, win, win_x, win_y = start()
 	win['-TOGGLE_VPN-'].update(t.vpn_status())
 	pos = 0
-	ct = 500
+	ct = 1500
 	active = None
 	magnet = None
 	exit = False
@@ -659,6 +650,9 @@ def run_ui():
 				migrate()
 			elif event == 'VID_OUT':
 				pass
+			elif event == '-ALL-':
+				active = 'all'
+				log("Selected: 'all'...", 'info')
 			else:
 				try:
 					active = int(event.split('-')[1])
@@ -666,6 +660,7 @@ def run_ui():
 				except Exception as e:
 					log(f"can't parse key: {e} event: {event}", 'error')
 		if pos == ct:
+			win['-PUBLIC_IP-'].update(t.get_public_ip())
 			pos = 0
 			info = update_info()
 			for tid in info.keys():
@@ -674,7 +669,7 @@ def run_ui():
 					win[f"info-{tid}"].update(info[tid])
 				except Exception as e:
 					log("Error updating window: {e}", 'error')
-			#ensure_safe_downloads(t, win)
+			ensure_safe_downloads(t, win)
 		win.refresh()
 	win.close()
 

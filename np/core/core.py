@@ -248,3 +248,40 @@ def change_series_name(old, new):
 		return False
 	else:
 		return True
+
+
+
+def test_play_mode(playlist_object):
+	if type(playlist_object) != list:
+		l = playlist_object.playlist
+	else:
+		l = playlist_object
+	print("type:", type(l))
+	low = 0
+	med = round(len(l) / 2)
+	hi = len(l) - 1
+	#true if databse, False if playlist
+	if ':' in l[low]:
+		t1 = True
+	elif '/' in l[low] and '.' in l[low]:
+		t1 = False
+	if ':' in l[med]:
+		t2 = True
+	elif '/' in l[med] and '.' in l[med]:
+		t2 = False
+	if ':' in l[hi]:
+		t3 = True
+	elif '/' in l[hi] and '.' in l[hi]:
+		t3 = False
+	pos = 0
+	if t3:
+		pos += 1
+	if t2:
+		pos += 1
+	if t1:
+		pos += 1
+	if pos >= 2:
+		playlist_mode = 'database'
+	else:
+		playlist_mode = 'playlist'
+	return playlist_mode

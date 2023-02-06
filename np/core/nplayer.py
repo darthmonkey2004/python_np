@@ -310,6 +310,8 @@ class nplayer():
 				with open(filepath, 'r') as f:
 					lines = f.read().strip().split("\n")
 				f.close()
+				if self.shuffle:
+					shuffle(lines)
 				return lines
 			except Exception as e:
 				log(f"Unable to load media playlist:{e}, {filepath}", 'error')

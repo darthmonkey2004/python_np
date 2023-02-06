@@ -1,3 +1,4 @@
+from queue import Queue
 from threading import Thread
 import subprocess
 from np.core.conf import readConf, writeConf
@@ -5,7 +6,37 @@ from np.core.log import np_logger
 from np.utils.pbdl.torrentmgr_ui import *
 from np.utils.pbdl.utils import get_torrents, get_files
 import os
+import json
+import requests
 log = np_logger().log_msg
+public_ip = None
+
+
+
+def get_public_ip():
+	public_ip = None
+	url = 'https://www.showmyip.com/'
+	r = requests.get(url)
+	data = r.text.split("\n")
+	for line in data:
+		if 'Your IPv4' in line:
+			public_ip = line.split('<b>')[1].split('</b>')[0]
+	return public_ip
+
+def vpn_status():
+	try:
+		ret = subprocess.check_output(f"pgrep openvpn", shell=True).decode().strip().splitlines()
+	except:
+		ret = []
+	if len(ret) == 1:
+		vpn_state = True
+	elif len(ret) > 1:
+		log(f"WARNING: openvpn process running multiple times! {ret}", 'warning')
+		vpn_state = True
+	elif len(ret) == 0:
+		vpn_state = False
+	return vpn_state
+
 
 def get_user_input(window_title='User Input', txt=None):
 	user_input = None
@@ -60,7 +91,8 @@ def ipinfo():
 
 
 class torrent_mgr():
-	def __init__(self, remote_ip=None):
+	def __init__(self, win=None, remote_ip=None):
+		self.win = win
 		conf = readConf()
 		self.start_paused = True
 		self.do_not_seed = True
@@ -86,6 +118,14 @@ class torrent_mgr():
 			self.set_start_paused()
 		self.set_global_ratio(0)
 		self.user = os.path.expanduser("~").split('/home/')[1]
+		self.public_ip = self.get_public_ip()
+		if self.win is not None:
+			self.win['-PUBLIC_IP-'].update(self.public_ip)
+		self.vpn_thread = None
+		self.vpn_state = self.vpn_status()
+		self.monitor_q = Queue(maxsize=5)
+		self.start_monitor()
+
 
 	def set_remote_host(self, remote_ip=None):
 		conf = readConf()
@@ -123,33 +163,70 @@ class torrent_mgr():
 		return get_user_input(window_title)
 
 
+	def get_public_ip(self):
+		url = 'https://www.showmyip.com/'
+		r = requests.get(url)
+		data = r.text.split("\n")
+		for line in data:
+			if 'Your IPv4' in line:
+				self.public_ip = line.split('<b>')[1].split('</b>')[0]
+				return self.public_ip
+
+
 	def vpn_status(self):
 		try:
-			pid = subprocess.check_output(f"pgrep openvpn", shell=True).decode().strip()
-			if pid != '':
-				return True
-			else:
-				return False
-		except Exception as e:
-			print("VPN Status failed:", e)
-			return False
+			ret = subprocess.check_output(f"pgrep openvpn", shell=True).decode().strip().splitlines()
+		except:
+			ret = []
+		if len(ret) == 1:
+			self.vpn_state = True
+		elif len(ret) > 1:
+			log(f"WARNING: openvpn process running multiple times! {ret}", 'warning')
+			self.vpn_state = True
+		elif len(ret) == 0:
+			self.vpn_state = False
+		return self.vpn_state
 
-
-	def _start_vpn(self):
+	def _start_nordvpn(self):
 		com = f"nordvpn connect"
 		status = subprocess.check_output(com, shell=True).decode().strip()
 		self.vpn_state = self.vpn_status()
 		return status
 
 	def _start_vpn(self):
+		log(f"Starting torguard process...", 'info')
 		com = f"cd /etc/openvpn; sudo openvpn torguard.ubuntu.chicago.ovpn"
 		subprocess.check_output(com, shell=True)
+			
+
+	def ip_monitor(self, q):
+		print("IP Monitor running!")
+		self.run_monitor = True
+		while self.run_monitor:
+			self.vpn_state = vpn_status()
+			self.public_ip = get_public_ip()
+			if not q.full():
+				q.put_nowait((self.vpn_state, self.public_ip))
+			if self.win is not None:
+				self.win['-PUBLIC_IP-'].update(self.public_ip)
+				self.win['-TOGGLE_VPN-'].update(self.vpn_state)
+		print("IP Monitor exited!")
+		return
+
+
+	def start_monitor(self):
+		self.monitor_thread = Thread(target=self.ip_monitor, args=(self.monitor_q,))
+		self.monitor_thread.setDaemon(True)
+		self.monitor_thread.start()
+		return self.monitor_thread
+
 
 	def start_vpn(self):
-		t = Thread(target=self._start_vpn)
-		t.setDaemon(True)
-		t.start()
+		self.vpn_thread = Thread(target=self._start_vpn)
+		self.vpn_thread.setDaemon(True)
+		self.vpn_thread.start()
 		print("VPN Client thread started!")
+		return self.vpn_thread
 
 
 	def _stop_vpn(self):
@@ -160,11 +237,14 @@ class torrent_mgr():
 		com = f"nordvpn disconnect"
 		status = subprocess.check_output(com, shell=True).decode().strip()
 		self.vpn_state = self.vpn_status()
+		self.public_ip = self.get_public_ip
 		return status
 
 	def stop_vpn(self):
 		try:
 			subprocess.check_output(f"sudo kill $(pgrep openvpn)", shell=True)
+			self.vpn_state = False
+			self.public_ip = self.get_public_ip()
 			return True
 		except Exception as e:
 			print("Couldn't kill torguard process:", e)
@@ -326,22 +406,23 @@ class torrent_mgr():
 		self.stop_seeds()
 		data = self.get_data()
 		ct = len(list(data.keys()))
+		pos = 0
 		while True:
-			pos = 0
+			if not self.monitor_q.empty():
+				self.vpn_state, self.public_ip = self.monitor_q.get_nowait()
+				self.monitor_q.task_done()
+
 			for tid in data:
 				percent = data[tid]['percent']
 				if percent == '100%':
 					pos += 1
 			if ct == pos:
-				log(f"Done! ({pos} of {ct})", 'info')
-				break
+				pos = 0
 			else:
 				log(f"Progress: {pos} of {ct}", 'info')
-				status = self.vpn_status()
-				if status == False:
+				if not self.vpn_state:
 					log(f"VPN not active! Restarting...", 'warning')
 					self.start_vpn()
-				
 		self.stop_all()
 		self.stop_vpn()
 		log(f"All torrents finished! VPN deactivated.", 'info')
