@@ -253,7 +253,7 @@ def add_to_db():
 					try:
 						if play_type == 'series':
 							series_name, season, episode_number = test_media(fname, True)
-							series_name = series_name.capitalize()
+							series_name = series_name.title()
 							info = query_series(series_name, season, episode_number)
 						elif play_type == 'movies':
 							title, year = test_media(fname)

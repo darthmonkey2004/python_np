@@ -313,7 +313,7 @@ class gui():
 		elem_media_list = [self.create_old('listbox', [self.playlist, '-CURRENT_PLAYLIST-']), poster_element]
 		update_line = [self.create_old('btn', ['Refresh from Database']), sg.Button('Update Poster', key='-UPDATE_POSTER-')]
 		player_controls1 = [self.create_old('btn', ['Volume Up']), self.create_old('btn', ['previous']), self.create_old('btn', ['play']), self.create_old('btn', ['next']), self.create_old('btn', ['pause']), self.create_old('btn', ['stop'])]
-		player_controls2 = [self.create_old('btn', ['Volume Down']), self.create_old('btn', ['seek fwd']), self.create_old('btn', ['seek rev']), self.create_old('btn', ['Exit']), self.create_old('btn', ['Screenshot']), self.create_old('btn', ['Mark Intro: Start']), self.create_old('btn', ['Mark Intro: End'])]
+		player_controls2 = [self.create_old('btn', ['Volume Down']), self.create_old('btn', ['seek fwd']), self.create_old('btn', ['seek rev']), self.create_old('btn', ['step forard', '-NEXT_FRAME-']), self.create_old('btn', ['step back', '-PREVIOUS_FRAME-']), self.create_old('btn', ['Exit']), self.create_old('btn', ['Screenshot'])]
 		try:
 			play_pos = float(self.conf['nowplaying']['play_pos'])
 		except:

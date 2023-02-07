@@ -974,6 +974,11 @@ def start():
 				elif event == 'seek rev':
 					MP.seek_rev()
 					log(f"ACTION:seek_rev", 'info')
+				elif event == '-PREVIOUS_FRAME-':
+					MP.ts = MP.step_frame(direction='rev')
+					log(f"np.start():Skipped frame forard!", 'info')
+				elif event == '-NEXT_FRAME-':
+					MP.ts = MP.step_frame(direction='fwd')
 				elif event == '-SET_SCREEN-':
 					MP.conf['screen'] = int(values[event])
 					#MP.conf = UI.set_window_screen(MP.conf['screen'])
@@ -1222,7 +1227,7 @@ def start():
 							log(f"Error: No user input provided: {e}", 'error')
 					else:	
 						np.log(f"np.start():Failed to load directory '{path}'.", 'error')
-						MP.play_needed = 1
+						MP.play_needed = True
 						np.log(f"np.start(): set play_needed=1", 'info')
 				elif event == "-Database Editor-":
 					UI.db_editor(MP.play_type)
@@ -1353,7 +1358,7 @@ def start():
 				log(f"np_main.py:Reset finished (Reset set to false)! Conf written.", 'info')
 				np.writeConf(MP.conf)
 				recenter_ui()
-			elif MP.play_needed == 1:
+			elif MP.play_needed == 1 or MP.play_needed:
 				log("Playing from 'play needed'", 'info')
 				filepath = MP.conf['nowplaying']['filepath']
 				play_pos = MP.conf['nowplaying']['play_pos']

@@ -17,7 +17,8 @@ class nplayer():
 	def __init__(self, build_playlist=True):
 		self.conf = readConf()
 		self.play_type = self.conf['play_type']
-		self.play_needed = 1
+		#self.play_needed = 1
+		self.play_needed = True
 		log(f"nplayer.init():play_needed set = 1", 'info')
 		self.scale_needed = 0
 		self.play_mode = 'database'
@@ -35,8 +36,10 @@ class nplayer():
 		self.exit = False
 		self.intro_start = None
 		self.intro_end = None
-		self.continuous = 1
-		self.is_playing = 0
+		#self.continuous = 1
+		#self.is_playing = 0
+		self.continuous = True
+		self.is_playing = False
 		self.series_history = None
 		self.resume = None
 		self.play_pos = self.conf['nowplaying']['play_pos']
@@ -48,6 +51,9 @@ class nplayer():
 		self.img_url = None
 		self.POSTER = os.path.join(os.path.expanduser("~"), '.np', 'poster.png')
 		self.gui_visible = False
+		self.mfps = 0
+		self.debug = self.conf['debug']
+		self.is_paused = False
 
 	def get_playlist_object(self, data=None, play_mode=None, play_type=None, shuffle=False):
 		#play type can be list: ['series', 'movies', etc]
@@ -81,9 +87,45 @@ class nplayer():
 			log("seek_to_pos, line 236: {e}", 'error')
 			return 1
 
+	def get_play_time(self):
+		self.duration = self.player.get_time()
+		return self.duration
+
+	
+	def get_mspf(self):
+		self.mspf = int(1000 / (self.player.get_fps() or 25))
+		return self.mspf
+
+	def get_ts(self):
+		self.ts = self.player.get_time()
+		return self.ts
+
+	def set_ts(self, ts):
+		self.player.set_time(ts)
+		self.ts = self.get_ts()
+		return self.ts
+
+	def step_frame(self, direction='fwd'):
+		if self.player.get_state() == 3:
+			self.player.pause()
+		self.ts = self.player.get_time()
+		self.mfps = int(1000 / (self.player.get_fps() or 25))
+		if direction == 'fwd':
+			self.ts += self.mfps
+			log(f"Skipped next frame! ({self.ts})", 'info')
+		elif direction == 'rev':
+			self.ts -= self.mfps
+			log(f"Skipped previous frame! ({self.ts})", 'info')
+		self.player.set_time(self.ts)
+		if self.player.get_state() == 3:
+			self.player.pause()
+
+
 	def playback_started(self):
-		self.is_playing = 1
-		self.play_needed = 0
+		#self.is_playing = 1
+		self.is_playing = True
+		#self.play_needed = 0
+		self.play_needed = False
 
 	def init_vlc(self, uri=None):
 		try:
@@ -108,7 +150,8 @@ class nplayer():
 	def playback_finished(self):
 		self.conf['nowplaying']['filepath'] = None
 		writeConf(self.conf)
-		self.play_needed = 1
+		#self.play_needed = 1
+		self.play_needed = True
 		log(f"nplayer.playback_finished():play_needed set = 1", 'info')
 
 	def vlc_event(self, event):
@@ -117,17 +160,23 @@ class nplayer():
 			if typestr in event:
 				event = event.split(':')[1]
 				if event == 'EventType.MediaMPEndReached':
-					self.play_needed = 1
+					#self.play_needed = 1
+					self.play_needed = True
 					log(f"nplayer.vlc_event():play_needed set = 1 (vlc_event[MediaMPEndReached])", 'info')
 					self.playback_finished()
 				elif event == 'EventType.MediaMPStopped':
-					self.is_playing = 0
+					#self.is_playing = 0
+					self.is_playing = False
 				elif event == 'EventType.MediaMPPaused':
-					pass
+					self.is_paused = True
 				elif event == 'EventType.MediaMPPlaying':
-					self.is_playing = self.player.is_playing()
-					self.play_needed = 0
-					self.scale_needed = 1
+					self.is_paused = False
+					#self.is_playing = self.player.is_playing()
+					self.is_playing = bool(self.player.is_playing())
+					#self.play_needed = 0
+					#self.scale_needed = 1
+					self.play_needed = False
+					self.scale_needed = True
 					log(f"play_needed set = 0 (vlc_event[MediaMPPlaying]", 'info')
 
 	def get_next(self):
@@ -144,9 +193,12 @@ class nplayer():
 		log("Playback stopped!", 'info')
 		self.vlcInstance.release()
 		log("VLC Instance released!", 'info')
-		self.is_playing = 0
-		self.continuous = 0
-		self.play_needed = 0
+		#self.is_playing = 0
+		#self.continuous = 0
+		#self.play_needed = 0
+		self.is_playing = False
+		self.continuous = False
+		self.play_needed = False
 		log(f"play_needed set = 0 (stop): line361", 'info')
 		self.conf['nowplaying']['filepath'] = None
 
@@ -196,6 +248,8 @@ class nplayer():
 			pos = 0.99
 		pos = pos + 0.007
 		self.player.set_position(pos)
+		self.play_pos = pos
+		log(f"nplayer.seek_fwd():Seeked to pos {self.play_pos}", 'info')
 	
 	def seek_rev(self):
 		pos = self.player.get_position()
@@ -203,6 +257,8 @@ class nplayer():
 			pos = 0.0
 		pos = pos - 0.007
 		self.player.set_position(pos)
+		self.play_pos = pos
+		log(f"nplayer.seek_rev():Seeked to pos {self.play_pos}", 'info')
 
 	def screenshot(self, src=0, dest_dir=None, w=0, h=0):
 		ts = time.time()
@@ -489,10 +545,12 @@ class nplayer():
 			self.player.set_position(self.play_pos)
 			log(f"nplayer.play(): Skipped to position {self.play_pos}", 'info')
 			#set play_needed and play_pos to 0 to avoid loop duplicating action (delay?)
-			self.play_needed = 0
+			#self.play_needed = 0
+			self.play_needed = False
 			self.play_pos = 0
 			self.conf['nowplaying']['play_pos'] = 0
-		self.continuous = 1
+		#self.continuous = 1
+		self.continuous = True
 		if self.play_type == 'series' or  self.play_type == 'movies':
 			if self.next is not None:
 				try:
@@ -519,15 +577,17 @@ class nplayer():
 		except Exception as e:
 			log(f"Unable to set volume: {e}", 'error')
 		self.is_playing = self.player.is_playing()
-		if self.is_playing == 1 or self.is_playing == True:
+		if self.is_playing == 1 or self.is_playing:
 			self.conf['nowplaying']['filepath'] = self.next
 			self.conf['nowplaying']['play_pos'] = self.play_pos
-			self.play_needed = 0
+			#self.play_needed = 0
+			self.play_needed = False
+			self.mfps = self.get_mspf()
 			log(f"nplayer.play():Playback started ({self.next})! Setting play needed=0", 'info')
 		else:
 			log(f"nplayer.play():set play_needed = 1, not started!(???) next={self.next}, is_playing={self.player.is_playing()}", 'error')
-			self.play_needed = 1
-
+			#self.play_needed = 1
+			self.play_needed = True
 		if self.play_type == 'music':
 			try:
 				self.album_art = self.dl_img()
