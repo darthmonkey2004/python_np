@@ -1,8 +1,11 @@
+import pickle
 import pathlib
 import os
 import subprocess
 from np.utils.xrandr import xrandr
 from np.utils.scan_all import *
+from np.utils.pbdl.utils import get_user_input, get_user_yn
+
 
 """TODO: Remove create_log() from init, replace with this script on logfile exception.
 TODO: change DEFAULT_POSTER location throughout np to DATA_DIR (not local)
@@ -16,6 +19,21 @@ WSLOGFILE = os.path.join(DATA_DIR, 'nplayer.wslog')
 CAPTURE_DIR = os.path.join(os.path.expanduser("~"), 'Pictures', 'nplayer_caps')
 NPLAYER_LOGO = os.path.join(os.path.expanduser("~"), ".local", "poster.png")
 DEFAULT_POSTER = os.path.join(DATA_DIR, 'poster.png')
+main_keys = ['viewer', 'gui', 'pbdl', 'w', 'h', 'x', 'y', 'pbdl_dl', 'ytdl', 'browser', 'is_default']
+ui_windows = ['browser', 'ytdl', 'pbdl', 'pbdl_dl', 'gui', 'viewer']
+
+
+def test_primary_screen(test_screen):
+	for screen in [screen for screen in list(xrandr().keys())]:
+		if xrandr()[screen]['primary'] is True:
+			if test_screen == screen:
+				return True
+			else:
+				return False
+
+def get_local_ip():
+	com = "ip -o -4 a s | awk -F'[ /]+' '$2!~/lo/{print $4}' | grep \"192.168\""
+	return subprocess.check_output(com, shell=True).decode().strip()
 
 def test_data_dir():
 	if not os.path.exists(DATA_DIR):
@@ -53,16 +71,16 @@ def writeConf(data):
 			pickle.dump(data, f)
 		f.close()
 		
-		log('core.py, writeConf: Conf updated!', 'info')
+		log('np_setup.writeConf():Conf updated!', 'info')
 		return True
 	except Exception as e:
-		log(f"Exception in conf.py, writeConf: {e}", 'info')
+		log(f"Exception in np_setup.writeConf():: {e}", 'error')
 		return False
 
 
 def initConf(media_path=None):
 	if media_path is None:
-		print("No media path provided. Using default!")
+		log("np_setup.initConf():No media path provided. Using default!")
 		media_path = '/var/storage'
 	user = os.getlogin()
 	conf = {}
@@ -202,7 +220,7 @@ def init_window_position(conf=None):
 	return conf
 
 
-def run_setup():
+def run_setup(media_dirs=None, enable_remote=None):
 	test_data_dir()
 	test_sftp_dir()
 	test_log_file()
@@ -218,21 +236,17 @@ def run_setup():
 	for key in keys:
 		conf[key] = {}
 	print("Starting interactive configuration setup...")
-	media_dirs = None
-	media_dirs = input("Enter media storage directory (see readme file in git download folder for details) ")
 	if media_dirs is None:
-		txt = ("Error: no media directory entered! Aborting...")
-		return
-	else:
-		conf['media_directories'] = {}
-		conf['media_directories']['main'] = media_dirs
-		music_dir = os.path.join(media_dirs, "Music")
-		movies_dir = os.path.join(media_dirs, "Movies")
-		series_dir = os.path.join(media_dirs, "Series")
-		conf['media_directories']['movies'] = movies_dir
-		conf['media_directories']['music'] = music_dir
-		conf['media_directories']['series'] = series_dir
-		print("Media directories configured! Continuing...")
+		media_dirs = get_user_input(window_title='Set media directory:', txt="Enter path to your media files:")
+	conf['media_directories'] = {}
+	conf['media_directories']['main'] = media_dirs
+	music_dir = os.path.join(media_dirs, "Music")
+	movies_dir = os.path.join(media_dirs, "Movies")
+	series_dir = os.path.join(media_dirs, "Series")
+	conf['media_directories']['movies'] = movies_dir
+	conf['media_directories']['music'] = music_dir
+	conf['media_directories']['series'] = series_dir
+	print("Media directories configured! Continuing...")
 	conf['play_type'] = 'series'
 	conf['play_mode'] = 'database'
 	conf['play_types'] = ['series', 'movies', 'videos', 'music']
@@ -269,15 +283,16 @@ def run_setup():
 	conf['remote']['states'] = [0, 1]
 	conf['remote']['server']['pid'] = None
 	pick = None
-	pick = input("Enable remote control server? (y/n)")
-	if pick == 'n' or pick is None:
+	if enable_remote is None:
+		enable_remote = get_user_yn(window_title='Enable remote server?')
+	if not enable_remote:
 		conf['remote']['server']['state'] = 0
 		conf['remote']['server']['port'] = 8000
 		conf['remote']['server']['address'] = '127.0.0.1'
-	elif pick == 'y':
+	else:
 		conf['remote']['server']['state'] = 1
-		add = input("enter address of player machine: ")
-		port = input("select a port to use: ")
+		add = get_user_input(window_title='Setting up remote...', txt="Enter address of player machine:")
+		port =  get_user_input(window_title='Setting up remote...', txt="Enter a port:")
 		conf['remote']['server']['port'] = int(port)
 		conf['remote']['server']['address'] = add
 	conf['debug'] = False
@@ -293,8 +308,14 @@ def run_setup():
 	conf['SFTP_DIR'] = SFTP_DIR
 	conf['DEFAULT_POSTER'] = DEFAULT_POSTER
 	conf['ssh'] = {}
-	conf['ssh']['connection_string'] = input("Please enter ssh connection string i.e. user@host: (blank for None):")
+	localip = get_local_ip()
+	user = os.getlogin()
+	ssh_conn_string = f"{user}@{localip}"
+	conf['ssh']['connection_string'] = ssh_conn_string
 	conf['exit_ok'] = False
 	ret = writeConf(conf)
 	print("Scanning for media files. This could take a while... maybe grab a cup of coffee????")
 	scan_all()
+
+if __name__ == "__main__":
+	run_setup()

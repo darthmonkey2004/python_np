@@ -25,7 +25,13 @@ class nplayer():
 		self.scale_needed = 0
 		self.play_mode = 'database'
 		if build_playlist:
-			self.playlist = self.get_playlist_object(play_mode=self.play_mode, play_type=self.play_type)
+			try:
+				self.playlist = self.get_playlist_object(play_mode=self.play_mode, play_type=self.play_type)
+			except Exception as e:
+				log(f"db_playlist.init():Database contains no data! Running setup...", 'error')
+				run_setup()
+				log(f"db_playlist.init():Setup finished!", 'info')
+				self.playlist = self.get_playlist_object(play_mode=self.play_mode, play_type=self.play_type)
 		else:
 			self.playlist = []
 		self.next = None

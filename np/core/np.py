@@ -44,6 +44,16 @@ VLC_AUDIO_FILTERS = ['audio:audiobargraph_a', 'audio:chorus_flanger', 'audio:com
 VLC_CLI_OPTIONS = cli_opts()
 
 
+def test_db():
+	dbfile = os.path.join(os.path.expanduser("~"), '.np', 'nplayer.db')
+	if not os.path.exists(dbfile):
+		return False
+	ret = subprocess.check_output(f"sqlite3 \"{dbfile}\" \".schema\"", shell=True).decode().strip()
+	if ret == '':
+		return False
+	return True
+
+
 def del_playlist_file(playlistfile=None):
 	if playlistfile is None:
 		playlistfile = os.path.join(os.path.expanduser("~"), '.np', 'current_playlist.dat')
@@ -726,6 +736,8 @@ def resize_gui():
 
 def start():
 	global server, remote_q, pbdl
+	if not test_db():
+		np.setup()
 	if os.path.exists('todo.txt'):
 		with open('todo.txt', 'r') as f:
 			text = f.read()

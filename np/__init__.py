@@ -73,7 +73,7 @@ from np.ws import client
 from np.ws import thread
 #from np.utils.insert_intro import fix3d
 from np.core.conf import init_window_position
-
+from np.core.np_setup import run_setup as setup
 
 
 
@@ -86,3 +86,4 @@ blue = (0, 255, 255)
 indigo = (0, 0, 255)
 violet = (255, 0, 255)
 colors = [red, orange, yellow, green, blue, indigo, violet]
+

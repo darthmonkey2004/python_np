@@ -3,9 +3,61 @@ from np.core.log import np_logger
 import os
 import pickle
 import subprocess
+import pathlib
+
+
+
+
+
+
 log = np_logger().log_msg
 main_keys = ['viewer', 'gui', 'pbdl', 'w', 'h', 'x', 'y', 'pbdl_dl', 'ytdl', 'browser', 'is_default']
 ui_windows = ['browser', 'ytdl', 'pbdl', 'pbdl_dl', 'gui', 'viewer']
+
+
+DATA_DIR = os.path.join(os.path.expanduser("~"), ".np")
+LOGFILE = os.path.join(DATA_DIR, 'nplayer.log')
+CONFFILE = os.path.join(DATA_DIR, 'nplayer.conf')
+SFTP_DIR = os.path.join(DATA_DIR, 'sftp')
+WSLOGFILE = os.path.join(DATA_DIR, 'nplayer.wslog')
+CAPTURE_DIR = os.path.join(os.path.expanduser("~"), 'Pictures', 'nplayer_caps')
+NPLAYER_LOGO = os.path.join(os.path.expanduser("~"), ".local", "poster.png")
+DEFAULT_POSTER = os.path.join(DATA_DIR, 'poster.png')
+
+
+def run_setup():
+	subprocess.call
+
+
+def test_data_dir():
+	if not os.path.exists(DATA_DIR):
+		pathlib.Path(DATA_DIR).mkdir(parents=True, exist_ok=True)
+	return True
+
+def test_sftp_dir():
+	if not os.path.exists(SFTP_DIR):
+		pathlib.Path(SFTP_DIR).mkdir(parents=True, exist_ok=True)
+	return True
+
+def test_cap_dir():
+	if not os.path.exists(CAPTURE_DIR):
+		pathlib.Path(CAPTURE_DIR).mkdir(parents=True, exist_ok=True)
+	return True
+
+def test_log_file():
+	if not os.path.exists(LOGFILE):
+		ret = subprocess.check_output(f"touch \"{LOGFILE}\"", shell=True).decode().strip()
+		if ret == '':
+			ret = True
+			msg = None
+		else:
+			msg = ret
+			ret = False
+	else:
+		ret = True
+		msg = None
+	return ret, msg
+
 
 def get_local_ip():
 	com = "ip -o -4 a s | awk -F'[ /]+' '$2!~/lo/{print $4}' | grep \"192.168\""

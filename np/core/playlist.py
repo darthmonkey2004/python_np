@@ -6,7 +6,7 @@ from random import shuffle as random
 from np.core.nplayer_db import querydb
 import os
 import subprocess
-from np.core.conf import readConf, writeConf
+from np.core.conf import readConf, writeConf, run_setup
 log = np_logger().log_msg
 
 conf = readConf()
@@ -90,7 +90,13 @@ class db_playlist():
 			self.play_type = conf['play_type']
 		else:
 			self.play_type = play_type
-		self.playlist_min_ct = len(get_series_names())
+		series_names = get_series_names()
+		if len(series_names) == 0:
+			log(f"db_playlist.init():Database contains no data! Running setup...", 'error')
+			run_setup()
+			log(f"db_playlist.init():Setup finished!", 'info')
+			series_names = get_series_names()
+		self.playlist_min_ct = len(series_names)
 		self.shuffle = shuffle
 		self.last = []
 		self.current = None
