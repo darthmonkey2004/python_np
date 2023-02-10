@@ -950,30 +950,31 @@ def start():
 					log(f"UI: Skipped to position {val}", 'info')
 				elif event == 'play':
 					P.play()
-					log(f"ACTION:play", 'info')
+					log(f"np.start():ACTION:play", 'info')
 				elif event == 'pause':
 					P.pause()
-					log(f"ACTION:pause", 'info')
+					log(f"np.start():ACTION:pause", 'info')
 				elif event == 'stop':
 					P.stop()
-					log(f"ACTION:stop", 'info')
+					log(f"np.start():ACTION:stop", 'info')
 				elif event == 'next':
+					log(f"np.start():ACTION:skip_next", 'info')
 					MP.skip_next()
 					time.sleep(1)
 					MP.ART_UPDATE_NEEDED = True
-					log(f"ACTION:skip_next", 'info')
+					log(f"ART_UPDATE_NEEDED: Flag set! (True)", 'info')
 				elif event == 'previous':
 					MP.skip_previous()
-					log(f"ACTION:skip_previous", 'info')
+					log(f"np.start():ACTION:skip_previous", 'info')
 				elif event == 'rotate 90':
 					rotate(90)
-					log(f"ACTION:rotate_90", 'info')
+					log(f"np.start():ACTION:rotate_90", 'info')
 				elif event == 'seek fwd':
 					MP.seek_fwd()
-					log(f"ACTION:seek_fwd", 'info')
+					log(f"np.start():ACTION:seek_fwd", 'info')
 				elif event == 'seek rev':
 					MP.seek_rev()
-					log(f"ACTION:seek_rev", 'info')
+					log(f"np.start():ACTION:seek_rev", 'info')
 				elif event == '-PREVIOUS_FRAME-':
 					MP.ts = MP.step_frame(direction='rev')
 					log(f"np.start():Skipped frame forard!", 'info')
@@ -987,7 +988,7 @@ def start():
 					gui_reset()	
 				elif event == 'load':
 					MP.stop()
-					log(f"ACTION:Stop(event=load)", 'info')
+					log(f"np.start():ACTION:Stop(event=load)", 'info')
 					MP.next = values['-VIDEO_LOCATION-']
 					log(f"EVENT:next set, {MP.next}", 'info')
 					if 'http://' in MP.next or 'https://' in MP.next:
@@ -1001,11 +1002,11 @@ def start():
 						P = MP.init_vlc(stream.url)
 						set_video_out()
 						P.play()
-						log(f"ACTION:play", 'info')
+						log(f"np.start():ACTION:play", 'info')
 					else:
 						MP.is_url = False
 						MP.play(MP.next)
-						log(f"ACTION:play", 'info')
+						log(f"np.start():ACTION:play", 'info')
 				elif event == 'Refresh from Database':
 					MP.playlist = MP.get_playlist_object(play_mode = MP.play_mode, play_type=MP.play_type)
 					log(f"np.start:EVENT:Refresh from database:Created new playlist object({MP.play_type})", 'info')
@@ -1166,10 +1167,10 @@ def start():
 								log(f"Error updating database: {ret}", 'error')
 				elif event == 'Volume Up':
 					MP.volume_up()
-					log(f"ACTION:Volume up,{MP.conf['volume']}", 'info')
+					log(f"np.start():ACTION:Volume up,{MP.conf['volume']}", 'info')
 				elif event == 'Volume Down':
 					MP.volume_down()
-					log(f"ACTION:Volume down,{MP.conf['volume']}", 'info')
+					log(f"np.start():ACTION:Volume down,{MP.conf['volume']}", 'info')
 				elif event == 'PBDL Lite UI':
 					log(f"Loaded lite torrent manager!")
 					pbdl_win = liteui()
@@ -1359,7 +1360,7 @@ def start():
 				np.writeConf(MP.conf)
 				recenter_ui()
 			elif MP.play_needed == 1 or MP.play_needed:
-				log("Playing from 'play needed'", 'info')
+				log("np.start():FLAG (MP.play_needed=True):Playing from 'play needed'", 'info')
 				filepath = MP.conf['nowplaying']['filepath']
 				play_pos = MP.conf['nowplaying']['play_pos']
 				if filepath is not None:
@@ -1393,9 +1394,9 @@ def start():
 					#print(f"player object:{P.get_mrl()}", 'info')
 					log(f"np.start:Update poster (ART_UPDATE_NEEDED=True)!", 'info')
 					#_id = None
-					_id = sqlite3(f"select id from {MP.play_type} where filepath like \'%{filepath}%\';")[0]
+					#_id = sqlite3(f"select id from {MP.play_type} where filepath like \'%{filepath}%\';")[0]
 					try:
-						MP.poster = update_poster(int(_id))
+						MP.poster = update_poster(filepath)
 						log(f"poster updated!", 'info')
 					except Exception as e:
 						print(f"np.start:event('-UPDATE_POSTER-'):Couldn't update poster! {e}, filepath:{filepath}", 'error')

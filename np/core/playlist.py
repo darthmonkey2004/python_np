@@ -97,23 +97,25 @@ class db_playlist():
 		self.loop_one = loop_one
 		self.loop_all = loop_all
 		self.save = save
+		self.playlist = None
 		if items is not None:
 			self.playlist = self.set(items)
-		else:
-			self.playlist = None
+			log(f"db_playlist.set():Playlist data set! ({len(self.playlist)})", 'info')
 
 	def set(self, items):
 		if isinstance(items, playlist) or isinstance(items, db_playlist):
 			items = items.playlist
 		elif items == str:
 			items = items.splitlines()
-		if type(items) == list:
-			print("items:", len(items))
+		if type(items) != list:
+			log(f"db_playlist.set():Error - items is not a list! Details:(type:{type(items)}, len:{len(items)}, items:{items}", 'error')
+			self.playlist = items
+		else:
+			log(f"db_playlist.set():playlist items provided! Setting to playlist...", 'info')
 			self.playlist = items
 		if self.shuffle:
 			random(self.playlist)
-		log(f"db_playlist.set():Playlist data set! ({len(self.playlist)})", 'info')
-		return self
+		return self.playlist
 
 
 	def path_from_npstring(self, string):
@@ -133,72 +135,96 @@ class db_playlist():
 		log(f"playlist():playlist cleared!", 'info')
 		return
 
-
 	def next(self):
-		if self.loop_one:
-			#if repeat one, do nothing (leave current as current)
-			pass
-		else:
-			#if not repeat one, pop from playlist and append to last
-			last = self.playlist.pop(0)
-			self.last.append(last)# and store in last list
-			log(f"playlist.next():set last ({last})!", 'info')
-		if self.loop_all:
-			if len(self.playlist) == 0:
-				#if playlist is empty and in repeat mode, set playlist to history
-				self.playlist = self.last
-				self.last = []
-				log(f"Reset playlist items to last (loop_all=True)!", 'info')
-		else:
-			last = self.playlist.pop(0)
-			self.last.append(last)# and store in last list
-			if len(self.playlist) <= self.playlist_min_ct:
-				#if minimum playlist items reached, execute build and append to current
-				self.playlist = build_playlist(items=self.playlist)		
-				#update current saved playlist in pickle dat file
+		self.current = self._next()
+		log(f"playlist._next_finalize():Action finished, finalizing...", 'debug')
 		if self.save:
 			log(f"Saving playlist (save is True)...")
 			save_playlist(self.playlist)
-		#if we haven't reached the end of playlist...
-		if len(self.playlist) > 0:
-			if not self.loop_one:
-				# if not repeat one, set current to 0 (assuming pop earlier)
-				self.current = self.playlist[0]
-				log(f"playlist.next():set current ({self.current})!", 'info')
-			else:
-				self.current = self.current
-				log(f"Repeating: {self.current} (loop_one=True)", 'info')
-		else:
-			#End of playlist shouldn't happen, as it rebuilds after length <= self.playlist_min_ct
-			self.current = None
-			log(f"Error: Playlist is empty! Populate playlist using .set(items) to use this!")
-			return self.current#return Non
 		if is_npstring(self.current):
+			log(f"playlist._next_finalize():self.current is npstring! Getting and returning filepath ({self.current})", 'debug')
 			self.current = path_from_npstring(self.current)
-		save_playlist(self.playlist)
 		return self.current
 
-	def previous(self):
+
+	def _next(self):
 		if self.current is None:
-			if self.last == []:
-				# if last is empty, log playlist restart, and set current to first in playlist
-				log(f"Reached beginning of playlist!", 'info')
+			log(f"playlist.next():Current not set! Setting to first item ({self.playlist[0]})", 'debug')
+			self.current = self.playlist[0]
+			return self.current
+		if self.loop_one:
+			self.current = self.playlist[0]
+			return self.current
+		elif self.loop_all:
+			if len(self.playlist) > 0:
+				self.last.append(self.playlist.pop(0))
 				self.current = self.playlist[0]
+				return self.current
 			else:
-				#if last is set, grab last item index in last list
-				item = self.last.pop(len(self.last) - 1)
-				#create temporary list in reverse order so item is put to end...
-				l = self.playlist.reverse()
-				l.append(item)
-				#reverse again, so added item at front
-				self.playlist = l.reverse()
-				self.current = item
-		if self.current is None:
-			log(f"playlist.previous():self.current returned None!", 'error')
-			return None
+				log("Reached end of playlist! Restarting... (loop_all=True)")
+				self.playlist = self.last
+				self.last = []
+				self.current = self.playlist[0]
+				return self.current
+		else:	
+			l = len(self.playlist)
+			if l == 1:
+				if self.media_path is not None:
+					self.playlist = self.load_directory(self.media_path)
+					if self.shuffle:
+						random(self.playlist)	
+						log("Rebuilt playlist from {self.media_path}!", 'info')
+					else:
+						self.playlist = sorted(self.playlist)
+					self.current = self.playlist[0]
+					return self.current
+			elif l > 1:
+				print("playlist length:", l)
+				self.last.append(self.playlist.pop(0))
+				self.current = self.playlist[0]
+				return self.current
+
+
+	def previous(self):
+		self.current = self._previous()
+		if self.save:
+			log(f"db_playlist.previous():Saving playlist (save is True)...")
+			save_playlist(self.playlist)
 		if is_npstring(self.current):
 			self.current = path_from_npstring(self.current)
 		return self.current
+
+
+	def _previous(self):
+		if self.loop_one:
+			self.current = self.playlist[0]
+			return self.current
+		elif self.loop_all:
+			if len(self.last) > 0:
+				self.playlist.append(self.last.pop(0))
+				self.current = self.playlist[0]
+				return self.current
+			else:
+				log(f"Reached end of history!")
+				self.current = self.playlist[0]
+				return self.current
+		else:
+			l = len(self.last)
+			if l == 0:
+				log(f"Reached end of history!")
+				self.current = self.playlist[0]
+				return self.current
+			else:
+				#reverse history
+				self.last.reverse()
+				self.playlist.reverse()
+				#transfer item
+				self.playlist.append(self.last.pop(0))
+				#un-reverse history
+				self.last.reverse()
+				self.playlist.reverse()
+				self.current = self.playlist[0]
+				return self.current
 
 
 class playlist():
@@ -323,6 +349,7 @@ class playlist():
 				pos += 1
 		#if not common directory found after 4 tries, fail as sparse directory.
 		return None
+
 
 
 	def next(self):
@@ -648,10 +675,10 @@ def load_playlist(filepath=None):
 		with open(filepath, 'rb') as f:
 			items = pickle.load(f)
 			f.close()
-		return True, items
+		return items
 	else:
 		log(f"playlist.load_playlist():Error: No playlist file found! Plese save items first!", 'error')
-		return False, []
+		return []
 
 def save_playlist(items, filepath=None):
 	try:
@@ -762,9 +789,8 @@ def build_playlist(play_mode=None, items=None, tables=None, max_items=200, shuff
 	else:
 		if not new:
 			# if items not included, check curent playlist dat file and load items.
-			ret, items = load_playlist()
-			if not ret:
-				items = []
+			items = load_playlist()
+			if items == []:
 				pos = 0
 			else:
 				if type(items) == str:
@@ -826,4 +852,5 @@ def build_playlist(play_mode=None, items=None, tables=None, max_items=200, shuff
 	if ret_type == 'items':
 		return items
 	elif ret_type == 'playlist':
-		return pl.set(items)
+		pl.set(items)
+		return pl

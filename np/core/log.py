@@ -4,12 +4,30 @@ import logging
 import datetime
 import os
 from np.utils.xrandr import xrandr
+import subprocess
 
-home = os.path.expanduser("~")
-user = home.split('/')[2]
-DATA_DIR = (home + os.path.sep + ".np")
-LOGFILE = f"{DATA_DIR}/nplayer.log"
-CONFFILE = f"{DATA_DIR}/nplayer.conf"
+user = os.getlogin()
+DATA_DIR = os.path.join(os.path.expanduser("~"), ".np")
+LOGFILE = os.path.join(DATA_DIR, 'nplayer.log')
+CONFFILE = os.path.join(DATA_DIR, 'nplayer.conf')
+
+def create_log():
+	mkdir_ret = True
+	mklog_ret = True
+	if not os.path.exists(DATA_DIR):
+		mkdir_ret = subprocess.check_output(f"mkdir -p \"{DATA_DIR}\"", shell=True).decode().strip()
+	if not os.path.exists(LOGFILE):
+		mklog_ret = subprocess.check_output(f"touch \"{LOGFILE}\"", shell=True).decode().strip()
+	if mkdir_ret == '' and mklog_ret == '':
+		ret = True
+	else:
+		if mkdir_ret != '':
+			msg = mkdir_ret
+		elif mklog_ret != '':
+			msg = mklog_ret
+		print(msg)
+		ret = False
+	return ret
 
 def readConf():
 	try:
@@ -89,6 +107,10 @@ if conf == None:
 	conf = initConf()
 class np_logger():
 	def __init__(self):
+		if not os.path.exists(LOGFILE):
+			ret = create_log()
+			if not ret:
+				print(f"Unable to create log file! Weirdness (ret:{ret})...")
 		self.logfile = LOGFILE
 		global conf
 		lvl_debug = getattr(logging, 'DEBUG', None)

@@ -1,28 +1,63 @@
-from np.utils.xrandr import xrandr
-from np.core.log import np_logger
+import pathlib
 import os
-import pickle
 import subprocess
-log = np_logger().log_msg
-main_keys = ['viewer', 'gui', 'pbdl', 'w', 'h', 'x', 'y', 'pbdl_dl', 'ytdl', 'browser', 'is_default']
-ui_windows = ['browser', 'ytdl', 'pbdl', 'pbdl_dl', 'gui', 'viewer']
+from np.utils.xrandr import xrandr
+from np.utils.scan_all import *
 
-def get_local_ip():
-	com = "ip -o -4 a s | awk -F'[ /]+' '$2!~/lo/{print $4}' | grep \"192.168\""
-	return subprocess.check_output(com, shell=True).decode().strip()
+"""TODO: Remove create_log() from init, replace with this script on logfile exception.
+TODO: change DEFAULT_POSTER location throughout np to DATA_DIR (not local)
+TODO: add NPLAYER_LOGO variable, set in .local to use as icon."""
 
+DATA_DIR = os.path.join(os.path.expanduser("~"), ".np")
+LOGFILE = os.path.join(DATA_DIR, 'nplayer.log')
+CONFFILE = os.path.join(DATA_DIR, 'nplayer.conf')
+SFTP_DIR = os.path.join(DATA_DIR, 'sftp')
+WSLOGFILE = os.path.join(DATA_DIR, 'nplayer.wslog')
+CAPTURE_DIR = os.path.join(os.path.expanduser("~"), 'Pictures', 'nplayer_caps')
+NPLAYER_LOGO = os.path.join(os.path.expanduser("~"), ".local", "poster.png")
+DEFAULT_POSTER = os.path.join(DATA_DIR, 'poster.png')
 
-def get_opposite_screen(screen):
-	l = []
-	for s in xrandr().keys():
-		if xrandr()[s]['connected']:
-			l.append(s)
-	if len(l) > 1:
-		idx = l.index(screen)
-		_ = l.pop(idx)
-		return l[0]
-	elif len(l) == 1:
-		return l[0]
+def test_data_dir():
+	if not os.path.exists(DATA_DIR):
+		pathlib.Path(DATA_DIR).mkdir(parents=True, exist_ok=True)
+	return True
+
+def test_sftp_dir():
+	if not os.path.exists(SFTP_DIR):
+		pathlib.Path(SFTP_DIR).mkdir(parents=True, exist_ok=True)
+	return True
+
+def test_cap_dir():
+	if not os.path.exists(CAPTURE_DIR):
+		pathlib.Path(CAPTURE_DIR).mkdir(parents=True, exist_ok=True)
+	return True
+
+def test_log_file():
+	if not os.path.exists(LOGFILE):
+		ret = subprocess.check_output(f"touch \"{LOGFILE}\"", shell=True).decode().strip()
+		if ret == '':
+			ret = True
+			msg = None
+		else:
+			msg = ret
+			ret = False
+	else:
+		ret = True
+		msg = None
+	return ret, msg
+
+def writeConf(data):
+	conf_file = os.path.join(os.path.expanduser("~"), '.np', 'nplayer.conf')
+	try:
+		with open(conf_file, 'wb') as f:
+			pickle.dump(data, f)
+		f.close()
+		
+		log('core.py, writeConf: Conf updated!', 'info')
+		return True
+	except Exception as e:
+		log(f"Exception in conf.py, writeConf: {e}", 'info')
+		return False
 
 
 def initConf(media_path=None):
@@ -120,29 +155,51 @@ def initConf(media_path=None):
 	return conf
 
 
-
-def _readConf(conf_file):
-	try:
-		with open(conf_file, 'rb') as f:
-			data = pickle.load(f)
-		f.close()
-		return data
-	except Exception as e:
-		log(f"Exception in conf.py, readConf: {e}", 'error')
-		return None
-
-def writeConf(data):
-	conf_file = os.path.join(os.path.expanduser("~"), '.np', 'nplayer.conf')
-	try:
-		with open(conf_file, 'wb') as f:
-			pickle.dump(data, f)
-		f.close()
-		
-		log('core.py, writeConf: Conf updated!', 'info')
-		return True
-	except Exception as e:
-		log(f"Exception in conf.py, writeConf: {e}", 'info')
-		return False
+def init_window_position(conf=None):
+	if conf is None:
+		conf = readConf()
+	conf['xrandr'] = xrandr()
+	conf['screens'] = list(conf['xrandr'].keys())
+	conf['windows'] = {}
+	for screen in conf['screens']:
+		if not xrandr()[screen]['connected']:
+			pass
+		else:
+			conf['windows'][screen] = {}
+			conf['windows'][screen]['is_default'] = test_primary_screen(screen)
+			for win_title in ui_windows:
+				conf['windows'][screen][win_title] = {}
+				if win_title == 'viewer':
+					conf['windows'][screen][win_title]['x'] = conf['xrandr'][screen]['pos_x']
+					conf['windows'][screen][win_title]['y'] = conf['xrandr'][screen]['pos_y']
+					conf['windows'][screen][win_title]['w'] = conf['xrandr'][screen]['w']
+					conf['windows'][screen][win_title]['h'] = conf['xrandr'][screen]['h']
+				elif win_title == 'gui':
+					conf['windows'][screen][win_title]['x'] = conf['xrandr'][screen]['pos_x']
+					conf['windows'][screen][win_title]['y'] = conf['xrandr'][screen]['pos_y']
+					conf['windows'][screen][win_title]['w'] = 1024
+					conf['windows'][screen][win_title]['h'] = 600
+				elif win_title == 'pbdl':
+					conf['windows'][screen][win_title]['x'] = conf['xrandr'][screen]['pos_x']
+					conf['windows'][screen][win_title]['y'] = conf['xrandr'][screen]['pos_y']
+					conf['windows'][screen][win_title]['w'] = 600
+					conf['windows'][screen][win_title]['h'] = 300
+				elif win_title == 'pbdl_dl':
+					conf['windows'][screen][win_title]['x'] = conf['xrandr'][screen]['pos_x']
+					conf['windows'][screen][win_title]['y'] = conf['xrandr'][screen]['pos_y']
+					conf['windows'][screen][win_title]['w'] = 600
+					conf['windows'][screen][win_title]['h'] = 300
+				elif win_title == 'ytdl':
+					conf['windows'][screen][win_title]['x'] = conf['xrandr'][screen]['pos_x']
+					conf['windows'][screen][win_title]['y'] = conf['xrandr'][screen]['pos_y']
+					conf['windows'][screen][win_title]['w'] = 750
+					conf['windows'][screen][win_title]['h'] = 300
+				elif win_title == 'browser':
+					conf['windows'][screen][win_title]['x'] = conf['xrandr'][screen]['pos_x']
+					conf['windows'][screen][win_title]['y'] = conf['xrandr'][screen]['pos_y']
+					conf['windows'][screen][win_title]['w'] = 600
+					conf['windows'][screen][win_title]['h'] = 150
+	return conf
 
 
 def run_setup():
@@ -241,74 +298,3 @@ def run_setup():
 	ret = writeConf(conf)
 	print("Scanning for media files. This could take a while... maybe grab a cup of coffee????")
 	scan_all()
-
-def readConf():
-	conf_file = os.path.join(os.path.expanduser("~"), '.np', 'nplayer.conf')
-	if os.path.exists(conf_file):
-		conf = _readConf(conf_file)
-	else:
-		print("Conf file doesn't exist! Initializing...")
-		conf = initConf()
-		print("Saving new configuration file...")
-		writeConf(conf)
-	return conf
-
-
-def test_primary_screen(test_screen):
-	for screen in [screen for screen in list(xrandr().keys())]:
-		if xrandr()[screen]['primary'] is True:
-			if test_screen == screen:
-				return True
-			else:
-				return False
-
-
-def init_window_position(conf=None):
-	if conf is None:
-		conf = readConf()
-	conf['xrandr'] = xrandr()
-	conf['screens'] = list(conf['xrandr'].keys())
-	conf['windows'] = {}
-	for screen in conf['screens']:
-		if not xrandr()[screen]['connected']:
-			pass
-		else:
-			conf['windows'][screen] = {}
-			conf['windows'][screen]['is_default'] = test_primary_screen(screen)
-			for win_title in ui_windows:
-				conf['windows'][screen][win_title] = {}
-				if win_title == 'viewer':
-					conf['windows'][screen][win_title]['x'] = conf['xrandr'][screen]['pos_x']
-					conf['windows'][screen][win_title]['y'] = conf['xrandr'][screen]['pos_y']
-					conf['windows'][screen][win_title]['w'] = conf['xrandr'][screen]['w']
-					conf['windows'][screen][win_title]['h'] = conf['xrandr'][screen]['h']
-				elif win_title == 'gui':
-					conf['windows'][screen][win_title]['x'] = conf['xrandr'][screen]['pos_x']
-					conf['windows'][screen][win_title]['y'] = conf['xrandr'][screen]['pos_y']
-					conf['windows'][screen][win_title]['w'] = 1024
-					conf['windows'][screen][win_title]['h'] = 600
-				elif win_title == 'pbdl':
-					conf['windows'][screen][win_title]['x'] = conf['xrandr'][screen]['pos_x']
-					conf['windows'][screen][win_title]['y'] = conf['xrandr'][screen]['pos_y']
-					conf['windows'][screen][win_title]['w'] = 600
-					conf['windows'][screen][win_title]['h'] = 300
-				elif win_title == 'pbdl_dl':
-					conf['windows'][screen][win_title]['x'] = conf['xrandr'][screen]['pos_x']
-					conf['windows'][screen][win_title]['y'] = conf['xrandr'][screen]['pos_y']
-					conf['windows'][screen][win_title]['w'] = 600
-					conf['windows'][screen][win_title]['h'] = 300
-				elif win_title == 'ytdl':
-					conf['windows'][screen][win_title]['x'] = conf['xrandr'][screen]['pos_x']
-					conf['windows'][screen][win_title]['y'] = conf['xrandr'][screen]['pos_y']
-					conf['windows'][screen][win_title]['w'] = 750
-					conf['windows'][screen][win_title]['h'] = 300
-				elif win_title == 'browser':
-					conf['windows'][screen][win_title]['x'] = conf['xrandr'][screen]['pos_x']
-					conf['windows'][screen][win_title]['y'] = conf['xrandr'][screen]['pos_y']
-					conf['windows'][screen][win_title]['w'] = 600
-					conf['windows'][screen][win_title]['h'] = 150
-	return conf
-
-
-if __name__ == "__main__":
-	run_setup()

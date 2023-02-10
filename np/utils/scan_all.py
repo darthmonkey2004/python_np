@@ -13,6 +13,13 @@ from np.utils.dbfixer import dbfixer
 dbfixer = dbfixer()
 data_dir = os.path.join(os.path.expanduser("~"), '.np')
 
+todo = """TODO: put a try/except in scan_series line 127 (info = query_series(series_name, season, episode_number)),
+	and get info from user. possibly get season/episode_data and show user to select from.
+TODO: scan_series(): caught exception on unstructured file system(unparseable info from filename) should have triggered
+user input for info, it didn't..... FIX ME..
+TODO: Figure out a way to include certain movies in with the series, though technically is considered movie. Futurama, South Park both have them."""
+print(todo)
+
 def backup_db():
 	ts = datetime.datetime.now().timestamp()
 	newname = (f"{ts}.nplayer.backup.db")

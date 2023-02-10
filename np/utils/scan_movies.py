@@ -77,7 +77,7 @@ def scan_movies(target_dir=None):
 					sql_string = (f"INSERT into movies (isactive, tmdbid, title, year, release_date, duration, description, poster, filepath) VALUES (1, '{data['tmdbid']}', '{data['title']}', {data['year']}, '{data['release_date']}', '{data['duration']}', '{data['description']}', '{data['poster']}', '{filepath}');")
 					ret = addtodb('movies', sql_string)
 					if ret == True:
-						print ("Ok!")
+						print (f"Added file: {filepath}!")
 					else:
 						print (ret)
 				else:

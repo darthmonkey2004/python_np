@@ -1,6 +1,34 @@
 import vlc
 import os
 import pathlib
+import subprocess
+
+DATA_DIR = os.path.join(os.path.expanduser("~"), ".np")
+LOGFILE = os.path.join(DATA_DIR, 'nplayer.log')
+CONFFILE = os.path.join(DATA_DIR, 'nplayer.conf')
+
+def create_log():
+	mkdir_ret = True
+	mklog_ret = True
+	if not os.path.exists(DATA_DIR):
+		mkdir_ret = subprocess.check_output(f"mkdir -p \"{DATA_DIR}\"", shell=True).decode().strip()
+	if not os.path.exists(LOGFILE):
+		mklog_ret = subprocess.check_output(f"touch \"{LOGFILE}\"", shell=True).decode().strip()
+	if mkdir_ret == '' and mklog_ret == '':
+		ret = True
+	else:
+		if mkdir_ret != '':
+			msg = mkdir_ret
+		elif mklog_ret != '':
+			msg = mklog_ret
+		print(msg)
+		ret = False
+	return ret
+
+if not os.path.exists(LOGFILE):
+	create_log()
+
+
 from np.utils.xrandr import xrandr
 from np.core.log import np_logger
 log = np_logger().log_msg
@@ -20,7 +48,8 @@ from np.core.nplayer_db import test_db
 from np.utils.cleandb import run as cleandb
 from np.core.db_editor import db_editor
 from np.utils.tag_editor import run as tag_editor
-from np.core.conf import initConf, readConf, writeConf, run_setup
+from np.core.conf import initConf, readConf, writeConf
+from np.core.np_setup import run_setup
 #from np.utils.pbdl import query_series
 #from np.utils.pbdl import query_movies
 from np.core.core import create_media, get_local_ip, get_res, enable_debug, disable_debug, read_history, write_history, set_play_type, calculate_scale, shell, check_process, python
@@ -37,7 +66,6 @@ from np.utils.scan_music import scan_music
 from np.utils.scan_series import scan_series
 from np.utils.scan_movies import scan_movies
 from np.utils.scan_all import scan_all
-from np.core.conf import run_setup
 from np.utils.id3 import tag
 from np.ws import websocket_server
 from np.ws import server

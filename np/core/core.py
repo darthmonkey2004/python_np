@@ -9,6 +9,7 @@ from np.core.nplayer_db import querydb
 from np.core.log import np_logger
 from np.core.conf import readConf, writeConf
 from np.utils.xrandr import xrandr
+
 log = np_logger().log_msg
 
 
@@ -78,9 +79,14 @@ def disable_debug():
 
 
 def read_history():
+	history_file = os.path.join(os.path.expanduser("~"), '.np', 'nplayer.series.history')
+	if not os.path.exists(history_file):
+		data_dir = os.path.join(os.path.expanduser("~"), ".np")
+		ret = subprocess.check_output(f"cd \"{data_dir}\"; touch nplayer.log", shell=True).decode().strip()
+		if ret != '':
+			print("whoops!", ret)
 	history_dict = {}
 	try:
-		history_file = os.path.join(os.path.expanduser("~"), '.np', 'nplayer.series.history')
 		with open (history_file, 'rb') as f:
 			history_dict = pickle.load(f)
 		f.close()			

@@ -4,6 +4,26 @@ import os
 from np.core.log import np_logger
 log = np_logger().log_msg
 
+def sqlite3(com):
+	dbfile = os.path.join(os.path.expanduser("~"), '.np', 'nplayer.db')
+	com = f"sqlite3 \"{dbfile}\" \"{com}\";"
+	log(f"dbfixer.sqlite3():sqlite3 query running (com={com}", 'info')
+	try:
+		ret = subprocess.check_output(com, shell=True).decode().strip()
+		if "\n" in ret:
+			ret = ret.splitlines()
+		if ret == '':
+			print("ret:", ret)
+			ok = False
+			ret = None
+		else:
+			ok = True
+	except Exception as e:
+		ret = e
+		pint("exception:", e)
+		ok = False
+	return ok, ret
+
 class dbfixer():
 	def __init__(self):
 		self.unique_id = 0

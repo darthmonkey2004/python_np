@@ -9,6 +9,8 @@ from np.core.playlist import *
 from np.core.core import read_history, write_history, calculate_scale
 from np.utils.guess_intro import guess_intro
 import vlc
+from urllib.parse import quote, unquote
+import requests
 
 log = np_logger().log_msg
 
@@ -184,9 +186,12 @@ class nplayer():
 		return self.next
 
 	def skip_next(self):
-		self.next = self.get_next()
+		log("nplayer.skip_next():Entered...", 'debug')
+		#self.next = self.get_next()
+		self.next = self.playlist.next()
 		log(f"nplayer.skip_next:Next set:{self.next}", 'info')
 		self.play(self.next)
+		log("nplayer.skip_next():Exited!", 'debug')
 
 	def stop(self):
 		self.player.stop()
