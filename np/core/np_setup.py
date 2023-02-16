@@ -23,6 +23,7 @@ main_keys = ['viewer', 'gui', 'pbdl', 'w', 'h', 'x', 'y', 'pbdl_dl', 'ytdl', 'br
 ui_windows = ['browser', 'ytdl', 'pbdl', 'pbdl_dl', 'gui', 'viewer']
 
 
+
 def test_primary_screen(test_screen):
 	for screen in [screen for screen in list(xrandr().keys())]:
 		if xrandr()[screen]['primary'] is True:
@@ -109,24 +110,24 @@ def initConf(media_path=None):
 	conf['nowplaying']['play_pos'] = 0
 	conf['vlc'] = {}
 	conf['vlc']['opts'] = '--no-xlib'
-	conf['network_modes'] = {}
-	conf['network_modes']['control_modes'] = ['local', 'remote', 'server']
-	conf['network_modes']['media_modes'] = ['local', 'remote']
-	conf['network_mode'] = {}
-	conf['network_mode']['media_mode'] = 'local'
-	conf['network_mode']['media_host'] = None
-	conf['network_mode']['media_user'] = os.getlogin()
-	conf['network_mode']['control_mode'] = 'local'
-	conf['network_mode']['control_host'] = None
-	conf['network_mode']['control_user'] = os.getlogin()
-	conf['network_mode']['control_port'] = 4444
+	conf['network'] = {}
+	conf['network']['control_modes'] = ['local', 'remote', 'server']
+	conf['network']['media'] = {}
+	conf['network']['media']['available_modes'] = ['local', 'remote']
+	conf['network']['media']['mode'] = 'local'
+	conf['network']['media']['host'] = None
+	conf['network']['media']['user'] = os.getlogin()
+	conf['network']['control'] = {}
+	conf['network']['control']['mode'] = 'local'
+	conf['network']['control']['host'] = get_local_ip()
+	conf['network']['control']['user'] = os.getlogin()
+	conf['network']['control']['port'] = 8000
 	conf['remote'] = {}
 	conf['remote']['server'] = {}
 	conf['remote']['server']['pid'] = None
 	conf['remote']['server']['state'] = 1
-	conf['remote']['server']['port'] = 8000
-	conf['remote']['server']['address'] = get_local_ip()
-	conf['remote']['states'] = [0, 1]
+	conf['remote']['server']['port'] = conf['network']['control']['port']
+	conf['remote']['server']['address'] = conf['network']['control']['host']
 	conf['debug'] = True
 	conf['init'] = True
 	conf['GUI_RESET'] = False
@@ -220,6 +221,66 @@ def init_window_position(conf=None):
 	return conf
 
 
+def shell(com):
+	try:
+		out = subprocess.check_output(com, shell=True).decode().strip()
+	except Exception as e:
+		print("Error running command:", e)
+		return None
+	if out == '':
+		out = None
+	elif "\n" in out:
+		out = out.splitlines()
+	else:
+		out = [out]
+	return out
+
+def get_mounts():
+	try:
+		com = f"ls -F --group-directories-first \"{SFTP_DIR}\" | grep \"/\" | cut -d \"/\" -f 1"
+		dirs = shell(com)
+		return dirs
+	except Exception as e:
+		print(f"No directories at {SFTP_DIR} ({e})!")
+		return []
+
+
+def create_mount(remote_path=None, connection_string=None):
+	conf = readConf()
+	if remote_path is None:
+		remote_path = conf['network']['media']['path']
+	if connection_string is None:
+		user = conf['network']['media']['user']
+		ip = conf['network_mode']['media']['host']
+		if ip is None:
+			ip = get_local_ip()
+		connection_string = f"{user}@{ip}"
+	name = os.path.basename(remote_path)
+	mnt_path = conf['media_directories']['main']
+	com = f"mkdir -p \"{mnt_path}\""
+	ret = shell(com)
+	if ret is not None:
+		print("Couldn't create mount!", ret)
+		return False
+	com = f"sudo sshfs -o allow_other \"{connection_string}:{remote_path}\" \"{mnt_path}\""
+	ret = shell(com)
+	if ret is not None:
+		print("couldn't create mount:", ret)
+		return False
+	else:
+		return True
+
+def test_mounts():
+	if len(get_mounts()) == 0:
+		print("Mount point doesn't exist! Creating...")
+		ret = create_mount()
+		if not ret:
+			print("mount test failed!")
+		return ret
+	else:
+		return True
+
+
 def run_setup(media_dirs=None, enable_remote=None):
 	test_data_dir()
 	test_sftp_dir()
@@ -237,7 +298,22 @@ def run_setup(media_dirs=None, enable_remote=None):
 		conf[key] = {}
 	print("Starting interactive configuration setup...")
 	if media_dirs is None:
-		media_dirs = get_user_input(window_title='Set media directory:', txt="Enter path to your media files:")
+		txt = "Enter media storage path. For samba/sftp, prefix remote path with 'smb://' or 'sftp://'."
+		media_dirs = get_user_input(window_title='Set media directory:', txt=txt)
+	if 'sftp://' in media_dirs:
+		prefix = 'sftp://'
+		media_dirs = media_dirs.split(prefix)[1]
+		enable_remote = True
+		print("sftp set!")
+	elif 'smb://' in media_dirs:
+		prefix = 'smb://'
+		media_dirs = media_dirs.split(prefix)[1]
+		enable_remote = True
+		print("samba set!")
+	else:
+		prefix = None
+		enable_remote = False
+		print("local set!")
 	conf['media_directories'] = {}
 	conf['media_directories']['main'] = media_dirs
 	music_dir = os.path.join(media_dirs, "Music")
@@ -268,33 +344,58 @@ def run_setup(media_dirs=None, enable_remote=None):
 	# initialize window defaults by passing conf and getting it back
 	conf = init_window_position(conf)
 	conf['GUI_RESET'] = False
-	conf['network_modes'] = {}
-	conf['network_modes']['control_modes'] = ['local', 'remote', 'server']
-	conf['network_modes']['media_modes'] = ['local', 'remote']
-	conf['network_mode'] = {}
-	conf['network_mode']['media_mode'] = 'local'
-	conf['network_mode']['media_host'] = None
-	conf['network_mode']['media_user'] = os.getlogin()
-	conf['network_mode']['control_mode'] = 'local'
-	conf['network_mode']['control_host'] = None
-	conf['network_mode']['control_user'] = os.getlogin()
-	conf['network_mode']['control_port'] = 4444
+	conf['network'] = {}
+	conf['network']['control_modes'] = ['local', 'remote', 'server']
+	conf['network']['media'] = {}
+	conf['network']['media']['available_modes'] = ['local', 'remote']
+	if enable_remote:
+		print("enabling remote storage...")
+		conf['network']['media']['mode'] = 'remote'
+		conf['network']['media']['host'] = get_user_input(window_title='Remote media storage ip address:', txt='Enter ip address for remote media storage machine:')
+		default_user = get_user_yn(window_title=f"Use username {os.getlogin()}?")
+		if not default_user:
+			conf['network']['media']['user'] = get_user_input(window_title='Set username:', txt='Enter username for remote media storgage:')
+			print("TODO: Add external script to use ssh-copy-id to remote host address using above username ({conf['network']['media']['user']})")
+		else:
+			conf['network']['media']['user'] = os.getlogin()
+			print(f"Using default logged in username: {conf['network']['media']['user']}!")
+		conf['network']['media']['path'] = media_dirs
+		name = os.path.basename(media_dirs)
+		main = os.path.join(SFTP_DIR, name)
+		music = os.path.join(main, 'Music')
+		series = os.path.join(main, 'Series')
+		movies = os.path.join(main, 'Movies')
+		conf['media_directories']['main'] = main
+		conf['media_directories']['music'] = music
+		conf['media_directories']['series'] = series
+		conf['media_directories']['movies'] = movies
+	else:
+		print("using local media storage...")
+		conf['network']['media']['mode'] = 'local'
+		conf['network']['media']['host'] = get_local_ip()
+		conf['network']['media']['path'] = None
+	conf['network']['control'] = {}
+	conf['network']['control']['mode'] = 'local'
+	conf['network']['control']['host'] = get_local_ip()
+	conf['network']['control']['user'] = os.getlogin()
+	conf['network']['control']['port'] = 8000
+	conf['remote'] = {}
 	conf['remote']['server'] = {}
-	conf['remote']['states'] = [0, 1]
 	conf['remote']['server']['pid'] = None
-	pick = None
 	if enable_remote is None:
-		enable_remote = get_user_yn(window_title='Enable remote server?')
+		enable_remote = get_user_yn(window_title='Enable remote control server? (remotely control nplayer, this is different that remote media storage):')
 	if not enable_remote:
 		conf['remote']['server']['state'] = 0
-		conf['remote']['server']['port'] = 8000
-		conf['remote']['server']['address'] = '127.0.0.1'
+		conf['remote']['server']['port'] = conf['network']['control']['port']
+		conf['remote']['server']['address'] = get_local_ip()
 	else:
 		conf['remote']['server']['state'] = 1
 		add = get_user_input(window_title='Setting up remote...', txt="Enter address of player machine:")
 		port =  get_user_input(window_title='Setting up remote...', txt="Enter a port:")
 		conf['remote']['server']['port'] = int(port)
 		conf['remote']['server']['address'] = add
+		conf['network']['control']['host'] = add
+		conf['network']['control']['port'] = int(port)
 	conf['debug'] = False
 	conf['init'] = True
 	conf['GUI_RESET'] = False
@@ -313,8 +414,14 @@ def run_setup(media_dirs=None, enable_remote=None):
 	ssh_conn_string = f"{user}@{localip}"
 	conf['ssh']['connection_string'] = ssh_conn_string
 	conf['exit_ok'] = False
+	conf['tmdb_api_key'] = get_user_input(window_title='TMDB.org API key:', txt="This requires an api key from TMDB. You can get one here... (https://www.themoviedb.org/settings/api)")
 	ret = writeConf(conf)
 	print("Scanning for media files. This could take a while... maybe grab a cup of coffee????")
+	if conf['network']['media']['mode'] == 'remote':
+		ret = test_mounts()
+		if not ret:
+			print("Unable to mount storage! Fix it, try agian...")
+			exit()
 	scan_all()
 
 if __name__ == "__main__":

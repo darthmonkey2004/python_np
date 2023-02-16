@@ -89,6 +89,7 @@ def ipinfo():
 	print(ret)
 	input()
 
+	
 
 class torrent_mgr():
 	def __init__(self, win=None, remote_ip=None):
@@ -109,7 +110,7 @@ class torrent_mgr():
 			writeConf(conf)
 			self.settings = conf['pbdl']
 		if remote_ip == None:
-			self.remote_ip = conf['pbdl_url']['remote_ip']
+			self.remote_ip = conf['pbdl']['remote_ip']
 		else:
 			self.remote_ip = remote_ip
 		if self.settings['start_paused'] == False:

@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/python3
 
 import os
 import subprocess
@@ -11,7 +11,7 @@ def getpid():
 	if '/' in _file:
 		_file = os.path.basename(_file)
 	pid = None
-	com = f"pgrep -af {_file} | grep -v \"/bin/sh\""
+	com = f"pgrep -af {_file} | grep -v \"/bin/sh\" | grep -v \"sshfs\""
 	lines = shell(com).split("\n")
 	ret = []
 	for line in lines:

@@ -12,8 +12,8 @@ log = np_logger().log_msg
 conf = readConf()
 
 def load_playlist_file(filepath):
-	if conf['network_mode']['media_mode'] == 'remote':
-		fpath = filepath.split('/var/storage/')[1]
+	if conf['network']['media']['mode'] == 'remote':
+		fpath = filepath.split(conf['media_directories']['main'])[1]
 		filepath = (os.path.expanduser("~"), '.np', 'sftp', fpath)
 	if os.path.exists(filepath):
 		results = []
@@ -84,7 +84,8 @@ def read_temp_history():
 		return None
 
 class db_playlist():
-	def __init__(self, items=None, save=True, loop_one=False, loop_all=False, shuffle=False, play_type=None):
+	def __init__(self, items=None, save=True, loop_one=False, loop_all=False, shuffle=False, play_type=None, remote=False):
+		self.remote = remote
 		if play_type is None:
 			conf = readConf()
 			self.play_type = conf['play_type']
@@ -104,6 +105,8 @@ class db_playlist():
 		self.loop_all = loop_all
 		self.save = save
 		self.playlist = None
+		self.sftp_dir = os.path.join(os.path.expanduser("~"), '.np', 'sftp')
+		self.media_dir = conf['media_directories']['main']
 		if items is not None:
 			self.playlist = self.set(items)
 			log(f"db_playlist.set():Playlist data set! ({len(self.playlist)})", 'info')
@@ -143,6 +146,9 @@ class db_playlist():
 
 	def next(self):
 		self.current = self._next()
+		if self.remote:
+			name = self.current.split(self.media_dirs)[1]
+			self.current = f"{self.sftp_dir}{name}"
 		log(f"playlist._next_finalize():Action finished, finalizing...", 'debug')
 		if self.save:
 			log(f"Saving playlist (save is True)...")
@@ -243,7 +249,9 @@ class playlist():
 		self.loop_all = loop_all
 		self.last = []
 		conf = readConf()
-		self.network_mode = conf['network_mode']['media_mode']
+		self.network_mode = conf['network']['media']['mode']
+		if conf['network']['media']['mode'] == 'remote':
+			self.remote = True
 		self.current = None
 		if self.media_path is not None:
 			self.playlist = self.load_directory(self.media_path)
@@ -364,17 +372,26 @@ class playlist():
 			return self.current
 		if self.loop_one:
 			self.current = self.playlist[0]
+			if self.remote:
+				name = self.current.split(self.media_dirs)[1]
+				self.current = f"{self.sftp_dir}{name}"
 			return self.current
 		elif self.loop_all:
 			if len(self.playlist) > 0:
 				self.last.append(self.playlist.pop(0))
 				self.current = self.playlist[0]
+				if self.remote:
+					name = self.current.split(self.media_dirs)[1]
+					self.current = f"{self.sftp_dir}{name}"
 				return self.current
 			else:
 				log("Reached end of playlist! Restarting... (loop_all=True)")
 				self.playlist = self.last
 				self.last = []
 				self.current = self.playlist[0]
+				if self.remote:
+					name = self.current.split(self.media_dirs)[1]
+					self.current = f"{self.sftp_dir}{name}"
 				return self.current
 		else:	
 			l = len(self.playlist)
@@ -387,31 +404,49 @@ class playlist():
 					else:
 						self.playlist = sorted(self.playlist)
 					self.current = self.playlist[0]
+					if self.remote:
+						name = self.current.split(self.media_dirs)[1]
+						self.current = f"{self.sftp_dir}{name}"
 					return self.current
 			elif l > 1:
 				print("playlist length:", l)
 				self.last.append(self.playlist.pop(0))
 				self.current = self.playlist[0]
+				if self.remote:
+					name = self.current.split(self.media_dirs)[1]
+					self.current = f"{self.sftp_dir}{name}"
 				return self.current
 
 	def previous(self):
 		if self.loop_one:
 			self.current = self.playlist[0]
+			if self.remote:
+				name = self.current.split(self.media_dirs)[1]
+				self.current = f"{self.sftp_dir}{name}"
 			return self.current
 		elif self.loop_all:
 			if len(self.last) > 0:
 				self.playlist.append(self.last.pop(0))
 				self.current = self.playlist[0]
+				if self.remote:
+					name = self.current.split(self.media_dirs)[1]
+					self.current = f"{self.sftp_dir}{name}"
 				return self.current
 			else:
 				log(f"Reached end of history!")
 				self.current = self.playlist[0]
+				if self.remote:
+					name = self.current.split(self.media_dirs)[1]
+					self.current = f"{self.sftp_dir}{name}"
 				return self.current
 		else:
 			l = len(self.last)
 			if l == 0:
 				log(f"Reached end of history!")
 				self.current = self.playlist[0]
+				if self.remote:
+					name = self.current.split(self.media_dirs)[1]
+					self.current = f"{self.sftp_dir}{name}"
 				return self.current
 			else:
 				#reverse history
@@ -423,6 +458,9 @@ class playlist():
 				self.last.reverse()
 				self.playlist.reverse()
 				self.current = self.playlist[0]
+				if self.remote:
+					name = self.current.split(self.media_dirs)[1]
+					self.current = f"{self.sftp_dir}{name}"
 				return self.current
 
 

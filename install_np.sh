@@ -85,12 +85,10 @@ np_setup() {
 	if [ ! -f "$dbfile" ]; then
 		cd "$HOME/.local/lib/python3.8/site-packages/np"
 		echo "Starting setup.."
-		python3 -c "import np; np.run_setup()"
-		echo "Creating sql database..."
-		python3 -c "import np; np.sqldb.create_db()"
-		music_dir=$(python3 -c "import np; print(np.MUSIC_DIR)")
-		movies_dir=$(python3 -c "import np; print(np.MOVIES_DIR)")
-		series_dir=$(python3 -c "import np; print(np.SERIES_DIR)")
+		python3 -c "from np.core.np_setup import *; run_setup()"
+		music_dir=$(python3 -c "from np.core.conf import readConf; conf = readConf(); print(conf['media_directories']['music'])")
+		movies_dir=$(python3 -c "from np.core.conf import readConf; conf = readConf(); print(conf['media_directories']['movies'])")
+		series_dir=$(python3 -c "from np.core.conf import readConf; conf = readConf(); print(conf['media_directories']['series'])")
 		if [ ! -d "$music_dir" ]; then
 			mkdir -p "$music_dir"
 		fi
@@ -108,7 +106,7 @@ np_setup() {
 	if [ ! -f "$logfile" ]; then
 		touch "$logfile"
 	fi
-	host=$(python3 -c "import np; conf = np.readConf(); print(conf['remote']['server']['host'])")
+	host=$(python3 -c "import np; conf = np.readConf(); print(conf['remote']['server']['address'])")
 	port=$(python3 -c "import np; conf = np.readConf(); print(conf['remote']['server']['port'])")
 	write_client_html;
 	write_desktop;
@@ -116,35 +114,11 @@ np_setup() {
 
 
 need_vlc=$(sudo dpkg -l | grep "python3-vlc")
-if [ -z "$need_vlc" ]; then
-	 sudo apt-get install -y python3-vlc libsecret-tools curl transmission-daemon imagemagick
-fi
-hassqllite3=$(which sqlite3)
-if [ -z "$hassqllite3" ]; then
-	sudo apt-get install -y sqlite3
-fi
-hasgit=$(which git)
-haspip=$(which pip3)
-if [ -z "$haspip" ]; then
-	sudo apt-get install -y python3-pip
-fi
-hastk=$(pip3 list | grep "tk")
-if [ -z "$hastk" ]; then
-	pip3 install tk
-fi
-python3 -c "from PIL import Image, ImageTk" > out 2>errors.txt
-rm out
-needpil=$(cat errors.txt)
-rm errors.txt
-if [ -n "$needpil" ]; then
-	sudo apt-get install -y python3-pil python3-pil.imagetk python3-vlc
-fi
+sudo apt-get install -y git curl id3 sqlite3 python3-pil python3-pil.imagetk python3-pip python3-vlc libsecret-tools curl transmission-cli imagemagick
+
 dir="$HOME/.local/bin"
 inpath=$(echo "$PATH" | grep "$dir")
 inrc=$(cat ~/.bashrc | grep "export PATH")
-if [ -z "$hasgit" ]; then
-	sudo apt-get install -y git
-fi
 if [ -z "$inpath" ]; then
 	export PATH="$PATH:$HOME/.local/bin"
 fi

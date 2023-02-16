@@ -1,10 +1,17 @@
 import os
 import tmdbsimple as tmdb
 import keyring
+from np.core.conf import readConf
+conf = readConf()
 
 def store_api_key(api_key=None):
-	if api_key is None:
-		api_key = input("enter your tmdb api key now:")
+	try:
+		conf = readConf()
+		if api_key is None:
+			api_key = conf['tmdb_api_key']
+	except Exception as e:
+		print("API Key not set!", e)
+		return None
 	service_name = 'tmdb_api'
 	user = os.getlogin()
 	try:
@@ -20,9 +27,12 @@ def get_api_key():
 	except:
 		api_key = store_api_key()
 	return api_key
-tmdb.API_KEY = get_api_key()
 
 def query_movies(title, year=None):
+	tmdb.API_KEY = get_api_key()
+	if tmdb.API_KEY is None:
+		tmdb.API_KEY = store_api_key()
+	print("api key:", tmdb.API_KEY)
 	data = tmdb.Search().movie(query=title, year=year)['results'][0]
 	info = {}
 	info['title'] = title

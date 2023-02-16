@@ -238,7 +238,10 @@ def get_columns(table):
 def test_db():
 	import subprocess
 	com = ('cd "$HOME/.np"; sqlite3 nplayer.db ".schema"')
-	ret = subprocess.check_output(com, shell=True).decode()
+	try:
+		ret = subprocess.check_output(com, shell=True).decode()
+	except Exception as e:
+		ret = ''
 	if ret == '':
 		print("Schema empty! Creating...")
 		create_db()

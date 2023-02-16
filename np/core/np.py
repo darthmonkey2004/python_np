@@ -48,7 +48,11 @@ def test_db():
 	dbfile = os.path.join(os.path.expanduser("~"), '.np', 'nplayer.db')
 	if not os.path.exists(dbfile):
 		return False
-	ret = subprocess.check_output(f"sqlite3 \"{dbfile}\" \".schema\"", shell=True).decode().strip()
+	try:
+		ret = subprocess.check_output(f"sqlite3 \"{dbfile}\" \".schema\"", shell=True).decode().strip()
+	except Exception as e:
+		log(f"Error testing database: {e}", 'error')
+		return False
 	if ret == '':
 		return False
 	return True
@@ -733,6 +737,78 @@ def resize_gui():
 		np.log(f"np.start():VIEWER_WINDOW:Minimized!", 'info')
 		return "UI Minimized"
 
+def shell(com):
+	try:
+		out = subprocess.check_output(com, shell=True).decode().strip()
+	except Exception as e:
+		print("Error running command:", e)
+		return None
+	if out == '':
+		out = None
+	elif "\n" in out:
+		out = out.splitlines()
+	else:
+		out = [out]
+	return out
+
+def get_mounts():
+	sftp_dir = os.path.join(os.path.expanduser("~"), '.np', 'sftp')
+	try:
+		com = f"ls -F --group-directories-first \"{sftp_dir}\" | grep \"/\" | cut -d \"/\" -f 1"
+		dirs = shell(com)
+		return dirs
+	except Exception as e:
+		print(f"No directories at {sftp_dir} ({e})!")
+		return []
+
+
+def create_mount(remote_path=None, connection_string=None):
+	if remote_path is None:
+		remote_path = MP.conf['network']['media']['path']
+	if connection_string is None:
+		user = os.getlogin()
+		ip = MP.conf['network']['media']['host']
+		if ip is None:
+			ip = get_local_ip()
+		connection_string = f"{user}@{ip}"
+	name = os.path.basename(remote_path)
+	mnt_path = os.path.join(os.path.expanduser("~"), '.np', 'sftp', name)
+	com = f"mkdir -p \"{mnt_path}\""
+	ret = shell(com)
+	if ret is not None:
+		print("Couldn't create mount!", ret)
+		return False
+	com = f"sshfs -o allow_other \"{connection_string}:{remote_path}\" \"{mnt_path}\""
+	ret = shell(com)
+	if ret is not None:
+		print("couldn't create mount:", ret)
+		return False
+	else:
+		return True
+
+def test_mounts():
+	mounts = get_mounts()
+	if mounts is None:
+		mounts = []
+	if len(mounts) == 0:
+		print("Mount point doesn't exist! Creating...")
+		ret = create_mount()
+		if not ret:
+			print("mount test failed!")
+		return ret
+	else:
+		media_dir = MP.conf['media_directories']['main']
+		files = shell(f"cd \"{media_dir}\"; ls")
+		if files == [] or files is None:
+			ret = create_mount()
+			if not ret:
+				print("mount creation failed!")
+			else:
+				return ret
+		else:
+			return True
+		
+
 
 def start():
 	global server, remote_q, pbdl
@@ -767,13 +843,18 @@ def start():
 	except Exception as e:
 		np.log(f"Series history is empty or couldn't read pickle data: line 557, {e}", 'error')
 		MP.series_history = {}
-	if MP.conf['network_mode']['media_mode'] == 'local':
+	if MP.conf['network']['media']['mode'] == 'local':
 		try:
 			media_dirs = MP.conf['media_directories']
 			log("Media directories found in conf!", 'info')
 		except Exception as e:
 			log("Error: media directories not found inf conf file:{e}", 'error')
 			np.set_media_paths()
+	else:
+		print("testing mounts...")
+		if not test_mounts():
+			print("Unable to mount sftp!")
+			exit()
 	UI = np.gui()
 	MP.gui_visible = True
 	log("UI created: np_main.py, Start, line 694", 'info')
@@ -853,9 +934,9 @@ def start():
 							media_host = UI.get_user_input('Please enter remote ip:' )
 						if media_user is None:
 							media_user = UI.get_user_input('Please enter remote username: ')
-					MP.conf['network_mode']['media_mode'] = media_mode
-					MP.conf['network_mode']['media_host'] = media_host
-					MP.conf['network_mode']['media_user'] = media_user
+					MP.conf['network']['media']['mode'] = media_mode
+					MP.conf['network']['media']['host'] = media_host
+					MP.conf['network']['media']['user'] = media_user
 					np.writeConf(MP.conf)
 					log(f"Network media mode changed:{media_mode}", 'info')
 				elif event == 'Resort Database Ids':

@@ -85,6 +85,10 @@ def scan_series(target_dir=None):
 		pos = 0
 		for filepath in files:
 			pos += 1
+			try:
+				print(f"progress: {pos}/{ct}...")
+			except:
+				pass
 			log(f"progress: {pos}/{ct}", 'info')
 			go = False
 			series_name = None

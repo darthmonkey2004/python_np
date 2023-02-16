@@ -73,7 +73,7 @@ def scan_music(target_dir=None):
 		pos = pos + 1
 		exists = test_exists(filepath)
 		if exists == True:
-			log(f"Already in database: '{filepath}'", 'info')
+			log(f"Already in database: '{filepath}'", 'debug')
 		else:
 			info = set_empty('music')
 			hastag = True
@@ -82,7 +82,7 @@ def scan_music(target_dir=None):
 			artist = None
 			txt = ("Progress: (" + str(pos) + "/" + str(ct) + ", filepath:" + filepath)
 			audiofile = None
-			log(f"{txt}", 'info')
+			log(f"{txt}", 'debug')
 			if filepath == '' or not os.path.exists(filepath):
 				log("Error: No file path provided (directory might be empty?)", 'info')
 				break

@@ -368,7 +368,7 @@ class nplayer():
 
 
 	def load_playlist(self, filepath):
-		if self.conf['network_mode']['media_mode'] == 'remote':
+		if self.conf['network']['media']['mode'] == 'remote':
 			fpath = filepath.split('/var/storage/')[1]
 			filepath = (os.path.expanduser("~"), '.np', 'sftp', fpath)
 		if os.path.exists(filepath):
@@ -428,6 +428,15 @@ class nplayer():
 		except Exception as e:
 			log(f"Unable to load directory:({e}), {path}", 'error')
 			return None
+
+	def mount_sftp(self):
+		com = f"sudo sshfs -o allow_other monkey@192.168.1.2:/var/storage /home/monkey/.np/sftp"
+		try:
+			ret = subprocess.check_output(com, shell=True).decode().strip()
+			if ret != '':
+				print(ret)
+		except Exception as e:
+			log(f"error running mount sftp (sshfs):{e}", 'error')
 
 
 	def get_playlist_next(self):
@@ -526,17 +535,31 @@ class nplayer():
 			log(f"nplayer.py, play(): Instance created! Options: {opts}", 'info')
 			self.player = self.vlcInstance.media_player_new()
 		# check if network mode is remote:
-		if self.conf['network_mode']['media_mode'] == 'remote':
+		if self.conf['network']['media']['mode'] == 'remote':
 			#test if sftp is mounted
-			is_mounted = self.test_sftp()
+			try:
+				is_mounted = self.test_sftp()
+			except:
+				log(f"TODO: Test if sftp directory is mounted in remote mode!", 'error')
+				is_mounted = True
 			if not is_mounted:
 				#mount if necessary
 				self.mount_sftp()
 			# test if remote uri in next string
 			if '/.np/sftp' not in self.next:
-				fpath = self.next.split(self.conf['media_directories']['main'])[1]
-				self.next = (os.path.expanduser("~"), '.np', 'sftp', fpath)
-				log(f"Network uri set:{self.next}", 'info')
+				if self.conf['media_directories']['main'] in self.next:
+					fpath = self.next.split(self.conf['media_directories']['main'])[1]
+					homedir = os.path.expanduser("~")
+					self.next = f"{homedir}{os.path.sep}.np{os.path.sep}sftp{os.path.sep}fpath"
+					log(f"Network uri set:{self.next}", 'info')
+				else:
+					log(f"bad string: next:{self.next}, media_dirs:{self.conf['media_directories']['main']}", 'error')
+					if '/var/storage' in self.next:
+						fpath = self.next.split('/var/storage')[1]
+						homedir = os.path.expanduser("~")
+						self.next = f"{homedir}{os.path.sep}.np{os.path.sep}sftp{os.path.sep}fpath"
+					else:
+						log(f"Couldn't parse network path! '/var/storage' not in path!", 'error')
 		# attempt to set media path.
 		try:
 			log(f"nplayer.py.play(): Setting media path:{self.next}", 'info')
@@ -546,7 +569,7 @@ class nplayer():
 			time.sleep(2) # wait 2 seconds for media to load to aid scaling method
 		except Exception as e:
 			log(f"Unable to open media item:{e}, filepath={self.next}", 'error')
-			if self.conf['network_mode']['media_mode'] == 'remote':
+			if self.conf['network']['media']['mode'] == 'remote':
 				self.mount_sftp()
 				self.player.set_media(self.vlcInstance.media_new_path(self.next))
 				self.player.play()
