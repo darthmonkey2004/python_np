@@ -114,7 +114,7 @@ np_setup() {
 
 
 need_vlc=$(sudo dpkg -l | grep "python3-vlc")
-sudo apt-get install -y git curl id3 sqlite3 python3-pil python3-pil.imagetk python3-pip python3-vlc libsecret-tools curl transmission-cli imagemagick
+sudo apt-get install -y python3-websocket git curl id3 sqlite3 python3-pil python3-pil.imagetk python3-pip python3-vlc libsecret-tools curl transmission-cli imagemagick
 
 dir="$HOME/.local/bin"
 inpath=$(echo "$PATH" | grep "$dir")

@@ -23,7 +23,8 @@ conf = readConf()
 DATA_DIR = os.path.join(os.path.expanduser("~"), '.np')
 SFTP_DIR = os.path.join(DATA_DIR, 'sftp')
 HOME = os.path.expanduser("~")
-
+media_dir = conf['media_directories']['movies']
+db = os.path.join(DATA_DIR, 'nplayer.db')
 
 def get_public_ip():
 	url = 'https://www.showmyip.com/'
@@ -263,17 +264,41 @@ def test_exists(filepath, play_type=None):
 
 
 def migrate(torrents=None):
-	if torrents is None:
-		torrents = build_data(rebuild=True)
-	add_to_db(torrents)
 	log(f"Migrating series files...", 'info')
-	ret = migrate_series()
+	conf = readConf()
+	media_dir = conf['media_directories']['movies']
+	db = os.path.join(DATA_DIR, 'nplayer.db')
+	com = f"sqlite3 {db} \"select id,title,year,filepath from movies where filepath like \'%transmission-daemon/downloads%\';\""
+	print(f"migrate:Movies - command=\'{com}\'", 'info')
+	items = subprocess.check_output(com, shell=True).decode().strip().split("\n")
+	com = f"sqlite3 {db} \"select id,series_name,season,episode_number,episode_name,filepath from series where filepath like \'%transmission-daemon/downloads%\';\""
+	items += subprocess.check_output(com, shell=True).decode().strip().split("\n")
+	print(f"migrate:Series - command=\'{com}\'", 'info')
+	movies = []
+	series = []
+	for item in items:
+		if item is not None and item != '':
+			log(f"Getting play type for item:{item}", 'info')
+			play_type = get_play_type(item)
+			if  play_type  == 'series':
+				series.append(item)
+				log(f"utils.migrate():Series item added - {item}!", 'info')
+			elif play_type == 'movies':
+				movies.append(item)
+				log(f"utils.migrate():Movie item added - {item}!", 'info')
+		else:
+			log(f"utils.migrate():Item was empty! item={item}", 'error')
+	ret = migrate_series(series)
 	if ret:
 		log("Series migration finished!", 'info')
 	else:
 		log("Series migration failed!", 'error')
 	log(f"Migrating movie files...", 'info')
-	ret = migrate_movies()
+	ret = migrate_movies(movies)
+	log(f"pbdl.utils.migrate_movies:movies({len(movies)})={movies}", 'info')
+	if movies is None or len(movies) == 0 or movies == ['']:
+		log(f"No results for movies!", 'info')
+		return
 	if ret:
 		log("Movies migration finished!", 'info')
 	else:
@@ -282,12 +307,8 @@ def migrate(torrents=None):
 	
 
 
-def migrate_series():
+def migrate_series(results):
 	conf = readConf()
-	media_dir = conf['media_directories']['series']
-	db = os.path.join(DATA_DIR, 'nplayer.db')
-	com = (f"sqlite3 {db} \"select id,series_name,season,episode_number,episode_name,filepath from series where filepath like \'%{SFTP_DIR}%\';\"")
-	results = subprocess.check_output(com, shell=True).decode().strip().split("\n")
 	pos = 0
 	ct = len(results)
 	for item in results:
@@ -295,7 +316,12 @@ def migrate_series():
 		if item == '':
 			log(f"No series in database in sftp directory! (results={results})", 'warning')
 			return False
-		_id, series_name, season, episode_number, episode_name, filepath = item.split('|')
+		#_id, series_name, season, episode_number, episode_name, filepath = item.split('|')
+		series_name = item['series_name']
+		season = item['season']
+		episode_number = item['episode_number']
+		episode_name = item['episode_name']
+		filepath = item['filepath']
 		if '%27' in filepath:
 			filepath = filepath.replace("%27", "'")
 		ext = os.path.splitext(filepath)[1]
@@ -325,18 +351,8 @@ def migrate_series():
 		log(f"migrate_movies:Done with {pos} of {ct}..", 'info')
 
 
-def migrate_movies():
+def migrate_movies(results):
 	conf = readConf()
-	media_dir = conf['media_directories']['movies']
-	db = os.path.join(DATA_DIR, 'nplayer.db')
-	com = (f"sqlite3 {db} \"select id,title,year,filepath from movies where filepath like \'%{SFTP_DIR}%\';\"")
-	print(f"migrate_movies: command=\'{com}\'", 'info')
-	#input()
-	results = subprocess.check_output(com, shell=True).decode().strip().split("\n")
-	log(f"pbdl.utils.migrate_movies:results({len(results)})={results}", 'info')
-	if results is None or len(results) == 0 or results == ['']:
-		log(f"No results for movies!", 'info')
-		return
 	pos = 0
 	ct = len(results)
 	for item in results:
@@ -1049,6 +1065,30 @@ def get_id(filepath, play_type=None):
 
 def get_filepath(_id, play_type):
 	return sqlite3(f"select filepath from {play_type} where id = {_id};")[0]
+
+
+def get_play_type(filepath):
+	log(f"self.get_play_type running...", 'info')
+	layout = []
+	window_title = 'Select play type:'
+	fname_line = [sg.Text(f"Setting info for:{filepath}...")]
+	play_type_combo = [sg.Combo(['series', 'movies', 'music'], 'series', enable_events=True,key='-PLAY_TYPE-')]
+	submit = [sg.Button('Submit')]
+	layout.append(play_type_combo)
+	layout.append(fname_line)
+	layout.append(submit)
+	win_key = window_title.lower().replace(' ', '_')
+	win = sg.Window(window_title, layout, size=(300, 100), keep_on_top=False, element_justification='center', finalize=True)
+	data = None
+	while True:
+		event, values = win.read()
+		if event == sg.WIN_CLOSED:
+			break
+		else:
+			play_type = values[event]
+			win.close()
+	log(f"play_type:{play_type}", 'info')
+	return play_type
 
 
 #use series poster as failover, choose still_path if available

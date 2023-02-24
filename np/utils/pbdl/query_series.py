@@ -101,11 +101,16 @@ def get_episode_data(_id, season, episode_number):
 	else:
 		series_name = None
 	info = get_season_data(_id, season)
-	out = info[season]['episodes'][episode_number]
-	out['results'] = True
-	out['id'] = _id
-	out['series_name'] = series_name
-	return out
+	try:
+		out = info['episodes'][episode_number]
+		out['results'] = True
+		out['id'] = _id
+		out['series_name'] = series_name
+		return out
+	except Exception as e:
+		print(e)
+		print(info)
+		input()
 
 def get_all_series_data(query='Disenchantment'):
 	_id = get_series_id(query)

@@ -37,12 +37,18 @@ from np.utils.dbfixer import *
 try:
 	server = server(remote_com_q, remote_ret_q)
 	server_start_ok = True
-except:
+except Exception as e:
+	log(f"np.py:Couldn't start server - {e}", 'error')
 	server_start_ok = False
 VLC_VIDEO_FILTERS = ['video:adjust', 'video:alphamask', 'video:anaglyph', 'video:antiflicker', 'video:audiobargraph_v', 'video:ball', 'video:blendbench', 'video:bluescreen', 'video:canvas', 'video:chain', 'video:colorthres', 'video:croppadd', 'video:deinterlace', 'video:edgedetection', 'video:erase', 'video:extract', 'video:fps', 'video:freeze', 'video:gaussianblur', 'video:gradfun', 'video:gradient', 'video:grain', 'video:hqdn3d', 'video:invert', 'video:logo', 'video:magnify', 'video:mirror', 'video:motionblur', 'video:motiondetect', 'video:oldmovie', 'video:posterize', 'video:postproc', 'video:psychedelic', 'video:puzzle', 'video:ripple', 'video:rotate', 'video:scene', 'video:sepia', 'video:sharpen', 'video:transform', 'video:vaapi_filters', 'video:vaapi_filters', 'video:vaapi_filters', 'video:vaapi_filters', 'video:vaapi_filters', 'video:vdpau_adjust', 'video:vdpau_deinterlace', 'video:vdpau_sharpen', 'video:vhs', 'video:wave']
 VLC_AUDIO_FILTERS = ['audio:audiobargraph_a', 'audio:chorus_flanger', 'audio:compressor', 'audio:equalizer', 'audio:gain', 'audio:headphone', 'audio:karaoke', 'audio:mono', 'audio:normvol', 'audio:param_eq', 'audio:remap', 'audio:scaletempo', 'audio:scaletempo_pitch', 'audio:spatialaudio', 'audio:spatializer', 'audio:stereo_widen']
 VLC_CLI_OPTIONS = cli_opts()
 
+# helper function for sorting series in 'Search' event
+def sort_series(item):
+	season = int(item.split(':')[2])
+	episode_number = int(item.split(':')[3])
+	return season, episode_number
 
 def test_db():
 	dbfile = os.path.join(os.path.expanduser("~"), '.np', 'nplayer.db')
@@ -334,7 +340,8 @@ def isint(n):
 	try:
 		t = int(n)
 		return True
-	except:
+	except Exception as e:
+		log(f"np.py.isint(): {e}", 'debug')
 		return False
 
 def playlist_click(_id, table):
@@ -389,7 +396,7 @@ def load_playlist(filepath=None):
 				UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.playlist.playlist)
 			MP.play_mode = 'playlist'
 			UI.WINDOW['-PLAY_MODE-'].update(MP.play_mode)
-			filepath = MP.playlist[0]
+			filepath = MP.playlist.playlist[0]
 			MP.play(filepath)
 		else:
 			MP.play_mode = 'database'
@@ -1216,9 +1223,10 @@ def start():
 						log(f"np:start:EVENT=Search:query_string={query_string},table={table}", 'info')
 						MP.playlist = MP.get_playlist_object(data=ret, play_mode='playlist', play_type=MP.play_type)
 						log(f"np.start:EVENT:Search:Created new playlist object({MP.play_type})", 'info')
-						playlist = MP.playlist.playlist
+						if MP.play_type == 'series':
+							MP.playlist.playlist = sorted(MP.playlist.playlist, key=sort_series)
 						#print(type(playlist), len(playlist), playlist)
-						UI.WINDOW['-CURRENT_PLAYLIST-'].update(playlist)
+						UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.playlist.playlist)
 						MP.play_mode = 'playlist'
 						UI.WINDOW['-PLAY_MODE-'].update(MP.play_mode)
 						log(f"np:start:EVENT=Search:play_mode updated ({MP.play_mode})", 'info')
@@ -1265,8 +1273,11 @@ def start():
 					MP.volume_down()
 					log(f"np.start():ACTION:Volume down,{MP.conf['volume']}", 'info')
 				elif event == 'PBDL Lite UI':
-					log(f"Loaded lite torrent manager!")
-					pbdl_win = liteui()
+					try:
+						pbdl_win = liteui()
+						log(f"Loaded lite torrent manager!")
+					except Exception as e:
+						log(f"Couldn't load liteui:{e}", 'error')
 				elif event == '-PBDL_SEARCH-':
 					pbdl.results = pbdl.get_magnet(pbdl.pbdl_query, pbdl.category)
 					UI.pbdl_dl_win['-PBDL_RESULTS-'].update(pbdl.results)

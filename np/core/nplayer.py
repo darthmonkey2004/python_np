@@ -537,14 +537,14 @@ class nplayer():
 		# check if network mode is remote:
 		if self.conf['network']['media']['mode'] == 'remote':
 			#test if sftp is mounted
-			try:
-				is_mounted = self.test_sftp()
-			except:
-				log(f"TODO: Test if sftp directory is mounted in remote mode!", 'error')
-				is_mounted = True
-			if not is_mounted:
-				#mount if necessary
-				self.mount_sftp()
+			#try:
+			#	is_mounted = self.test_sftp()
+			#except:
+			#	log(f"TODO: Test if sftp directory is mounted in remote mode!", 'error')
+			#	is_mounted = True
+			#if not is_mounted:
+			#	#mount if necessary
+			#	self.mount_sftp()
 			# test if remote uri in next string
 			if '/.np/sftp' not in self.next:
 				if self.conf['media_directories']['main'] in self.next:

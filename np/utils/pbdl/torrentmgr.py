@@ -4,29 +4,42 @@ import subprocess
 from np.core.conf import readConf, writeConf
 from np.core.log import np_logger
 from np.utils.pbdl.torrentmgr_ui import *
-from np.utils.pbdl.utils import get_torrents, get_files
+#from np.utils.pbdl.utils import get_torrents, get_files
+from np.utils.migrate import *
 import os
 import json
 import requests
 log = np_logger().log_msg
 public_ip = None
+conf = readConf()
 
 
+#def ssh(com):
+#	remote_ip = conf['pbdl']['remote_ip']
+#	user = os.getlogin()
+#	com = f"ssh {user}@{remote_ip} \"{com}\""
+#	try:
+#		ret = subprocess.check_output(com, shell=True).decode().strip()
+#	except Exception as e:
+#		print("Error in ssh command:", e)
+#		ret = []
+#	if ret is not None:
+#		if "\n" in ret:
+#			ret = ret.splitlines()
+#		elif ret == '':
+#			ret = None
+#	return ret
 
 def get_public_ip():
-	public_ip = None
-	url = 'https://www.showmyip.com/'
-	r = requests.get(url)
-	data = r.text.split("\n")
-	for line in data:
-		if 'Your IPv4' in line:
-			public_ip = line.split('<b>')[1].split('</b>')[0]
-	return public_ip
+	return ssh("dig +short myip.opendns.com @resolver1.opendns.com")
 
 def vpn_status():
 	try:
-		ret = subprocess.check_output(f"pgrep openvpn", shell=True).decode().strip().splitlines()
-	except:
+		ret = ssh("pgrep openvpn")
+		if "\n" in ret:
+			ret = ret.splitlines()
+	except Exception as e:
+		log(f"VPN Status check failed! Reason - {e}", 'error')
 		ret = []
 	if len(ret) == 1:
 		vpn_state = True
@@ -92,14 +105,16 @@ def ipinfo():
 	
 
 class torrent_mgr():
-	def __init__(self, win=None, remote_ip=None):
+	def __init__(self, win=None, remote_ip=None, remote_port=9091):
+		self.remote_port = remote_port
 		self.win = win
 		conf = readConf()
 		self.start_paused = True
 		self.do_not_seed = True
 		try:
 			self.settings = conf['pbdl']
-		except:
+		except Exception as e:
+			log(f"torrent_mgr.init():Error - {e}", 'error')
 			conf['pbdl'] = {}
 			conf['pbdl']['remote_ip'] = get_user_input("Enter transmission ip: ")
 			yn = get_user_yn("Start all torrents paused?")
@@ -117,6 +132,8 @@ class torrent_mgr():
 			self.set_start_unpaused()
 		else:
 			self.set_start_paused()
+		self.remove_on_migrate = False
+		self.torrents = self.get_torrents()
 		self.set_global_ratio(0)
 		self.user = os.path.expanduser("~").split('/home/')[1]
 		self.public_ip = self.get_public_ip()
@@ -125,17 +142,50 @@ class torrent_mgr():
 		self.vpn_thread = None
 		self.vpn_state = self.vpn_status()
 		self.monitor_q = Queue(maxsize=5)
-		self.start_monitor()
+		#self.start_monitor()
+
+	def cleandb(self):
+		return cleandb()
+
+	def getSessionId(self):
+		return getSessionId()
 
 
-	def set_remote_host(self, remote_ip=None):
-		conf = readConf()
-		if remote_ip == None:
-			self.remote_ip = conf['pbdl_url']['remote_ip']
+	def post(self, com=None, transmission_remote_ip=None, transmission_remote_port=None):
+		if transmission_remote_ip is not None:
+			self.remote_ip = transmission_remote_ip
+		if transmission_remote_port is not None:
+			self.remote_port = transmission_remote_port
+		url = f"http://{self.remote_ip}:{self.remote_port}/transmission/rpc"
+		headers = self.getSessionId()
+		r = requests.post(url, json=com, headers=headers)
+		if r.status_code == 200:
+			json_data = json.loads(r.text)
+			return json_data
 		else:
-			self.remote_ip = remote_ip
-			conf['pbdl_url']['remote_ip'] = self.remote_ip
-			writeConf(conf)
+			log(f"Failed to self.post to url: Status Code {r.status_code}, data={r.text}", 'error')
+			return None
+
+
+
+	def get_torrents(self):
+		com = {"method":"torrent-get","arguments":{"fields":["id","addedDate","name","totalSize","error","errorString","eta","isFinished","isStalled","leftUntilDone","metadataPercentComplete","peersConnected","peersGettingFromUs","peersSendingToUs","percentDone","queuePosition","rateDownload","rateUpload","recheckProgress","seedRatioMode","seedRatioLimit","sizeWhenDone","status","trackers","downloadDir","uploadedEver","uploadRatio","webseedsSendingToUs"]}}
+		ret = self.post(com)
+		keepers = ['addedDate', 'downloadDir', 'eta', 'id', 'isFinished', 'isStalled', 'name', 'peersConnected', 'percentDone', 'queuePosition', 'rateDownload', 'rateUpload', 'seedRatioLimit', 'seedRatioMode', 'status', 'totalSize', 'trackers', 'uploadRatio', 'uploadedEver']
+		self.torrents = {}
+		for t in ret['arguments']['torrents']:
+			tid = t['id']
+			self.torrents[tid] = {}
+			for key in keepers:
+				self.torrents[tid][key] = t[key]
+		return self.torrents
+
+
+	def set_remote_host(self, remote_ip):
+		self.conf = readConf()
+		self.remote_ip = remote_ip
+		self.conf['pbdl']['remote_ip'] = self.remote_ip
+		writeConf(self.conf)
 
 	def set_transmission_ip(self, remote_ip=None):
 		conf = readConf()
@@ -150,7 +200,7 @@ class torrent_mgr():
 	def _vpn_status(self):
 		com = f"nordvpn status | grep \"Status:\" | cut -d ' ' -f 4"
 		try:
-			status = subprocess.check_output(com, timeout=5, shell=True).decode().strip()
+			status = ssh(com)
 			if status == 'Disconnected':
 				self.vpn_state = False
 			else:
@@ -165,39 +215,22 @@ class torrent_mgr():
 
 
 	def get_public_ip(self):
-		url = 'https://www.showmyip.com/'
-		r = requests.get(url)
-		data = r.text.split("\n")
-		for line in data:
-			if 'Your IPv4' in line:
-				self.public_ip = line.split('<b>')[1].split('</b>')[0]
-				return self.public_ip
+		return ssh("dig +short myip.opendns.com @resolver1.opendns.com")
 
 
 	def vpn_status(self):
-		try:
-			ret = subprocess.check_output(f"pgrep openvpn", shell=True).decode().strip().splitlines()
-		except:
-			ret = []
-		if len(ret) == 1:
-			self.vpn_state = True
-		elif len(ret) > 1:
-			log(f"WARNING: openvpn process running multiple times! {ret}", 'warning')
-			self.vpn_state = True
-		elif len(ret) == 0:
-			self.vpn_state = False
-		return self.vpn_state
+		return vpn_status()
 
 	def _start_nordvpn(self):
 		com = f"nordvpn connect"
-		status = subprocess.check_output(com, shell=True).decode().strip()
+		status = ssh(com)
 		self.vpn_state = self.vpn_status()
 		return status
 
 	def _start_vpn(self):
 		log(f"Starting torguard process...", 'info')
 		com = f"cd /etc/openvpn; sudo openvpn torguard.ubuntu.chicago.ovpn"
-		subprocess.check_output(com, shell=True)
+		ssh(com)
 			
 
 	def ip_monitor(self, q):
@@ -233,17 +266,18 @@ class torrent_mgr():
 	def _stop_vpn(self):
 		try:
 			self.stop_all()
-		except:
+		except Exception as e:
+			log(f"torrent_mgr._stop_vpn():Error - couldn't stop vpn ({e})!", 'error')
 			pass
 		com = f"nordvpn disconnect"
-		status = subprocess.check_output(com, shell=True).decode().strip()
+		status = ssh(com)
 		self.vpn_state = self.vpn_status()
 		self.public_ip = self.get_public_ip
 		return status
 
 	def stop_vpn(self):
 		try:
-			subprocess.check_output(f"sudo kill $(pgrep openvpn)", shell=True)
+			ssh("sudo kill $(pgrep openvpn)")
 			self.vpn_state = False
 			self.public_ip = self.get_public_ip()
 			return True
@@ -255,7 +289,7 @@ class torrent_mgr():
 		self.tdata = {}
 		try:
 			com=f"transmission-remote {self.remote_ip} -l | grep -v \"ID\" | grep -v \"Sum:\""
-			results = subprocess.check_output(com, shell=True).decode().strip().split("\n")
+			results = ssh(com)
 			tids = []
 			for item in results:
 				tid = item.strip().split(' ')[0]
@@ -268,7 +302,7 @@ class torrent_mgr():
 		for tid in tids:
 			self.tdata[tid] = {}
 			com = f"transmission-remote {self.remote_ip} -t{tid} --info"
-			data = subprocess.check_output(com, shell=True).decode().strip().split("\n")
+			data = ssh(com)
 			for line in data:
 				for key in keys:
 					idx = keys.index(key)
@@ -278,17 +312,12 @@ class torrent_mgr():
 						self.tdata[tid][dkey] = line.split(test)[1]
 		return self.tdata
 
-
-	def get_torrents(self):
-		self.torrents = get_torrents()
-		return self.torrents
-
 	def get_files(self, tid):
-		return get_files(tid)
+		return get_files(tid, self.remote_ip, self.remote_port)
 	
 	def start(self, tid):
 		com=f"transmission-remote {self.remote_ip} -t{tid} -s"
-		ret = subprocess.check_output(com, shell=True).decode().strip().split('"')[1]
+		ret = ssh(com)
 		return ret
 
 	def add(self, magnet):
@@ -303,14 +332,14 @@ class torrent_mgr():
 			self.set_start_unpaused()
 		self.start_all()
 		com=f"transmission-remote {self.remote_ip} -a {magnet}"
-		ret = subprocess.check_output(com, shell=True).decode().strip()
+		ret = ssh(com)
 		self.stop_seeds()
 		self.stop_all()
 		return ret
 
 	def stop(self, tid):
 		com=f"transmission-remote {self.remote_ip} -t{tid} -S"
-		ret = subprocess.check_output(com, shell=True).decode().strip().split('"')[1]
+		ret = ssh(com)
 		return ret
 
 	def start_all(self):
@@ -335,12 +364,12 @@ class torrent_mgr():
 
 	def set_global_ratio(self, ratio=0):
 		com=f"transmission-remote {self.remote_ip} -gsr {ratio}"
-		ret = subprocess.check_output(com, shell=True).decode().strip().split('"')[1]
+		ret = ssh(com)
 		return ret
 
 	def set_ratio(self, tid, ratio=0):
 		com=f"transmission-remote {self.remote_ip} -t{tid} -sr {ratio}"
-		ret = subprocess.check_output(com, shell=True).decode().strip().split('"')[1]
+		ret = ssh(com)
 		return ret
 
 	def stop_seeds(self):
@@ -356,22 +385,22 @@ class torrent_mgr():
 
 	def set_start_paused(self):
 		com=f"transmission-remote {self.remote_ip} --start-paused"
-		ret = subprocess.check_output(com, shell=True).decode().strip().split('"')[1]
+		ret = ssh(com)
 		return ret
 	
 	def set_start_unpaused(self):
 		com=f"transmission-remote {self.remote_ip} --no-start-paused"
-		ret = subprocess.check_output(com, shell=True).decode().strip().split('"')[1]
+		ret = ssh(com)
 		return ret
 
 	def remove(self, tid):
 		com=f"transmission-remote {self.remote_ip} -t{tid} -r"
-		ret = subprocess.check_output(com, shell=True).decode().strip().split('"')[1]
+		ret = ssh(com)
 		return ret
 
 	def remove_and_delete(self, tid):
 		com=f"transmission-remote {self.remote_ip} -t{tid} -rad"
-		ret = subprocess.check_output(com, shell=True).decode().strip().split('"')[1]
+		ret = ssh(com)
 		return ret
 
 	def set_on_finished(self, script_path):
@@ -379,12 +408,12 @@ class torrent_mgr():
 			log("Error: Script file not found at {script_path}", 'error')
 			return False
 		com=f"transmission-remote {self.remote_ip} --torrent-done-script \"{script_path}\""
-		ret = subprocess.check_output(com, shell=True).decode().strip().split('"')[1]
+		ret = ssh(com)
 		return ret
 
 	def remove_on_finished(self):
 		com=f"transmission-remote {self.remote_ip} --no-torrent-done-script"
-		ret = subprocess.check_output(com, shell=True).decode().strip().split('"')[1]
+		ret = ssh(com)
 		return ret
 
 	def start_all_with_vpn(self, host=None):
@@ -428,12 +457,46 @@ class torrent_mgr():
 		self.stop_vpn()
 		log(f"All torrents finished! VPN deactivated.", 'info')
 		return True
+
+
+	def test_exists(self, filepath):
+		return test_exists(filepath)
+
+
+	def mv(self, from_path, to_path):
+		return mv(from_path, to_path)
+
+
+	def get_series_info(self, filepath, series_name=None, season=None, episode_number=None):
+		self.filepath = filepath
+		self.series_name = series_name
+		self.season = season
+		self.episode_number = episode_number
+		return get_series_info(filepath=self.filepath, series_name=self.series_name, season=self.season, episode_number=self.episode_number)
+
+	def migrate(self, tid):
+		if tid == 'all' or tid == 'All':
+			tids = list(self.torrents.keys())
+		else:
+			if type(tid) == list:
+				tids = tid
+			elif type(tid) == int:
+				tids = [tid]
+			elif type(tid) == str:
+				tids = [int(tid)]
+		for self.tid in tids:
+			migrate(self.tid)
+			if self.remove_on_migrate:
+				log(f"Removing and deleting ({self.tid}) (flag set)", 'warning')
+				self.remove_and_delete(self.tid)
+		self.cleandb()
 				
 if __name__ == "__main__":
 	import sys
 	try:	
 		remote_ip = sys.argv[1]
-	except:
+	except Exception as e:
+		print(e)
 		remote_ip = input("Enter remote host ip: ")
 	mgr = torrent_mgr()
 	mgr.set_remote_host(remote_ip)
