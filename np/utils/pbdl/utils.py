@@ -696,7 +696,9 @@ def test_media(query, return_data=False):
 		if play_type == 'series':
 			return parse_series(filepath)
 		elif play_type == 'movies':
-			title, year = ty_isin(filepath, True)	
+			title, year = ty_isin(filepath, True)
+			if 'ALTERNATE' in title:
+				title = title.split('ALTERNATE')[0].strip()
 			return [title, year]
 		elif play_type == 'music':
 			return parse_music(filepath)

@@ -1213,10 +1213,13 @@ def start():
 						query_string = query_string.split(f"{table}:")[1]
 						if "'" in table:
 							table = table.split("'")
+						log(f"np.start:EVENT:Search: set (from query string) MP.play_type={MP.play_type}", 'info')
 					else:
-						table = MP.play_type
+						log(f"np.start:EVENT:Search: table set to default ('all')!", 'info')
+						table = 'all'
+					print(f"MP.play_type: {MP.play_type}")
 					ret = searchdb(tables=table, query=query_string)
-					log(f"np.start():search event:tabe:{table}, query={query_string}, ret:{ret}", 'info')
+					log(f"np.start():search event:table:{table}, query={query_string}, ret:{ret}", 'info')
 					if type(ret) == str:
 						ret = ret.split("\n")
 					if type(ret) == list:
@@ -1425,11 +1428,7 @@ def start():
 						MP.poster = update_poster(query)
 						log(f"np.start:Update poster (btn onClick)!", 'info')
 					except Exception as e:
-						
 						log(f"np.start:event('-UPDATE_POSTER-'):Couldn't update poster! {e}", 'error')
-					print("id:", _id)
-				
-					
 				else:
 					if event is not None:
 						try:

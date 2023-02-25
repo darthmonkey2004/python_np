@@ -32,26 +32,30 @@ def query_movies(title, year=None):
 	tmdb.API_KEY = get_api_key()
 	if tmdb.API_KEY is None:
 		tmdb.API_KEY = store_api_key()
-	print("api key:", tmdb.API_KEY)
-	data = tmdb.Search().movie(query=title, year=year)['results'][0]
-	info = {}
-	info['title'] = title
-	for k in data.keys():
-		if k == 'id':
-			info['tmdbid'] = data['id']
-		elif k == 'release_date':
-			info['year'] = int(data['release_date'].split('-')[0])
-			info['release_date'] = data['release_date']
-		elif k == 'overview':
-			info['description'] = data[k]
-		if 'path' in k:
-			if k == 'poster_path':
-				info['poster'] = f"https://image.tmdb.org/t/p/original{data[k]}"
-			else:
-				info[k] = f"https://image.tmdb.org/t/p/original{data[k]}"
-	info['results'] = True
-	info['duration'] = 'None'
-	return info
+	print(f"Query movies:searching title ({title})...")
+	try:
+		data = tmdb.Search().movie(query=title, year=year)['results'][0]
+		info = {}
+		info['title'] = title
+		for k in data.keys():
+			if k == 'id':
+				info['tmdbid'] = data['id']
+			elif k == 'release_date':
+				info['year'] = int(data['release_date'].split('-')[0])
+				info['release_date'] = data['release_date']
+			elif k == 'overview':
+				info['description'] = data[k]
+			if 'path' in k:
+				if k == 'poster_path':
+					info['poster'] = f"https://image.tmdb.org/t/p/original{data[k]}"
+				else:
+					info[k] = f"https://image.tmdb.org/t/p/original{data[k]}"
+		info['results'] = True
+		info['duration'] = 'None'
+		return info
+	except Exception as e:
+		print(f"Error in utils.query_movies:{e}")
+		return None
 
 if __name__ == "__main__":
 	import sys

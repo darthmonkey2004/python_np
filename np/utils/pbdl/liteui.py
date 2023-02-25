@@ -402,12 +402,12 @@ class pbdl():
 			return True
 
 
-def update(pbdl):
-	info = pbdl.update_info()
+def update(p):
+	info = p.update_info()
 	for tid in info.keys():
 		try:
 			key = f"-{tid}-"
-			pbdl.win[f"info-{tid}"].update(info[tid])
+			p.win[f"info-{tid}"].update(info[tid])
 		except Exception as e:
 			log("Error updating window: {e}", 'error')
 
@@ -416,11 +416,11 @@ def update(pbdl):
 def run_ui(pbdl_obj=None):
 	if pbdl_obj is None:
 		global pbdl
-		pbdl = pbdl()
+		p = pbdl()
 	else:
-		pbdl = pbdl_obj
-	t = pbdl.t
-	info, win, win_x, win_y = pbdl.start()
+		p = pbdl_obj
+	t = p.t
+	info, win, win_x, win_y = p.start()
 	win['-TOGGLE_VPN-'].update(t.vpn_status())
 	pos = 0
 	ct = 1500
@@ -428,12 +428,12 @@ def run_ui(pbdl_obj=None):
 	active = None
 	magnet = None
 	exit = False
-	update(pbdl)
+	update(p)
 	tid = None
 	while True:
 		if exit:
 			win_x, win_y = win.current_location()
-			pbdl.save_win_location(win_x, win_y)
+			p.save_win_location(win_x, win_y)
 			break
 		pos += 1
 		window, event, values = sg.read_all_windows(timeout=1)
@@ -457,16 +457,16 @@ def run_ui(pbdl_obj=None):
 				magnet = unquote(values[event])
 				win['-MAGNET-'].update(magnet)
 			elif event == 'Add':
-				pbdl.add(magnet)
+				p.add(magnet)
 				log(f"adding magnet: {magnet}", 'info')
 				win.close()
-				info, win, win_x, win_y = pbdl.start()
+				info, win, win_x, win_y = p.start()
 			elif event == 'Delete':
 				if active is not None:
 					t.remove_and_delete(active)
 					log(f"Deleted id (plus data): {active}", 'info')
 					win.close()
-					info, win, win_x, win_y = pbdl.start()
+					info, win, win_x, win_y = p.start()
 				else:
 					log("Cannot delete all!", 'warning')
 			elif event == 'Remove':
@@ -474,7 +474,7 @@ def run_ui(pbdl_obj=None):
 					t.remove(active)
 					log(f"Removed id: {active}", 'info')
 					win.close()
-					info, win, win_x, win_y = pbdl.start()
+					info, win, win_x, win_y = p.start()
 				else:
 					log(f"cannot remove all!", 'warning')
 			elif event == 'Manager':
@@ -485,7 +485,7 @@ def run_ui(pbdl_obj=None):
 				play_type = values[event]
 				log(f"Play type set: {play_type}", 'info')
 			elif event == '-PBDL_SEARCH-':
-				log(f"pbdl.downloader():searching {pbdl_query}...", 'info')
+				log(f"p.downloader():searching {pbdl_query}...", 'info')
 				results = search(pbdl_query)
 				window['-PBDL_RESULTS-'].update(results)	
 			elif event == '-PBDL_SEARCH_QUERY-':
@@ -505,39 +505,40 @@ def run_ui(pbdl_obj=None):
 			elif event == '-PBDL_RESULTS-':
 				try:
 					picked = values[event][0]
-					log(f"pbdl.downloader():Downloading:{picked}", 'info')
+					log(f"p.downloader():Downloading:{picked}", 'info')
 					magnet = results[picked]['magnet']
 					magnet = unquote(magnet)
 					win['-MAGNET-'].update(magnet)
 				except Exception as e:
-					log(f"pbdl.downloader():list empty? {e}", 'error')
+					log(f"p.downloader():list empty? {e}", 'error')
 			elif event == 'Migrate Files':
-				pbdl.migrate(pbdl.tid)
-				if pbdl.t.remove_on_migrate:
+				p.migrate(p.tid)
+				if p.t.remove_on_migrate:
 					win.close()
-					info, win, win_x, win_y = pbdl.start()
+					info, win, win_x, win_y = p.start()
 			elif event == 'VID_OUT':
 				pass
 			elif event == '-ALL-':
 				active = 'all'
 				log("Selected: 'all'...", 'info')
 			elif event == '-REMOVE_ON_MIGRATE-':
-				pbdl.t.remove_on_migrate = values[event]
-				log(f"Set remove on migrate:{pbdl.t.remove_on_migrate}", 'info')
+				p.t.remove_on_migrate = values[event]
+				log(f"Set remove on migrate:{p.t.remove_on_migrate}", 'info')
 			else:
 				print("ELSE!!!!", event)
-				for tid in list(pbdl.torrents.keys()):
+				for tid in list(p.torrents.keys()):
 					k = f"-{tid}-"
 					if k == event:
-						pbdl.tid = int(event.split('-')[1])
+						p.tid = int(event.split('-')[1])
 						break
-						log(f"Tid selected:{pbdl.tid}", 'info')
+						log(f"Tid selected:{p.tid}", 'info')
 				else:
 					log(f"Unhandled event: {event}, values:{values}", 'debug')
 		if pos == ct:
 			win['-PUBLIC_IP-'].update(t.get_public_ip())
-			update(pbdl)
-			pbdl.ensure_safe_downloads(t, win)
+			update(p)
+			p.ensure_safe_downloads(t, win)
+			pos = 0
 		#win.refresh()
 	win.close()
 
@@ -545,5 +546,5 @@ def run_ui(pbdl_obj=None):
 
 
 if __name__ == "__main__":
-	pbdl = pbdl()
-	run_ui(pbdl)
+	p = pbdl()
+	run_ui(p)

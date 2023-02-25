@@ -49,6 +49,31 @@ def get_db_data():
 	return db_data
 
 
+def download(data=None, auto=True):
+	t = torrent_mgr()
+	if data is None:
+		data = load_downloads()
+	for line in data:
+		magnets = line['magnet_data']
+		if auto:
+			magnet = magnets.values()[0]
+		else:
+			if len(magnets) == 1:
+				magnet = magnets.values()[0]
+			else:
+				pos = 0
+				for name in magnets.keys():
+					pos += 1
+					print(f"{pos}: {name}")
+				pick = int(input("Enter choice: "))
+				magnet = list(magnets.values())[pick]
+		try:
+			t.add(magnet)
+		except Exception as e:
+			print(f"Couldn't add magnet! {e}, data:{line}")
+			return False
+	return True
+
 def get_missing():
 	db_data = get_db_data()
 	series = sqlite3("select distinct series_name from series;")
@@ -174,13 +199,34 @@ def get_download_uris(series_name, season=None, episode_number=None):
 		return {}
 
 
-def get_downloads(missing=None):
+def get_dict(missing=None):
 	if missing is None:
 		missing, add_to_db = filter_missing()
 	dl_data = []
 	for line in missing:
 		d = {}
 		series_name, tmdbid, season, episode_number, episode_name = line.split("|")
+		d['series_name'] = series_name
+		d['tmdbid'] = tmdbid
+		d['season'] = season
+		d['episode_number'] = episode_number
+		d['episode_name'] = episode_name
+		d['magnet_data'] = None
+		dl_data.append(d)
+	return dl_data
+
+
+def get_downloads(data=None):
+	if data is None:
+		data = get_dict()
+	dl_data = []
+	for line in data:
+		d = {}
+		series_name = line['series_name']
+		tmdbid = line['tmdbid']
+		season = line['season']
+		episode_number = line['episode_number']
+		episode_name = line['episode_name']
 		d['series_name'] = series_name
 		d['tmdbid'] = tmdbid
 		d['season'] = season
@@ -202,7 +248,7 @@ def get_downloads(missing=None):
 
 def save_downloads(dl_data=None, datfile=None):
 	if dl_data is None:
-		dl_data = get_downloads()
+		dl_data = get_dict()
 	if datfile is None:
 		datfile = os.path.join(os.path.expanduser("~"), '.np', 'downloads.dat')
 	with open(datfile, 'wb') as f:
