@@ -4,7 +4,7 @@ import subprocess
 from np.core.log import np_logger
 log = np_logger().log_msg
 
-class id3():
+class tag():
 	def __init__(self):
 		self.title = None
 		self.album = None
@@ -19,9 +19,10 @@ class id3():
 		self.mbid = None
 		self.comment = None
 		self.genre = None
+		self.ytid = None
 		self.info = {}
 
-class tag(id3):
+class tagger(tag):
 	#updates an id3 tag in 'filepath'
 	def save(self, filepath=None):
 		if filepath is not None:
@@ -33,10 +34,12 @@ class tag(id3):
 			log(f"File not found: {filepath}", 'error')
 			self.filepath = None
 			return False
+		if self.track is None:
+			self.track = 0
 		com = (f"id3 -t \"{self.title}\" -a \"{self.artist}\" -A \"{self.album}\" -y \"{self.year}\" -T \"{self.track}\" -c \"{self.comment}\" \"{self.filepath}\"")
 		ret = subprocess.check_output(com, shell=True)
 		if ret:
-			log(ret, 'info')
+			log(ret, 'debug')
 		return True
 	
 	#returns a dictionary of all class attributes

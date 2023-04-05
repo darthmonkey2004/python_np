@@ -1180,7 +1180,61 @@ def test_series_name(series_name):
 	else:
 		log(f"pbdl.utils.test_series_name: Failed to find name: {series_name}!", 'error')
 		return None
-		
+
+def _write_desktop_file(data, path=None):
+	if path is None:
+		fname = os.path.join(os.path.expanduser("~"), '.local', 'share', 'applications', 'np.desktop')
+	try:
+		with open(fname, 'w') as f:
+			f.write(data)
+			f.close()
+	except Exception as e:
+		print("error creating desktop file:", e)
+		return False
+	return True
+
+
+def _write_favorites():
+	com = "gsettings get org.gnome.shell favorite-apps"
+	data = subprocess.check_output(com, shell=True).decode().strip()
+	l = data.split('[')[1].split(']')[0].replace("'", '').split(', ')
+	if 'np.desktop' not in l:
+		l.append('np.desktop')
+	com = f"gsettings set org.gnome.shell favorite-apps \"{l}\""
+	ret = subprocess.check_output(com, shell=True).decode().strip()
+	if ret == '':
+		return True
+	else:
+		return False
+
+
+def _create_desktop_file():
+	path = os.path.join(os.path.expanduser("~"), '.local')
+	icon = os.path.join(path, 'np.png')
+	lines = f"""[Desktop Entry]
+Version=1.0
+Name=NPlayer
+Comment=Media player and databasing package.
+Exec=np
+Path={path}
+Icon={icon}
+Terminal=false
+Type=Application
+Categories=Utility;AudioVideo;Audio;Video
+StartupWMClass=GUI"""
+	return lines
+	
+
+
+def add_desktop_to_favorites():
+	data = _create_desktop_file()
+	ret = _write_desktop_file(data)
+	if not ret:
+		raise Exception(Exception, ret)
+	ret = _write_favorites()
+	if not ret:
+		raise Exception(Exception, ret)
+
 
 if __name__ == "__main__":
 	data = build_torrents()

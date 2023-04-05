@@ -77,7 +77,6 @@ from np.core.np_setup import run_setup as setup
 
 
 
-
 red = (255, 0, 0)
 orange = (255, 127.5, 0)
 yellow = (255, 255, 0)

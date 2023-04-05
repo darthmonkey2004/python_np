@@ -19,9 +19,8 @@ class nplayer():
 	def __init__(self, build_playlist=True):
 		self.conf = readConf()
 		self.play_type = self.conf['play_type']
-		#self.play_needed = 1
-		self.play_needed = True
-		log(f"nplayer.init():play_needed set = 1", 'info')
+		self.play_needed = False
+		log(f"nplayer.init():play_needed set = False", 'info')
 		self.scale_needed = 0
 		self.play_mode = 'database'
 		if build_playlist:
@@ -58,10 +57,12 @@ class nplayer():
 		#self.update_needed = False
 		self.img_url = None
 		self.POSTER = os.path.join(os.path.expanduser("~"), '.np', 'poster.png')
+		self.POSTER_JPG = os.path.join(os.path.expanduser("~"), '.np', 'poster.jpg')
 		self.gui_visible = False
 		self.mfps = 0
 		self.debug = self.conf['debug']
 		self.is_paused = False
+		self.wait_time = 2
 
 	def get_playlist_object(self, data=None, play_mode=None, play_type=None, shuffle=False):
 		#play type can be list: ['series', 'movies', etc]
@@ -156,22 +157,25 @@ class nplayer():
 		return self.player
 
 	def playback_finished(self):
+		log(f"nplayer.playback_finished():Playback ended!", 'info')
 		self.conf['nowplaying']['filepath'] = None
+		self.conf['nowplaying']['play_pos'] = 0
 		writeConf(self.conf)
-		#self.play_needed = 1
-		self.play_needed = True
-		log(f"nplayer.playback_finished():play_needed set = 1", 'info')
 
 	def vlc_event(self, event):
 		typestr = (str(event.type) + ":")
+		self.is_playing = bool(self.player.is_playing())
 		for event in ['260:EventType.MediaMPPlaying', '261:EventType.MediaMPPaused', '262:EventType.MediaMPStopped', '265:EventType.MediaMPEndReached']:
 			if typestr in event:
 				event = event.split(':')[1]
 				if event == 'EventType.MediaMPEndReached':
-					#self.play_needed = 1
-					self.play_needed = True
-					log(f"nplayer.vlc_event():play_needed set = 1 (vlc_event[MediaMPEndReached])", 'info')
-					self.playback_finished()
+					if not self.player.is_playing():
+						self.play_needed = True
+						log(f"nplayer.playback_finished():play_needed set = True (is_playing={self.is_playing})", 'info')
+						self.playback_finished()
+					else:
+						#self.play_needed = False
+						log(f"nplayer.playback_finished():skipping set play_needed (is_playing={self.is_playing}, late return for EventType.MediaMPEndReached!)", 'warning')
 				elif event == 'EventType.MediaMPStopped':
 					#self.is_playing = 0
 					self.is_playing = False
@@ -191,9 +195,9 @@ class nplayer():
 		self.next = self.playlist.next()
 		return self.next
 
-	def skip_next(self):
+	def skip_next(self, shuffle=False):
+		self.playlist.shuffle = shuffle
 		log("nplayer.skip_next():Entered...", 'debug')
-		#self.next = self.get_next()
 		self.next = self.playlist.next()
 		log(f"nplayer.skip_next:Next set:{self.next}", 'info')
 		self.play(self.next)
@@ -358,10 +362,10 @@ class nplayer():
 		screen = self.conf['screen']
 		self.art_w = self.conf['windows'][screen]['viewer']['w']
 		self.art_h = self.conf['windows'][screen]['viewer']['h']
-		com = ("convert 'poster.jpg' -resize " + str(self.art_w) + "x" + str(self.art_h) + " 'poster.png'")
+		com = f"convert \"poster.jpg\" -resize {self.art_w}x{self.art_h} \"{self.POSTER}\""
 		try:
 			ret = subprocess.check_output(com, shell=True)
-			self.album_art = 'poster.png'
+			self.album_art = self.POSTER
 			return self.album_art
 		except:
 			return None
@@ -460,23 +464,27 @@ class nplayer():
 		#if filepath provided...
 		if filepath is not None:
 			self.next = filepath
-			log(f"File provided: {self.next}. Set as next...", 'info')
+			log(f"nplayer.play():File provided: {self.next}. Set as next...", 'info')
 		#else if resume from file...
 		elif filepath is None and self.conf['nowplaying']['filepath'] is not None:
 			if self.conf['nowplaying']['play_pos'] is not None:
 				self.play_pos = self.conf['nowplaying']['play_pos']
+				log(f"nplayer.play():play_pos set from conf (nowplaying): {self.play_pos}!", 'info')
 			else:
 				self.play_pos = 0
+				log(f"nplayer.play():play_pos is None in conf! Setting 0...", 'info')
 			self.next = self.conf['nowplaying']['filepath']
 			log(f"Resuming from file (nowplaying): {self.next}. Set as next...", 'info')
 		#if next is set, check if remains of playlist mode in next string...
 		if self.next is not None:
 			if is_npstring(self.next):
+				log(f"nplayer.play():Converting next from npstring ({self.next})...", 'info')
 				self.next = path_from_npstring(self.next)
 			try:
 				self.play_type = test_media(self.next)
 				log(f"nplayer.play():Play Type set (from test_media()): {self.play_type}", 'info')
 			except:
+				log(f"nplayer.play():test_media failed! Setting 'videos'...", 'info')
 				self.play_type = 'videos'
 		# if next is not set...
 		else:
@@ -529,23 +537,16 @@ class nplayer():
 		if self.vlcInstance is None:
 			try:
 				opts = self.conf['vlc']['opts']
-			except:
+				log(f"nplayer.play():VLC cli options loaded from conf.", 'info')
+			except Exception as e:
+				log(f"nplayer.play():Couldn't load options from conf! ({e})", 'error')
 				opts = "--no-xlib"
 			self.vlcInstance = vlc.Instance(opts)
 			log(f"nplayer.py, play(): Instance created! Options: {opts}", 'info')
 			self.player = self.vlcInstance.media_player_new()
+			log(f"nplayer.play():player object created!", 'info')
 		# check if network mode is remote:
 		if self.conf['network']['media']['mode'] == 'remote':
-			#test if sftp is mounted
-			#try:
-			#	is_mounted = self.test_sftp()
-			#except:
-			#	log(f"TODO: Test if sftp directory is mounted in remote mode!", 'error')
-			#	is_mounted = True
-			#if not is_mounted:
-			#	#mount if necessary
-			#	self.mount_sftp()
-			# test if remote uri in next string
 			if '/.np/sftp' not in self.next:
 				if self.conf['media_directories']['main'] in self.next:
 					fpath = self.next.split(self.conf['media_directories']['main'])[1]
@@ -562,11 +563,12 @@ class nplayer():
 						log(f"Couldn't parse network path! '/var/storage' not in path!", 'error')
 		# attempt to set media path.
 		try:
-			log(f"nplayer.py.play(): Setting media path:{self.next}", 'info')
+			log(f"nplayer.play(): Setting media path:{self.next}", 'info')
 			self.player.set_media(self.vlcInstance.media_new_path(self.next))
-			log(f"nplayer.py.play(): Starting playback...", 'info')
+			log(f"nplayer.play(): Starting playback...", 'info')
 			self.player.play()
-			time.sleep(2) # wait 2 seconds for media to load to aid scaling method
+			log(f"nplayer.play(): Waiting {self.wait_time} seconds before scale...", 'info')
+			time.sleep(self.wait_time) # wait for media to load to aid scaling method
 		except Exception as e:
 			log(f"Unable to open media item:{e}, filepath={self.next}", 'error')
 			if self.conf['network']['media']['mode'] == 'remote':
@@ -578,19 +580,18 @@ class nplayer():
 		if self.play_pos > 0:
 			self.player.set_position(self.play_pos)
 			log(f"nplayer.play(): Skipped to position {self.play_pos}", 'info')
-			#set play_needed and play_pos to 0 to avoid loop duplicating action (delay?)
-			#self.play_needed = 0
+			#set play_needed and play_pos to False to avoid loop duplicating action (delay?)
 			self.play_needed = False
+			log(f"nplayer.play(): play_needed set False!", 'info')
 			self.play_pos = 0
+			log(f"nplayer.play(): play_pos set to 0!", 'info')
 			self.conf['nowplaying']['play_pos'] = 0
-		#self.continuous = 1
 		self.continuous = True
 		if self.play_type == 'series' or  self.play_type == 'movies':
 			if self.next is not None:
 				try:
-					#log("nplayer.play(): set scale started!", 'info')
 					self.set_scale(self.next)
-					#log("nplayer.play(): set scale exited!", 'info')
+					log("nplayer.play(): set scale exited!", 'info')
 				except Exception as e:
 					log(f"nplayer.play(): Couldn't set scale! {e}", 'error')
 					self.scale_needed = 1
@@ -611,21 +612,18 @@ class nplayer():
 		except Exception as e:
 			log(f"Unable to set volume: {e}", 'error')
 		self.is_playing = self.player.is_playing()
-		if self.is_playing == 1 or self.is_playing:
+		log(f"nplayer.py.play(): is_playing set: {self.is_playing}", 'info')
+		if self.is_playing:
 			self.conf['nowplaying']['filepath'] = self.next
 			self.conf['nowplaying']['play_pos'] = self.play_pos
-			#self.play_needed = 0
 			self.play_needed = False
 			self.mfps = self.get_mspf()
-			log(f"nplayer.play():Playback started ({self.next})! Setting play needed=0", 'info')
-		else:
-			log(f"nplayer.play():set play_needed = 1, not started!(???) next={self.next}, is_playing={self.player.is_playing()}", 'error')
-			#self.play_needed = 1
-			self.play_needed = True
+			log(f"nplayer.play():Playback started ({self.next})! Setting play needed=False", 'info')
 		if self.play_type == 'music':
 			try:
 				self.album_art = self.dl_img()
 				self.ART_UPDATE_NEEDED = True
+				log(f"nplayer.py.play(): ART_UPDATE_NEEDED set (True)", 'info')
 			except Exception as e:
 				log(f"nplayer.play:unable to get art! ({e})", 'error')
 				self.album_art = None

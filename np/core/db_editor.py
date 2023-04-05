@@ -415,7 +415,7 @@ def db_editor(table=None):
 						key = (f"-{column}-")
 						val = values[key]
 						print ("value:{val}")
-						if val is not None:
+						if val is not None and val is not 'Unknown':
 							if val == '':
 								if dtype == 'INTEGER' or dtype == 'BOOL':
 									val = 0

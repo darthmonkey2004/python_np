@@ -74,7 +74,7 @@ def download(data=None, auto=True):
 			return False
 	return True
 
-def get_missing():
+def _get_missing(include_extras=False):
 	db_data = get_db_data()
 	series = sqlite3("select distinct series_name from series;")
 	missing = []
@@ -83,17 +83,20 @@ def get_missing():
 		seasons = list(get_seasons(tmdbid).keys())
 		for season in seasons:
 			season = int(season)
-			data = get_season_data(tmdbid, season)
-			episodes = list(data['episodes'].keys())
-			for episode_number in episodes:
-				episode_number = int(episode_number)
-				episode_name = data['episodes'][episode_number]['episode_name']
-				try:
-					d = db_data[series_name]['seasons'][season]['episodes'][episode_number]
-				except:
-					string = f"{series_name}|{tmdbid}|{season}|{episode_number}|{episode_name}"
-					print("Added missing:", string)
-					missing.append(string)
+			if season == 0 and not include_extras:
+				pass
+			else:
+				data = get_season_data(tmdbid, season)
+				episodes = list(data['episodes'].keys())
+				for episode_number in episodes:
+					episode_number = int(episode_number)
+					episode_name = data['episodes'][episode_number]['episode_name']
+					try:
+						d = db_data[series_name]['seasons'][season]['episodes'][episode_number]
+					except:
+						string = f"{series_name}|{tmdbid}|{season}|{episode_number}|{episode_name}"
+						print("Added missing:", string)
+						missing.append(string)
 	return db_data, missing
 
 
@@ -145,29 +148,55 @@ def add(info, play_type='series'):
 
 
 
-def filter_missing():
-	db_data, missing = get_missing()
-	filtered = []
-	add_to_db = []
+def get_missing(include_extras=False, refresh=False):
+	datfile = os.path.join(os.path.expanduser("~"), '.np', 'missing.dat')
+	if os.path.exists(datfile) and not refresh:
+		missing = load_missing()
+		return missing
+	else:
+		db_data, missing = _get_missing(include_extras=include_extras)
+		filtered = []
+		add_to_db = []
+		for line in missing:
+			series_name, tmdbid, season, episode_number, episode_name = line.split('|')
+			path = os.path.join(media_dir, series_name, f"S{season}")
+			if os.path.exists(path):
+				tag = f"*.S{season}E{episode_number}.*"
+				com = f"find \"{path}\" -name \"{tag}\""
+				ret = shell(com)
+				if ret is None:
+					print("Added missing (no S/E tag found):", line)
+					filtered.append(line)
+				else:
+					print(f"Missing from database:{line}")
+					add_to_db.append(f"{line}|{ret}")
+			else:
+				print("No season directory, legit missing:", line)
+				filtered.append(line)
+		save_missing(filtered)
+		if len(add_to_db) > 0:
+			addtodb = ", ".join(add_to_db)
+			log(f"Get missing complete! Found missing items in database! items: {addtodb}", 'warning')
+		else:
+			log("Get missing complete!", 'info')
+		return filtered
+
+def filter_missing(key, val):
+	l = []
+	missing = get_missing()
 	for line in missing:
 		series_name, tmdbid, season, episode_number, episode_name = line.split('|')
-		path = os.path.join(media_dir, series_name, f"S{season}")
-		if os.path.exists(path):
-			tag = f"*.S{season}E{episode_number}.*"
-			com = f"find \"{path}\" -name \"{tag}\""
-			ret = shell(com)
-			if ret is None:
-				print("Added missing (no S/E tag found):", line)
-				filtered.append(line)
-			else:
-				print(f"Missing from database:{line}")
-				add_to_db.append(f"{line}|{ret}")
-		else:
-			print("No season directory, legit missing:", line)
-			filtered.append(line)
-	return filtered, add_to_db
+		try:
+			if globals()[key] == val:
+				l.append(val)
+		except Exception as e:
+			print("error:", e)
+			input()
+			pass
+	return l
 
-
+filter_missing('series_name', 'Archer')
+		
 
 def add_missing(add_to_db=None):
 	keys = ['series_name', 'tmdbid', 'season', 'episode_number', 'episode_name', 'description', 'air_date', 'still_path']
@@ -246,6 +275,23 @@ def get_downloads(data=None):
 		dl_data.append(d)
 	return dl_data
 
+def save_missing(data=None, datfile=None):
+	if data is None:
+		data = get_missing()
+	if datfile is None:
+		datfile = os.path.join(os.path.expanduser("~"), '.np', 'missing.dat')
+	with open(datfile, 'wb') as f:
+		pickle.dump(data, f)
+		f.close()
+
+def load_missing(datfile=None):
+	if datfile is None:
+		datfile = os.path.join(os.path.expanduser("~"), '.np', 'missing.dat')
+	with open(datfile, 'rb') as f:
+		data = pickle.load(f)
+		f.close()
+	return data
+
 def save_downloads(dl_data=None, datfile=None):
 	if dl_data is None:
 		dl_data = get_dict()
@@ -262,6 +308,52 @@ def load_downloads(datfile=None):
 		dl_data = pickle.load(f)
 		f.close()
 	return dl_data
+
+def set_globals(line):
+	chunks = line.split('|')
+	globals()['series_name'], globals()['tmdbid'], globals()['season'], globals()['episode_number'], globals()['episode_name'] = chunks[0], chunks[1], int(chunks[2]), int(chunks[3]), chunks[4]
+
+
+def filter(d):
+	out = []
+	for key in d.keys():
+		val = d[key]
+		if out == []:
+			out = filter_missing2(key=key, val=val)
+		else:
+			out = filter_missing2(key=key, val=val, missing=out)
+	return out
+
+
+def filter_missing2(key, val, missing=None):
+	if missing is None:
+		missing = get_missing()
+	l = []
+	for line in missing:
+		set_globals(line)
+		try:
+			if globals()[key] == val:
+				if line not in l:
+					l.append(line)
+		except Exception as e:
+			print("error:", e)
+			pass
+	return l
+
+
+def search_missing_byKey(d=None):
+	if d is None:
+		d = {'series_name': 'South Park'}
+	missing = filter(d)
+	out = []
+	for line in missing:
+		series_name, tmdbid, season, episode_number, episode_name = line.split('|')
+		path = os.path.join(media_path, series_name, f"S{season}")
+		print(path)
+		if os.path.exists(path):
+			out.append(line)
+	return out
+
 
 if __name__ == "__main__":
 	t = torrent_mgr()

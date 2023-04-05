@@ -14,6 +14,7 @@ import subprocess
 import PySimpleGUI as sg
 from np.utils.pbdl.pbdl import start as mgr_start
 from np.core.log import np_logger
+from np.utils.pbdl.ty_isin import *
 import os
 log = np_logger().log_msg
 win_x, win_y = None, None
@@ -60,6 +61,8 @@ class pbdl():
 		self.series = []
 		self.movies = []
 		self.tid = 'All'
+		self.query = None
+		self.results = None
 
 	def mk_torrent(self, filepath, target):
 		com = f"transmission-create -o \"{filepath}\" \"{target}\" -t udp://tracker.coppersurfer.tk:6969/announce -t udp://tracker.openbittorrent.com:6969/announce -t udp://tracker.opentrackr.org:1337 -t udp://tracker.leechers-paradise.org:6969/announce -t udp://tracker.dler.org:6969/announce -t udp://opentracker.i2p.rocks:6969/announce -t udp://47.ip-51-68-199.eu:6969/announce -t udp://tracker.internetwarriors.net:1337/announce -t udp://9.rarbg.to:2920/announce -t udp://tracker.pirateparty.gr:6969/announce -t udp://tracker.cyberia.is:6969/announce"
@@ -247,9 +250,8 @@ class pbdl():
 
 
 	def update_info(self, data=None):
-		if data is not None:
-			self.torrents = data
 		info = {}
+		self.torrents = self.t.get_torrents()
 		for tid in self.torrents.keys():
 			percent = round(float(self.torrents[tid]['percentDone']) * 100, 2)
 			eta = self.convert_eta(self.torrents[tid]['eta'])
@@ -263,7 +265,7 @@ class pbdl():
 			elif s == 2:
 				log("Status unknown! 2", 'warning')
 			elif s == 3:
-				status = f"Queued:{data[tid]['queuePosition']}"
+				status = f"Queued:{self.torrents[tid]['queuePosition']}"
 			elif s == 4:
 				status = 'Downloading'
 			size = self.convert_size(int(self.torrents[tid]['totalSize']))
@@ -298,7 +300,7 @@ class pbdl():
 		layout.append(magnet_line)
 		buttons = [sg.Button('Start!'), sg.Button('Stop'), sg.Button('Remove'), sg.Button('Delete'), sg.Button('Manager'), sg.Button('Migrate Files')]
 		layout.append(buttons)
-		output_box = [sg.Multiline(default_text = "", enter_submits = True, disabled = False, autoscroll = True, border_width = None, size = (200, 40), auto_size_text = None, background_color = None, text_color = None, horizontal_scroll = False, change_submits = False, enable_events = False, do_not_clear = True, key = '-OUTPUT-', write_only = True, auto_refresh = False, reroute_stdout = False, reroute_stderr = True, reroute_cprint = True, echo_stdout_stderr = False, justification = 'left', no_scrollbar = False, expand_x = False, expand_y = False, rstrip = True)]
+		output_box = [sg.Multiline(default_text = "", enter_submits = True, disabled = False, autoscroll = True, border_width = None, size = (200, 40), auto_size_text = None, background_color = None, text_color = None, horizontal_scroll = False, change_submits = False, enable_events = False, do_not_clear = True, key = '-OUTPUT-', write_only = False, auto_refresh = False, reroute_stdout = False, reroute_stderr = False, reroute_cprint = False, echo_stdout_stderr = False, justification = 'left', no_scrollbar = False, expand_x = False, expand_y = False, rstrip = True)]
 #		output_box = [sg.Multiline(default_text = "", enter_submits = True, disabled = False, autoscroll = True, border_width = None, size = (200, 40), auto_size_text = None, background_color = None, text_color = None, horizontal_scroll = False, change_submits = True, enable_events = True, do_not_clear = True, key = '-OUTPUT-', write_only = False, auto_refresh = True, reroute_stdout = True, reroute_stderr = True, reroute_cprint = True, echo_stdout_stderr = True, justification = 'left', no_scrollbar = False, expand_x = False, expand_y = False, rstrip = True)]
 		layout.append(output_box)
 		self.win = sg.Window(title='Torrent Info', layout=layout, size = (1100, 600), location = (win_x, win_y))
@@ -329,13 +331,17 @@ class pbdl():
 			log(f"pbdl.start():Error updating info:{e}", 'error')
 		try:
 			win_x, win_y = self.load_win_location()
-			win = self.gui(info)
+			self.win = self.gui(info)
 		except Exception as e:
 			log(f"pbdl.start():Error - {e}", 'error')
-			win = self.gui(info)
+			self.win = self.gui(info)
 			win_x, win_y = win.current_location()
 			self.save_win_location(win_x, win_y)
-		return info, win, win_x, win_y
+		if self.results is not None:
+			self.win['-PBDL_RESULTS-'].update(self.results)
+		if self.query is not None:
+			self.win['-PBDL_SEARCH_QUERY-'].update(self.query)
+		return info, self.win, win_x, win_y
 
 	def load_win_location(self, filepath='/home/monkey/.np/tmgr_location.txt'):
 		with open(filepath, 'r') as f:
@@ -419,13 +425,12 @@ def run_ui(pbdl_obj=None):
 		p = pbdl()
 	else:
 		p = pbdl_obj
-	t = p.t
+	t = torrent_mgr()
 	info, win, win_x, win_y = p.start()
 	win['-TOGGLE_VPN-'].update(t.vpn_status())
 	pos = 0
 	ct = 1500
 	ct2 = 4500
-	active = None
 	magnet = None
 	exit = False
 	update(p)
@@ -440,19 +445,19 @@ def run_ui(pbdl_obj=None):
 		if event != '__TIMEOUT__':
 			#print("event:", event)
 			if event == 'Start!':
-				if active is None:
+				if p.tid is None:
 					t.start_all()
 					log("Started all!", 'info')
 				else:
-					t.start(active)
-					log("Started id: {active}", 'info')
+					t.start(p.tid)
+					log("Started id: {p.tid}", 'info')
 			elif event == 'Stop':
-				if active is None:
+				if p.tid is None:
 					t.stop_all()
 					log("Stopped all!", 'info')
 				else:
-					t.stop(active)
-					log("Stopped id: {active}", 'info')
+					t.stop(p.tid)
+					log("Stopped id: {p.tid}", 'info')
 			elif event == '-MAGNET-':
 				magnet = unquote(values[event])
 				win['-MAGNET-'].update(magnet)
@@ -462,17 +467,17 @@ def run_ui(pbdl_obj=None):
 				win.close()
 				info, win, win_x, win_y = p.start()
 			elif event == 'Delete':
-				if active is not None:
-					t.remove_and_delete(active)
-					log(f"Deleted id (plus data): {active}", 'info')
+				if p.tid is not None:
+					t.remove_and_delete(p.tid)
+					log(f"Deleted id (plus data): {p.tid}", 'info')
 					win.close()
 					info, win, win_x, win_y = p.start()
 				else:
 					log("Cannot delete all!", 'warning')
 			elif event == 'Remove':
-				if active is not None:
-					t.remove(active)
-					log(f"Removed id: {active}", 'info')
+				if p.tid is not None:
+					t.remove(p.tid)
+					log(f"Removed id: {p.tid}", 'info')
 					win.close()
 					info, win, win_x, win_y = p.start()
 				else:
@@ -486,10 +491,12 @@ def run_ui(pbdl_obj=None):
 				log(f"Play type set: {play_type}", 'info')
 			elif event == '-PBDL_SEARCH-':
 				log(f"p.downloader():searching {pbdl_query}...", 'info')
-				results = search(pbdl_query)
-				window['-PBDL_RESULTS-'].update(results)	
+				results = search(p.query)
+				p.results = results
+				window['-PBDL_RESULTS-'].update(p.results)	
 			elif event == '-PBDL_SEARCH_QUERY-':
 				pbdl_query = values[event]
+				p.query = pbdl_query
 			elif event == '-TOGGLE_VPN-':
 				#state = t.vpn_status()
 				state = window['-TOGGLE_VPN-'].get()
@@ -519,19 +526,18 @@ def run_ui(pbdl_obj=None):
 			elif event == 'VID_OUT':
 				pass
 			elif event == '-ALL-':
-				active = 'all'
+				p.tid = 'all'
 				log("Selected: 'all'...", 'info')
 			elif event == '-REMOVE_ON_MIGRATE-':
 				p.t.remove_on_migrate = values[event]
 				log(f"Set remove on migrate:{p.t.remove_on_migrate}", 'info')
 			else:
-				print("ELSE!!!!", event)
 				for tid in list(p.torrents.keys()):
 					k = f"-{tid}-"
 					if k == event:
 						p.tid = int(event.split('-')[1])
-						break
 						log(f"Tid selected:{p.tid}", 'info')
+						break
 				else:
 					log(f"Unhandled event: {event}, values:{values}", 'debug')
 		if pos == ct:

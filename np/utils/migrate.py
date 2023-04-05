@@ -5,9 +5,12 @@ import requests
 from np.core.conf import readConf
 from np.core.log import np_logger
 from np.utils.pbdl.utils import test_media
-from np.utils.pbdl.liteui import *
+#from np.utils.pbdl.liteui import *
 from np.core.nplayer_db import get_columns
 from np.utils.cleandb import run as cleandb
+from np.utils.pbdl.query_movies import query_movies
+from np.utils.pbdl.query_series import query_series
+import subprocess
 
 log = np_logger().log_msg
 conf = readConf()
@@ -16,7 +19,7 @@ SFTP_DIR = os.path.join(DATA_DIR, 'sftp')
 HOME = os.path.expanduser("~")
 
 
-def getSessionId(transmission_remote_ip='192.168.1.2', transmission_remote_port=9091):
+def getSessionId(transmission_remote_ip=conf['pbdl']['remote_ip'], transmission_remote_port=9091):
 	url = f"http://{transmission_remote_ip}:{transmission_remote_port}/transmission/rpc"
 	data={"method":"session-get"}
 	r = requests.post(url, data=data)
@@ -25,7 +28,7 @@ def getSessionId(transmission_remote_ip='192.168.1.2', transmission_remote_port=
 	return headers
 
 
-def get_files(tid, transmission_remote_ip='192.168.1.2', transmission_remote_port=9091):
+def get_files(tid, transmission_remote_ip=conf['pbdl']['remote_ip'], transmission_remote_port=9091):
 	extensions = ['.mp4', '.mov', '.wmv', '.avi', '.flv', '.f4v', '.swf', '.mkv', '.mpeg-2']
 	data = {"method":"torrent-get","arguments":{"fields":["files","id","activityDate","corruptEver","desiredAvailable","downloadedEver","fileStats","haveUnchecked","haveValid","peers","startDate","trackerStats"],"ids":[tid]}}
 	headers = getSessionId(transmission_remote_ip, transmission_remote_port)
@@ -48,7 +51,7 @@ def get_files(tid, transmission_remote_ip='192.168.1.2', transmission_remote_por
 def get_fullpath(filepath):
 	com = f""
 	#allfiles = ssh(com)
-	com = f"ssh monkey@192.168.1.2 'find \"/var/lib/transmission-daemon/downloads\" -name \"*.*\"'"
+	com = f"ssh {os.getlogin()}@{conf['pbdl']['remote_ip']} 'find \"/var/lib/transmission-daemon/downloads\" -name \"*.*\"'"
 	allfiles = subprocess.check_output(com, shell=True).decode().strip().splitlines()
 	fullpath = None
 	for item in allfiles:
@@ -130,7 +133,7 @@ def get_play_type(self, filepath):
 
 
 def ssh(com):
-	com = f"ssh monkey@192.168.1.2 \"{com}\""
+	com = f"ssh {os.getlogin()}@{conf['pbdl']['remote_ip']} \"{com}\""
 	try:
 		ret = subprocess.check_output(com, shell=True).decode().strip()
 	except Exception as e:

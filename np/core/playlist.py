@@ -160,6 +160,10 @@ class db_playlist():
 
 
 	def _next(self):
+		if self.shuffle:
+			idx = randint(0, len(self.playlist))
+			self.current = self.playlist.pop(idx)
+			return self.current
 		if self.current is None:
 			log(f"playlist.next():Current not set! Setting to first item ({self.playlist[0]})", 'debug')
 			self.current = self.playlist[0]
@@ -263,11 +267,12 @@ class playlist():
 			else:
 				self.playlist = sorted(self.playlist)
 		elif self.playlist_file is not None:
-			self.playlist = subprocess.check_output(f"cat \"{self.playlist_file}\"", shell=True).decode().strip().split("\n")
+			files = subprocess.check_output(f"cat \"{self.playlist_file}\"", shell=True).decode().strip().split("\n")
 			if self.shuffle:
-				random(self.playlist)
+				random(files)
 			else:
-				self.playlist = sorted(self.playlist)
+				self.playlist = sorted(files)
+			self.playlist = files
 		elif self.playlist is not None:
 			log("No parent directory provided! Attempting to find common path...")
 			try:
@@ -369,9 +374,17 @@ class playlist():
 
 
 	def next(self):
-		if self.current is None:
-			self.current = self.playlist[0]
+		if self.shuffle:
+			idx = randint(0, len(self.playlist))
+			self.current = self.playlist.pop(idx)
 			return self.current
+		if self.current is None:
+			try:
+				self.current = self.playlist[0]
+				return self.current
+			except Exception as e:
+				log(f"playlist.next():Error - couldn't set current! msg={e}, items={self.playlist}", 'error')
+				return None
 		if self.loop_one:
 			self.current = self.playlist[0]
 			#if self.remote:
@@ -717,6 +730,8 @@ def test_isnpstring(filepath):
 def load_playlist(filepath=None):
 	if filepath is None:
 		filepath = os.path.join(os.path.expanduser("~"), '.np', 'current_playlist.dat')
+	if os.path.isdir(filepath):
+		items = load_directory(filepath)
 	if os.path.exists(filepath):
 		with open(filepath, 'rb') as f:
 			items = pickle.load(f)

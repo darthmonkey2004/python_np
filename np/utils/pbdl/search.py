@@ -1,3 +1,5 @@
+from np.utils.pbdl.ty_isin import *
+from np.utils.pbdl.se_isin import *
 from urllib.parse import unquote, quote
 import requests
 import np
@@ -31,7 +33,10 @@ def search(query, cat=200):
 		m = '<a href="magnet:?'
 		if m in line:
 			magnet = line.split('"')[1]
-			title = magnet.split("&dn=")[1].split("&tr=")[0]
+			title = unquote(magnet.split("&dn=")[1].split("&tr=")[0])
+			if ty_isin(title):
+				t, y = ty_isin(title, True)
+				title = f"{t} ({y})"
 			results[title] = {}
 			results[title]['magnet'] = magnet
 	return results

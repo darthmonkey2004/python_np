@@ -5,7 +5,7 @@ from np.core.conf import readConf, writeConf
 from np.core.log import np_logger
 from np.utils.pbdl.torrentmgr_ui import *
 #from np.utils.pbdl.utils import get_torrents, get_files
-from np.utils.migrate import *
+from np.utils.migrate import migrate, cleandb
 import os
 import json
 import requests
@@ -13,22 +13,46 @@ log = np_logger().log_msg
 public_ip = None
 conf = readConf()
 
+def scp(target_file, remote_path=None):
+	conf = readConf()
+	remote_ip = conf['pbdl']['remote_ip']
+	if remote_path is None:
+		remote_path = os.path.join(os.path.expanduser("~"), os.path.basename(target_file))
+	com = f"scp \"{script_file}\" \"{os.getlogin()}@{remote_ip}:{remote_path}\""
+	try:
+		ret = subprocess.check_output(com, shell=True).decode().strip()
+	except Exception as e:
+		print(f"SCP command encountered an error:{e}")
+		ret = None
+	return ret
 
-#def ssh(com):
-#	remote_ip = conf['pbdl']['remote_ip']
-#	user = os.getlogin()
-#	com = f"ssh {user}@{remote_ip} \"{com}\""
-#	try:
-#		ret = subprocess.check_output(com, shell=True).decode().strip()
-#	except Exception as e:
-#		print("Error in ssh command:", e)
-#		ret = []
-#	if ret is not None:
-#		if "\n" in ret:
-#			ret = ret.splitlines()
-#		elif ret == '':
-#			ret = None
-#	return ret
+def ssh(com, background=False):
+	conf = readConf()
+	remote_ip = conf['pbdl']['remote_ip']
+	if not background:
+		com = f"ssh {os.getlogin()}@{remote_ip} \"{com}\""
+		try:
+			print("ssh command:", com)
+			ret = subprocess.check_output(com, shell=True).decode().strip()
+		except Exception as e:
+			print(f"SSH command encountered an error:{e}")
+			ret = []
+	else:
+		com = f"ssh {os.getlogin()}@{remote_ip} \"{com}&\""
+		try:
+			subprocess.call(com, shell=True, timeout=10)
+			return True
+		except Exception as e:
+			print(f"command '{com}' failed! ({e})")
+			return False
+	if "\n" in ret:
+		ret = ret.splitlines()
+	else:
+		if ret != []:
+			ret = [ret]
+	if ret == ['']:
+		ret = []
+	return ret
 
 def get_public_ip():
 	return ssh("dig +short myip.opendns.com @resolver1.opendns.com")
@@ -102,7 +126,13 @@ def ipinfo():
 	print(ret)
 	input()
 
-	
+def getSessionId(transmission_remote_ip='192.168.1.2', transmission_remote_port=9091):
+	url = f"http://{transmission_remote_ip}:{transmission_remote_port}/transmission/rpc"
+	data={"method":"session-get"}
+	r = requests.post(url, data=data)
+	headers = {}
+	headers["X-Transmission-Session-Id"] = r.text.split('<code>')[1].split('</')[0].split(' ')[1]
+	return headers	
 
 class torrent_mgr():
 	def __init__(self, win=None, remote_ip=None, remote_port=9091):
@@ -143,6 +173,59 @@ class torrent_mgr():
 		self.vpn_state = self.vpn_status()
 		self.monitor_q = Queue(maxsize=5)
 		#self.start_monitor()
+
+
+
+	def create_exec_script(self):
+		script_file = os.path.join(os.getcwd(), 'torguard.sh')
+		remote_path = os.path.join(os.path.expanduser("~"), 'torguard.sh')
+		install_path = '/usr/local/bin/torguard'
+		txt = """#!/bin/bash
+
+start_vpn() {
+	echo "Starting openvpn..."
+	cd /etc/openvpn
+	sudo openvpn "$1"& disown
+	echo "Running!"
+}
+
+stop_vpn() {
+	echo "Stopping openvpn..."
+	sudo kill $(pgrep openvpn)
+	echo "Stopped!"
+}
+
+is_running() { pid=$(pgrep -af openvpn | cut -d ' ' -f 1); if [ -n "$pid" ]; then echo 1; else echo 0; fi; }
+
+if [ "$1" == "--stop" ] || [ "$1" == "-s" ] || [ "$1" == "stop" ]; then
+	stop_vpn
+	exit 0
+elif [ "$1" == "--start" ] || [ "$1" == "-S" ] || [ "$1" == "start" ]; then
+	com="start_vpn"
+	if [ -n "$2" ]; then
+			server="$2"
+		else
+			server="torguard.ubuntu.chicago.ovpn"
+	fi
+	start_vpn "$server"
+	exit 0
+else
+	running=$(is_running)
+	if [ "$running" == "1" ]; then
+		if [ "$restart" == "1" ]; then
+			stop_vpn
+			start_vpn torguard.ubuntu.chicago.ovpn
+		else
+			stop_vpn
+		fi
+	else
+		start_vpn torguard.ubuntu.chicago.ovpn
+	fi
+fi"""
+		scp(script_file, remote_path=remote_path)
+		ssh("sudo chmod a+rwx \"{remote_path}\"")
+		ssh("sudo mv \"{remote_path}\" \"{install_path}\"")
+		
 
 	def cleandb(self):
 		return cleandb()
@@ -221,63 +304,43 @@ class torrent_mgr():
 	def vpn_status(self):
 		return vpn_status()
 
-	def _start_nordvpn(self):
-		com = f"nordvpn connect"
-		status = ssh(com)
-		self.vpn_state = self.vpn_status()
-		return status
-
-	def _start_vpn(self):
-		log(f"Starting torguard process...", 'info')
-		com = f"cd /etc/openvpn; sudo openvpn torguard.ubuntu.chicago.ovpn"
-		ssh(com)
-			
-
-	def ip_monitor(self, q):
-		print("IP Monitor running!")
-		self.run_monitor = True
-		while self.run_monitor:
-			self.vpn_state = vpn_status()
-			self.public_ip = get_public_ip()
-			if not q.full():
-				q.put_nowait((self.vpn_state, self.public_ip))
-			if self.win is not None:
-				self.win['-PUBLIC_IP-'].update(self.public_ip)
-				self.win['-TOGGLE_VPN-'].update(self.vpn_state)
-		print("IP Monitor exited!")
-		return
+#	def ip_monitor(self, q):
+#		print("IP Monitor running!")
+#		self.run_monitor = True
+#		while self.run_monitor:
+#			self.vpn_state = vpn_status()
+#			self.public_ip = get_public_ip()
+#			if not q.full():
+#				q.put_nowait((self.vpn_state, self.public_ip))
+#			if self.win is not None:
+#				self.win['-PUBLIC_IP-'].update(self.public_ip)
+#				self.win['-TOGGLE_VPN-'].update(self.vpn_state)
+#		print("IP Monitor exited!")
+#		return
 
 
-	def start_monitor(self):
-		self.monitor_thread = Thread(target=self.ip_monitor, args=(self.monitor_q,))
-		self.monitor_thread.setDaemon(True)
-		self.monitor_thread.start()
-		return self.monitor_thread
+#	def start_monitor(self):
+#		self.monitor_thread = Thread(target=self.ip_monitor, args=(self.monitor_q,))
+#		self.monitor_thread.setDaemon(True)
+#		self.monitor_thread.start()
+#		return self.monitor_thread
 
 
 	def start_vpn(self):
-		self.vpn_thread = Thread(target=self._start_vpn)
-		self.vpn_thread.setDaemon(True)
-		self.vpn_thread.start()
-		print("VPN Client thread started!")
-		return self.vpn_thread
-
-
-	def _stop_vpn(self):
 		try:
-			self.stop_all()
+			ssh("torguard", background=True)
+			self.vpn_state = True
+			self.public_ip = self.get_public_ip()
 		except Exception as e:
-			log(f"torrent_mgr._stop_vpn():Error - couldn't stop vpn ({e})!", 'error')
-			pass
-		com = f"nordvpn disconnect"
-		status = ssh(com)
-		self.vpn_state = self.vpn_status()
-		self.public_ip = self.get_public_ip
-		return status
+			print("Couldn't start openvpn process:", e)
+			return False
+
+
 
 	def stop_vpn(self):
 		try:
-			ssh("sudo kill $(pgrep openvpn)")
+			#ssh("sudo kill $(pgrep openvpn)")
+			ssh("torguard --stop")
 			self.vpn_state = False
 			self.public_ip = self.get_public_ip()
 			return True

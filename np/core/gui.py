@@ -1,3 +1,4 @@
+import inspect
 from np.core.db_editor import db_editor
 from np.core.core import create_media
 from np.core.nplayer import nplayer
@@ -311,7 +312,7 @@ class gui():
 		#debug_element = sg.Multiline(default_text=log_data, enter_submits=True, autoscroll=True, auto_size_text=True, horizontal_scroll=True, change_submits=True, enable_events=True, key='-DEBUGGER-', auto_refresh=True, reroute_stdout=False, reroute_stderr=False, reroute_cprint=False, echo_stdout_stderr=False, focus=False, expand_x=True, expand_y=True, rstrip=True)
 		poster_element = sg.Image(None, size=(275, 250), subsample=4, expand_x=True, expand_y=True, enable_events=True, key='-POSTER-')
 		elem_media_list = [self.create_old('listbox', [self.playlist, '-CURRENT_PLAYLIST-']), poster_element]
-		update_line = [self.create_old('btn', ['Refresh from Database']), sg.Button('Update Poster', key='-UPDATE_POSTER-')]
+		update_line = [self.create_old('btn', ['Refresh from Database']), sg.Button('Add to playlist...', key='-PLAYLIST_ADD-'), sg.Button('Delete from playlist...', key='-PLAYLIST_DEL-'), sg.Button('Update Poster', key='-UPDATE_POSTER-')]
 		player_controls1 = [self.create_old('btn', ['Volume Up']), self.create_old('btn', ['previous']), self.create_old('btn', ['play']), self.create_old('btn', ['next']), self.create_old('btn', ['pause']), self.create_old('btn', ['stop'])]
 		player_controls2 = [self.create_old('btn', ['Volume Down']), self.create_old('btn', ['seek fwd']), self.create_old('btn', ['seek rev']), self.create_old('btn', ['step forard', '-NEXT_FRAME-']), self.create_old('btn', ['step back', '-PREVIOUS_FRAME-']), self.create_old('btn', ['Exit']), self.create_old('btn', ['Screenshot'])]
 		try:
@@ -323,9 +324,7 @@ class gui():
 		line_window_ctl = [self.create_old('btn', ['store window location']), self.create_old('btn', ['Recenter UI']), self.create_old('btn', ['Fix Focus']), self.create_old('btn', ['Fix Scaling']), self.create_old('btn', ['Toggle Window Size'])]
 		default_poster = os.path.join(os.path.expanduser("~"), '.local', 'poster.png')
 		self.video_temp_img = self.create_old('image', [default_poster, '-VID_OUT-'])
-		
 		line.append(self.video_temp_img)
-		
 		self.player_window_layout.append(line)
 		self.player_window_layout.append([sg.Sizegrip(key='-viewer_size-')])
 		table = self.play_type
@@ -346,7 +345,7 @@ class gui():
 			[]
 		]
 		dbitems = []
-		self.menu_def = [['&File', ['-&Load Directory-', '-&Load Playlist-', '-&Save Playlist-', 'E&xit']], ['&Tools', ['&Resort Database Ids', '&PBDL Lite UI', '-&Database Editor-', '-ID3 Tag Editor-', '&Video Filters', [VLC_VIDEO_FILTERS], '&Audio Filters', [VLC_AUDIO_FILTERS]]], ['&Help', '&About...'], ['&Media', ['-Scan Movies-', '-Scan Series-', '-Scan Music-', '-Scan All-', '-Clean Database-']]]
+		self.menu_def = [['&File', ['-&Load Directory-', '-&Load Playlist-', '-&Save Playlist-', 'E&xit', 'Add To &Favorites']], ['&Tools', ['&Resort Database Ids', '&PBDL Lite UI', '-&Database Editor-', '-ID3 Tag Editor-', '&Video Filters', [VLC_VIDEO_FILTERS], '&Audio Filters', [VLC_AUDIO_FILTERS]]], ['&Help', '&About...'], ['&Media', ['-Scan Movies-', '-Scan Series-', '-Scan Music-', '-Scan All-', '-Clean Database-']]]
 		self.layout = [[sg.MenubarCustom(self.menu_def, tearoff=True, key='-menubar_key-'), sg.Button('Hide UI'), sg.Button("Close")], [sg.TabGroup([[sg.Tab('MP Controls', self.player_control_layout, key='-player_control_layout-')], line_window_ctl], expand_x=True, expand_y=True, enable_events=True)]]
 		if 'GUI' not in self.windows:
 			self.windows.append('GUI')
@@ -458,10 +457,10 @@ class gui():
 		log(f"{window} window moved to!", 'info')
 			
 			
-	def create(self, elem, args={}):
+	def create(self, elem, **args):
 		pos = -1
 		argdict = {}
-		sig = inspect.signature(globals()[elem])
+		sig = inspect.signature(sg.__dict__[elem])
 		sig_keys = list(sig.parameters.keys())
 		for param in sig.parameters.values():
 			pos = pos + 1
@@ -474,7 +473,7 @@ class gui():
 				argdict[key] = args[key]
 		vals_list = list(argdict.keys())
 		vals = tuple(vals_list)
-		element = globals()[elem](vals)
+		element = sg.__dict__[elem](vals)
 		return element
 
 

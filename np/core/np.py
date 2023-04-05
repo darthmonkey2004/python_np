@@ -43,6 +43,59 @@ except Exception as e:
 VLC_VIDEO_FILTERS = ['video:adjust', 'video:alphamask', 'video:anaglyph', 'video:antiflicker', 'video:audiobargraph_v', 'video:ball', 'video:blendbench', 'video:bluescreen', 'video:canvas', 'video:chain', 'video:colorthres', 'video:croppadd', 'video:deinterlace', 'video:edgedetection', 'video:erase', 'video:extract', 'video:fps', 'video:freeze', 'video:gaussianblur', 'video:gradfun', 'video:gradient', 'video:grain', 'video:hqdn3d', 'video:invert', 'video:logo', 'video:magnify', 'video:mirror', 'video:motionblur', 'video:motiondetect', 'video:oldmovie', 'video:posterize', 'video:postproc', 'video:psychedelic', 'video:puzzle', 'video:ripple', 'video:rotate', 'video:scene', 'video:sepia', 'video:sharpen', 'video:transform', 'video:vaapi_filters', 'video:vaapi_filters', 'video:vaapi_filters', 'video:vaapi_filters', 'video:vaapi_filters', 'video:vdpau_adjust', 'video:vdpau_deinterlace', 'video:vdpau_sharpen', 'video:vhs', 'video:wave']
 VLC_AUDIO_FILTERS = ['audio:audiobargraph_a', 'audio:chorus_flanger', 'audio:compressor', 'audio:equalizer', 'audio:gain', 'audio:headphone', 'audio:karaoke', 'audio:mono', 'audio:normvol', 'audio:param_eq', 'audio:remap', 'audio:scaletempo', 'audio:scaletempo_pitch', 'audio:spatialaudio', 'audio:spatializer', 'audio:stereo_widen']
 VLC_CLI_OPTIONS = cli_opts()
+MP = np.nplayer()
+
+#helper function for removal of playlist files ('mkmedialist')
+def rm(filepath):
+	ret = subprocess.check_output(f"rm \"{filepath}\"").decode().strip()
+	if ret != '':
+		log(f"Error removing file:{ret}", 'error')
+		return False
+	else:
+		return True
+
+#helper for returning files of a certain extension ('mkmedialist')
+def find(path, ext):
+	com = f"find \"{path}\" -name \"*.{ext}\""
+	try:
+		files = subprocess.check_output(com, shell=True).decode().strip().splitlines()
+		if files == ['']:
+			files = []
+		return files
+	except Exception as e:
+		log(f"Error getting files:{e}", 'error')
+		return []
+
+#helper to write playlist file
+def write_medialist(filepath, files):
+	if type(files) == list:
+		files = "\n".join(files)
+	with open(filepath , 'w') as f:
+		f.write(files)
+		f.close()
+	return
+
+
+#function used in place of old 'mkmedialist' shell script.
+def mkmedialist(path=None):
+	log(f"np.mkmedialist():Creating media list from \"{path}\"..", 'info')
+	extensions = ['mp4', 'mpg', 'mpeg', 'mov', 'wmv', 'avi', 'flv', 'mp3']
+	conf = readConf()
+	if path is None:
+		path = conf['media_directories']['main']
+	medialist = os.path.join(os.path.expanduser("~"), '.np', 'medialist.txt')
+	if os.path.exists(medialist):
+		log(f"mkmedilist():Found previous media list! Remvoing...", 'info')
+		rm(medialist)
+	out = []
+	for ext in extensions:
+		files = find(path, ext)
+		for filepath in files:
+			if filepath not in out:
+				out.append(filepath)
+	write_medialist(filepath, out)
+	print(filepath, out)
+	return newplaylist(items=out)
 
 # helper function for sorting series in 'Search' event
 def sort_series(item):
@@ -381,27 +434,40 @@ def update_media_info(row):
 			UI.WINDOW[key].update(val)
 
 
-def load_playlist(filepath=None):
-	if filepath is None:
-		log(f"Error: Cartoons can be quite distracting, ergo you didn't give me a path to load. You're forgiven.", 'error')
+def load_playlist(data=None):
+	global MP
+	if data is None:
+		log(f"Error: Cartoons can be quite distracting, ergo you didn't give me any data to load. You're forgiven.", 'error')
 		MP.play_mode = 'database'
 		UI.WINDOW['-PLAY_MODE-'].update(MP.play_mode)
-		MP.play(filepath)
-	else:
-		if ".txt" in filepath:
-			MP.playlist = newplaylist(playlist_file=filepath, shuffle=True)
-			if type(MP.playlist) == list:
-				UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.playlist)
-			else:
-				UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.playlist.playlist)
-			MP.play_mode = 'playlist'
-			UI.WINDOW['-PLAY_MODE-'].update(MP.play_mode)
-			filepath = MP.playlist.playlist[0]
-			MP.play(filepath)
+		MP.play()
+		return
+	try:
+		MP.play_mode == 'playlist'
+		if type(data) == list:
+			log(f"np.load_playlist():Received files list! Creating playlist object...", 'info')
+			MP.playlist = newplaylist(items=data, play_mode=MP.play_mode, shuffle=True)
+		elif type(data) == str and '.txt' in str(data):
+			log(f"np.load_playlist():Received playlist file! Creating playlist object...", 'info')
+			MP.playlist = newplaylist(playlist_file=data, shuffle=True)
+		elif type(data) == str and '.txt' not in str(data):
+			log(f"np.load_playlist():Received local directory! Creating playlist object...", 'info')
+			MP.playlist = mkmedialist(data)
 		else:
-			MP.play_mode = 'database'
-			UI.WINDOW['-PLAY_MODE-'].update(MP.play_mode)
-			MP.play(filepath)
+			log(f"np.load_playlist():Unknown type provided! type:{type(data)}", 'error')
+			return False
+		MP.play_mode = 'playlist'
+		filepath = MP.playlist.playlist[0]
+		MP.play_needed = False
+		print(f"np.load_playlist(): playing loaded playlist ({filepath})...", 'info')	
+		MP.play(filepath)
+	except Exception as e:
+		log(f"np.load_playlist():Error - {e}. Defaulting to database mode...", 'error')
+		MP.play_mode = 'database'
+		#UI.WINDOW['-PLAY_MODE-'].update(MP.play_mode)
+		MP.play()
+	#return playlist object
+	return MP.playlist
 
 
 def set_debug(mode=None):
@@ -458,12 +524,14 @@ def remote_handler(com, arg):
 			np.log(f"np.remote_handler():Unable to parse string ({e})! Expected event,value,win..", 'error')
 		ret = "Event written!"
 	elif com == 'restore':
+		MP.gui_visible = True
 		if arg is None:
 			win = UI.WINDOW
 		win.restore()
 		log(f"{win.Title} restored!", 'info')
 		ret = 'Window restored!'
 	elif com == 'maximize':
+		MP.gui_visible = True
 		if arg is None:
 			win = UI.WINDOW
 		win.maximize()
@@ -484,12 +552,14 @@ def remote_handler(com, arg):
 		log(f"{win.Title} revealed!", 'info')
 		ret = 'Window unhidden!'
 	elif com == 'reappear':
+		MP.gui_visible = True
 		if arg is None:
 			win = UI.WINDOW
 		win.reappear()
 		log(f"{win.Title} reappeared!", 'info')
 		ret = 'Window reappeared!'
 	elif com == 'dissapear':
+		MP.gui_visible = False
 		if arg is None:
 			win = UI.WINDOW
 		win.dissapear()
@@ -814,7 +884,6 @@ def test_mounts():
 				return ret
 		else:
 			return True
-		
 
 
 def start():
@@ -830,7 +899,6 @@ def start():
 	update = 0
 	conf = None
 	btn = None
-	MP = np.nplayer()
 	P = MP.init_vlc()
 	tab = '-player_control_layout-'
 	MP.conf = np.readConf()
@@ -885,6 +953,7 @@ def start():
 		ui_center()
 	set_video_out()
 	MP.continuous = 1
+	MP.play_needed = True
 	input_enabled = 0
 	btn = None
 	evque = []
@@ -895,6 +964,28 @@ def start():
 	MP.version = get_version()
 	log(f"Starting nplayer (V{MP.version})...", 'info')
 	while True:
+		MP.is_playing = bool(MP.player.is_playing())
+		if MP.play_needed:
+			log("np.start():FLAG (MP.play_needed=True):Playing from 'play needed'", 'info')
+			filepath = MP.playlist.next()
+			play_pos = MP.conf['nowplaying']['play_pos']
+			if filepath is not None:
+				log(f"using resume from file:{filepath}", 'info')
+				MP.play(filepath)
+				if play_pos > 0:
+					P.set_position(play_pos)
+					log(f"np_main.start():Skipped to {play_pos}, object={MP}", 'info')
+				log(f"np.start():playback started, file:{filepath}. play_needed set False!", 'info')
+			else:
+				log ("Not resuming, filepath is None", 'info')
+				if MP.play_mode == 'playlist':
+					MP.next = MP.get_playlist_next()
+					MP.play(MP.next)
+					log(f"np.start():Playback started, file:{MP.next}. play_needed set False!", 'info')
+				else:
+					MP.play()
+					log(f"np.start():Playback started, no file provided. set play_needed = False!", 'info')
+			MP.play_needed = False
 		readct += 1
 		start_timer = timeit.default_timer()
 		data = None
@@ -946,6 +1037,28 @@ def start():
 					MP.conf['network']['media']['user'] = media_user
 					np.writeConf(MP.conf)
 					log(f"Network media mode changed:{media_mode}", 'info')
+				elif event == 'Add To Favorites':
+					add_desktop_to_favorites()
+				elif event == '-PLAYLIST_ADD-':
+					try:
+						item = values['-VIDEO_LOCATION-'].get()
+					except Exception as e:
+						item = file_browse_window('Select file to add...')
+					try:
+						MP.playlist.playlist.append(item)
+						UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.playlist.playlist)
+						log(f"np.start():EVENT=-PLAYLIST_ADD-: Added item to playlist ({item})", 'info')
+					except Exception as e:
+						log(f"np.start:EVENT=-PLAYLIST_ADD-': Error adding item ({e})", 'error')
+				elif event == '-PLAYLIST_DEL-':
+					try:
+						item = values['-CURRENT_PLAYLIST-'][0]
+						idx = MP.playlist.playlist.index(item)
+						_ = MP.playlist.playlist.pop(idx)
+						UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.playlist.playlist)
+						log(f"np.start():EVENT=-PLAYLIST_DEL-: Removed item from playlist ({item}, index:{idx})", 'info')
+					except Exception as e:
+						log(f"np.start:EVENT=-PLAYLIST_DEL-': Error removing item ({e})", 'error')
 				elif event == 'Resort Database Ids':
 					log(f"np.start():Resorting databse ids (ensuring unique..)")
 					ret = resort_db()
@@ -1029,6 +1142,9 @@ def start():
 						table = 'music'
 					columns = np.get_columns(table)
 					UI.WINDOW['-DBMGR_PICKED_COLUMNS-'].update(columns)
+				elif event == '-SHUFFLE-':
+					MP.shuffle = values[event]
+					log(f"Shuffle set: {MP.shuffle}", 'info')
 				elif event == '-PLAY_TYPE-':
 					old = MP.conf['play_type']
 					MP.conf['play_type'] = values[event]
@@ -1058,8 +1174,8 @@ def start():
 					P.stop()
 					log(f"np.start():ACTION:stop", 'info')
 				elif event == 'next':
-					log(f"np.start():ACTION:skip_next", 'info')
-					MP.skip_next()
+					log(f"np.start():ACTION:skip_next (shuffle={MP.shuffle})", 'info')
+					MP.skip_next(shuffle=MP.shuffle)
 					time.sleep(1)
 					MP.ART_UPDATE_NEEDED = True
 					log(f"ART_UPDATE_NEEDED: Flag set! (True)", 'info')
@@ -1124,53 +1240,32 @@ def start():
 					val = None
 					_id = None
 					table = None
-					if MP.play_mode == 'playlist':
-						val = values[event][0]
-						if 'series:' in val or 'movies:' in val or 'music:' in val:
-							if 'series:' in val:
-								_id = val.split(':')[len(val.split(':')) - 1]
-								table = val.split(':')[0]
-								playlist_click(_id, table)
-							elif 'movies:' in val:
-								table = val.split(':')[0]
-								title = val.split(':')[1]
-								year = val.split(':')[2]
-								_id = val.split(':')[len(val.split(':')) - 1]
-								np.log(f"Playlist clicked: val={val}, _id={_id}, table={table}", 'info')
-								playlist_click(_id, table)
-							elif 'music:' in val:
-								val = values[event][0]
-								_id = val.split(':')[len(val.split(':')) - 1]
-								table = val.split(':')[0]
-								playlist_click(_id, table)
-						else:
-							MP.play(val)
-					elif MP.play_mode == 'database':
-						if MP.conf['play_type'] == 'series':
+					val = values[event][0]
+					log(f"np.start():EVENT=-CURRENT_PLAYLIST-: val={val}", 'info')
+					if 'series:' in val or 'movies:' in val or 'music:' in val:
+						MP.play_mode = 'database'
+					else:
+						MP.play_mode = 'playlist'
+					if MP.play_mode == 'database':
+						if 'series:' in val:
+							_id = val.split(':')[len(val.split(':')) - 1]
+							table = val.split(':')[0]
+							playlist_click(_id, table)
+						elif 'movies:' in val:
+							table = val.split(':')[0]
+							title = val.split(':')[1]
+							year = val.split(':')[2]
+							_id = val.split(':')[len(val.split(':')) - 1]
+							np.log(f"Playlist clicked: val={val}, _id={_id}, table={table}", 'info')
+							playlist_click(_id, table)
+						elif 'music:' in val:
 							val = values[event][0]
 							_id = val.split(':')[len(val.split(':')) - 1]
 							table = val.split(':')[0]
 							playlist_click(_id, table)
-						elif MP.conf['play_type'] == 'movies':
-							try:
-								val = values[event][0]
-								table = val.split(':')[0]
-								title = val.split(':')[1]
-								year = val.split(':')[2]
-								_id = val.split(':')[len(val.split(':')) - 1]
-								np.log(f"Playlist clicked: val={val}, _id={_id}, table={table}", 'info')
-								playlist_click(_id, table)
-							except Exception as e:
-								log(f"Error: Movies list is empty! Details:{e}, {val}, {_id}, {table}", 'error')
-						elif MP.conf['play_type'] == 'music':
-							try:
-								val = values[event][0]
-								val = val.split(':')
-								_id = val.split(':')[len(val.split(':')) - 1]
-								table = val[0]
-								playlist_click(_id, table)
-							except Exception as e:
-								log(f"Error: List is empty! Details:{e}, {val}, {_id}, {table}", 'error')
+					else:
+						MP.play(val)
+
 				elif event == '-DBMGR_PICKED_COLUMNS-':
 					string = None
 					if len(values[event]) == 1:
@@ -1198,43 +1293,38 @@ def start():
 						log(f"VALUES:picked={column}, string={string}")
 				elif event == 'Search':
 					query_string = values['-SEARCH_QUERY-']
-					if 'all:' in query_string or ',' in query_string or 'music:' in query_string or 'movies:' in query_string or 'series:' in query_string:
-						if ',' in query_string:
+					if query_string == '' or query_string is None:
+						log(f"Error: No query provided!", 'error')
+						UI.WINDOW['-CURRENT_PLAYLIST-'].update(sorted(MP.playlist.playlist))
+						pass
+					else:
+						if 'all:' in query_string or ',' in query_string or 'music:' in query_string or 'movies:' in query_string or 'series:' in query_string:
 							table = query_string.split(':')[0]
+							query_string = query_string.split(f"{table}:")[1]
+							if "'" in table:
+								table = table.split("'")
+							log(f"np.start:EVENT:Search: set (from query string) MP.play_type={MP.play_type}", 'info')
 						else:
-							if 'music:' in query_string:
-								table = 'music'
-							elif 'series:' in query_string:
-								table = 'series'
-							elif 'movies:' in query_string:
-								table = 'movies'
-							elif 'all:' in query_string:
-								table = 'all'
-						query_string = query_string.split(f"{table}:")[1]
-						if "'" in table:
-							table = table.split("'")
-						log(f"np.start:EVENT:Search: set (from query string) MP.play_type={MP.play_type}", 'info')
-					else:
-						log(f"np.start:EVENT:Search: table set to default ('all')!", 'info')
-						table = 'all'
-					print(f"MP.play_type: {MP.play_type}")
-					ret = searchdb(tables=table, query=query_string)
-					log(f"np.start():search event:table:{table}, query={query_string}, ret:{ret}", 'info')
-					if type(ret) == str:
-						ret = ret.split("\n")
-					if type(ret) == list:
-						log(f"np:start:EVENT=Search:query_string={query_string},table={table}", 'info')
-						MP.playlist = MP.get_playlist_object(data=ret, play_mode='playlist', play_type=MP.play_type)
-						log(f"np.start:EVENT:Search:Created new playlist object({MP.play_type})", 'info')
-						if MP.play_type == 'series':
-							MP.playlist.playlist = sorted(MP.playlist.playlist, key=sort_series)
-						#print(type(playlist), len(playlist), playlist)
-						UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.playlist.playlist)
-						MP.play_mode = 'playlist'
-						UI.WINDOW['-PLAY_MODE-'].update(MP.play_mode)
-						log(f"np:start:EVENT=Search:play_mode updated ({MP.play_mode})", 'info')
-					else:
-						log(f"np:start:EVENT=Search:No results found!", 'warning')
+							log(f"np.start:EVENT:Search: table set to default ('all')!", 'info')
+							table = 'all'
+						ret = searchdb(tables=table, query=query_string)
+						log(f"np.start():search event:table:{table}, query={query_string}, ret:{ret}", 'info')
+						if type(ret) == str:
+							ret = ret.split("\n")
+						if type(ret) == list:
+							play_type = ret[0].split(':')[0]
+							log(f"np:start:EVENT=Search:query_string={query_string},table={table}", 'info')
+							MP.playlist = MP.get_playlist_object(data=ret, play_mode='playlist', play_type=play_type)
+							log(f"np.start:EVENT:Search:Created new playlist object({MP.play_type})", 'info')
+							if play_type == 'series':
+								MP.playlist.playlist = sorted(MP.playlist.playlist, key=sort_series)
+							#print(type(playlist), len(playlist), playlist)
+							UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.playlist.playlist)
+							MP.play_mode = 'playlist'
+							UI.WINDOW['-PLAY_MODE-'].update(MP.play_mode)
+							log(f"np:start:EVENT=Search:play_mode updated ({MP.play_mode})", 'info')
+						else:
+							log(f"np:start:EVENT=Search:No results found!", 'warning')
 				elif event == '-Update Info-':
 					if values['-table_series-'] == True:
 						table = 'series'
@@ -1300,10 +1390,14 @@ def start():
 					log("EVENT:UI Recentered", 'info')
 				elif event == "-Load Playlist-":
 					path = file_browse_window()
-					try:
-						load_playlist(path)
-					except Exception as e:
-						log(f"No input provided! {e}", 'error')
+					if path is not None:
+						MP.playlist = load_playlist(path)
+						UI.WINDOW['-PLAY_MODE-'].update(MP.play_mode)
+						UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.playlist.playlist)
+					else:
+						np.log(f"np.start():Failed to load playlist: '{path}'.", 'error')
+						MP.play_needed = True
+						np.log(f"np.start(): set play_needed=1", 'info')
 				elif event == "-Save Playlist-":
 					filepath = file_browse_window()
 					if filepath is not None:
@@ -1319,20 +1413,9 @@ def start():
 					MP.stop()
 					path = folder_browse_window()
 					if path is not None:
-						try:
-							data = sorted(MP.load_directory(path))
-							MP.playlist = newplaylist(data)
-							log(f"np.start:EVENT:Load Directory:Created new playlist object({MP.play_type})", 'info')
-							if MP.playlist is not None:
-								UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.playlist.playlist)
-								MP.play_mode = 'playlist'
-								UI.WINDOW['-PLAY_MODE-'].update(MP.play_mode)
-								filepath = MP.playlist.playlist[0]
-								log(f"np.event:Load Directory: Starting playback (file={filepath})", 'info')
-								MP.play(filepath)
-								log(f"np.event:Load Directory: Play function exited! is_playing = {MP.player.is_playing()}", 'info')
-						except Exception as e:
-							log(f"Error: No user input provided: {e}", 'error')
+						MP.playlist = load_playlist(path)
+						UI.WINDOW['-PLAY_MODE-'].update(MP.play_mode)
+						UI.WINDOW['-CURRENT_PLAYLIST-'].update(MP.playlist.playlist)
 					else:	
 						np.log(f"np.start():Failed to load directory '{path}'.", 'error')
 						MP.play_needed = True
@@ -1462,25 +1545,6 @@ def start():
 				log(f"np_main.py:Reset finished (Reset set to false)! Conf written.", 'info')
 				np.writeConf(MP.conf)
 				recenter_ui()
-			elif MP.play_needed == 1 or MP.play_needed:
-				log("np.start():FLAG (MP.play_needed=True):Playing from 'play needed'", 'info')
-				filepath = MP.conf['nowplaying']['filepath']
-				play_pos = MP.conf['nowplaying']['play_pos']
-				if filepath is not None:
-					filepath = unquote(filepath)
-					log(f"using resume from file:{filepath}", 'info')
-					MP.play(filepath)
-					P.set_position(play_pos)
-					log(f"np_main.start():play_needed=1:Skipped to {play_pos}, object={MP}", 'info')
-				else:
-					log ("Not resuming, filepath is None", 'info')
-					if MP.play_mode == 'playlist':
-						MP.next = MP.get_playlist_next()
-						MP.play(MP.next)
-					else:
-						MP.play()
-				log(f"np.start():set play_needed = 0!", 'info')
-				MP.play_needed = 0	
 			#if com or event handler set nplayer's 'exit' class attribute to True for any reason, stop main loop.
 			if MP.exit == True:
 				log(f"Exit (break)!", 'info')

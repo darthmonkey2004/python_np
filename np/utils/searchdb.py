@@ -121,18 +121,48 @@ def search_series(query_string):
 		series_name = query[0]
 		try:
 			season = query[1]
+			if '-' in season:
+				start = int(season.split('-')[0])
+				end = int(season.split('-')[1])
+				season = []
+				for i in range(start, end+1):
+					season.append(i)
+			elif "," in season:
+				season = season.split(',')
+			else:
+				season = [season]
 		except:
-			season = None
+			season = []
 		try:
 			episode_number = query[2]
+			if '-' in episode_number:
+				start = int(episode_number.split('-')[0])
+				end = int(episode_number.split('-')[1])
+				episode_number = []
+				for i in range(start, end+1):
+					episode_number.append(i)
+			elif "," in episode_number:
+				episode_number = episode_number.split(',')
+			else:
+				episode_number = [episode_number]
 		except:
-			episode_number = None
-		if episode_number is None and season is None and series_name is not None:
-			qstring = f"select series_name,season,episode_number,episode_name,id from series where series_name like '%{series_name}%' order by series_name,season,episode_number;"
-		elif episode_number is None and season is not None and series_name is not None:
-			qstring = f"select series_name,season,episode_number,episode_name,id from series where series_name like '%{series_name}%' and season = {season} order by series_name,season,episode_number;"
-		elif episode_number is not None and season is not None and series_name is not None:
-			qstring = f"select series_name,season,episode_number,episode_name,id from series where series_name like '%{series_name}%' and season = {season} and episode_number = {episode_number} order by series_name,season,episode_number;"
+			episode_number = []
+		q = []
+		if len(season) == 0 and len(episode_number) == 0:
+			q.append(f"series_name like \'%{series_name}%\'")
+		elif len(season) == 0 and len(episode_number) >= 1:
+			for e in episode_number:
+				q.append(f"series_name like \'%{series_name}%\' and episode_number = {e}")
+		elif len(season) >= 1 and len(episode_number) == 0:
+			for s in season:
+				q.append(f"series_name like \'%{series_name}%\' and season = {s}")
+		elif len(season) >= 1 and len(episode_number) >= 1:
+			for s in season:
+				for e in episode_number:
+					q.append(f"series_name like \'%{series_name}%\' and season = {s} and episode_number = {e}")
+		query = " or ".join(q)
+		qstring = f"select series_name,season,episode_number,episode_name,id from series where {query} order by series_name,season,episode_number;"
+		print("qstring:", qstring)
 		ret = sqlite3(qstring)
 		if ret is not None:
 			if type(ret) == str:
