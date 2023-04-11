@@ -7,11 +7,11 @@ from np.core.nplayer_db import test_db
 from np.core.nplayer_db import addtodb
 from np.utils.cleandb import run as cleandb
 from np.utils.tadb_search import lookup
-from np.utils.id3 import tag
+from np.utils.id3 import tagger
 from np.core.log import np_logger
 from np.core.nplayer_db import get_columns
 log = np_logger().log_msg
-id3 = tag()
+id3 = tagger()
 
 def set_empty(play_type):
 	pragma = get_columns(play_type)

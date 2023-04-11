@@ -885,6 +885,25 @@ def test_mounts():
 		else:
 			return True
 
+def mark(filepath=None, markers=None):
+	global MP
+	if markers is None:
+		markers = MP.time_markers
+	if filepath is None:
+		filepath = MP.conf['nowplaying']['filepath']
+	if filepath not in list(markers.keys()):
+		markers[filepath] = {}
+		markers[filepath]['duration'] = MP.player.get_length()
+		markers[filepath]['start'] = MP.player.get_time()
+		markers[filepath]['start_pos'] = MP.player.get_position()
+		markers[filepath]['end'] = None
+		markers[filepath]['end_pos'] = None
+		MP.time_markers = markers
+	else:
+		markers[filepath]['end'] = MP.player.get_time()
+		markers[filepath]['end_pos'] = MP.player.get_position()
+		MP.time_markers = {}
+	return markers
 
 def start():
 	global server, remote_q, pbdl

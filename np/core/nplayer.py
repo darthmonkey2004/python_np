@@ -63,6 +63,7 @@ class nplayer():
 		self.debug = self.conf['debug']
 		self.is_paused = False
 		self.wait_time = 2
+		self.time_markers = {}
 
 	def get_playlist_object(self, data=None, play_mode=None, play_type=None, shuffle=False):
 		#play type can be list: ['series', 'movies', etc]

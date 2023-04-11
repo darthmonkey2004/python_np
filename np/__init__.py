@@ -3,6 +3,11 @@ import os
 import pathlib
 import subprocess
 
+txt = """__init__.py: TODO: media volume normalization:
+	use max value in each file, add to list
+	find median in range (max, min), average, use as target for all media files >>"""
+print(txt)
+
 DATA_DIR = os.path.join(os.path.expanduser("~"), ".np")
 LOGFILE = os.path.join(DATA_DIR, 'nplayer.log')
 CONFFILE = os.path.join(DATA_DIR, 'nplayer.conf')

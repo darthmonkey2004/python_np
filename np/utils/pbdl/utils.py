@@ -699,6 +699,8 @@ def test_media(query, return_data=False):
 			title, year = ty_isin(filepath, True)
 			if 'ALTERNATE' in title:
 				title = title.split('ALTERNATE')[0].strip()
+			if ' - ' in title:
+				title = title.split(' - ')[0]
 			return [title, year]
 		elif play_type == 'music':
 			return parse_music(filepath)
