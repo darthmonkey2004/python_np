@@ -110,7 +110,6 @@ def get_episode_data(_id, season, episode_number):
 	except Exception as e:
 		print(e)
 		print(info)
-		input()
 
 def get_all_series_data(query='Disenchantment'):
 	_id = get_series_id(query)

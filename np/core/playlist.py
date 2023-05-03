@@ -862,8 +862,12 @@ def build_playlist(play_mode=None, items=None, tables=None, max_items=200, shuff
 			items = []
 			pos = 0
 	#grab current resume and insert at beginning of list
-	resume_file = readConf()['nowplaying']['filepath']
-	resume_file = npstring_from_path(resume_file)
+	try:
+		resume_file = readConf()['nowplaying']['filepath']
+		resume_file = npstring_from_path(resume_file)
+	except Exception as e:
+		log(f"playlist.build_playlist():No resume file saved! Setting as None...", 'warning')
+		resume_file = None
 	if resume_file is not None:
 		if resume_file not in items:
 			items.reverse()

@@ -56,7 +56,7 @@ def create_torrentmgr_ui():
 		x, y = conf['windows'][screen]['pbdl']['x'], conf['windows'][screen]['pbdl']['y']
 		w = conf['windows'][screen]['pbdl']['w']
 		h = conf['windows'][screen]['pbdl']['h']
-	pbdl_win = sg.Window('Torrent Manager', layout, no_titlebar=False, location=(x,y), size=(1024,900), keep_on_top=False, grab_anywhere=True, element_justification='center', finalize=True, resizable=True).Finalize()
+	pbdl_win = sg.Window('Torrent Manager', layout, no_titlebar=True, location=(x,y), size=(1024,900), keep_on_top=False, grab_anywhere=True, element_justification='center', finalize=True, resizable=True).Finalize()
 	return pbdl_win
 
 

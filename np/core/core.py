@@ -33,7 +33,11 @@ def sqlite3(query):
 
 def get_local_ip():
 	com = "ip -o -4 a s | awk -F'[ /]+' '$2!~/lo/{print $4}' | grep \"192.168\""
-	return sg.subprocess.check_output(com, shell=True).decode().strip()
+	try:
+		return sg.subprocess.check_output(com, shell=True).decode().strip()
+	except Exception as e:
+		log(f"core.get_local_ip(): ERROR - Unable to get local ip! (Router on???)", 'error')
+		return None
 
 def shell(com, wait=False, cwd=None):
 	if cwd == None:
