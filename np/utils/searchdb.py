@@ -21,11 +21,14 @@ def sqlite3(query):
 		#log(f"Error: sqlite3 command failed! {e}", 'error')
 		return None
 
-def search_music(query_string):
+def search_music(query_string, getfilepath=False):
 	results = []
 	for query in query_string.split(':'):
 		if query == '*':
-			query = "select artist,title,album,id from music;"
+			if getfilepath:
+				query = "select artist,title,album,id,filepath from music;"
+			else:
+				query = "select artist,title,album,id from music;"
 			ret = sqlite3(query)
 			if type(ret) == str:
 				results.append(ret)
@@ -33,7 +36,10 @@ def search_music(query_string):
 				for item in ret:
 					results.append(item)
 		else:
-			qtitle = f"select artist,title,album,id from music where title like '%{query}%';"
+			if getfilepath:
+				qtitle = f"select artist,title,album,id,filepath from music where title like '%{query}%';"
+			else:
+				qtitle = f"select artist,title,album,id from music where title like '%{query}%';"
 			title = sqlite3(qtitle)
 			if title and title not in results:
 				if type(title) == str:
@@ -71,10 +77,13 @@ def search_music(query_string):
 	return ret
 
 
-def search_movies(query_string):
+def search_movies(query_string, getfilepath=False):
 	results = []
 	if query_string == '*':
-		query = "select title,year,id from movies;"
+		if getfilepath:
+			query = "select title,year,id,filepath from movies;"
+		else:
+			query = "select title,year,id from movies;"
 		ret = sqlite3(query)
 		if type(ret) == str:
 			results.append(ret)
@@ -83,7 +92,10 @@ def search_movies(query_string):
 				results.append(item)
 	else:
 		for query in query_string.split(':'):
-			qtitle = f"select title,year,id from movies where title like '%{query}%';"
+			if getfilepath:
+				qtitle = f"select title, year,id,filepath from movies where title like '%{query}%';"
+			else:
+				qtitle = f"select title,year,id from movies where title like '%{query}%';"
 			title = sqlite3(qtitle)
 			if title and title not in results:
 				if type(title) == str:
@@ -104,12 +116,12 @@ def search_movies(query_string):
 		ret.append(f"movies:{item}")
 	return ret
 
-def search_series(query_string):
+def search_series(query_string, getfilepath=False):
 	if query_string == '*':
 		results = []
 		query = f"select series_name,season,episode_number,episode_name,id from series order by series_name,season,episode_number;"
 		ret = sqlite3(query)
-		print(type(ret), ret)
+		#print(type(ret), ret)
 		if type(ret) == str:
 			results.append(f"series:{ret}")
 		elif type(ret) == list:
@@ -161,8 +173,11 @@ def search_series(query_string):
 				for e in episode_number:
 					q.append(f"series_name like \'%{series_name}%\' and season = {s} and episode_number = {e}")
 		query = " or ".join(q)
-		qstring = f"select series_name,season,episode_number,episode_name,id from series where {query} order by series_name,season,episode_number;"
-		print("qstring:", qstring)
+		if getfilepath:
+			qstring = f"select series_name,season,episode_number,episode_name,id,filepath from series where {query} order by series_name,season,episode_number;"
+		else:
+			qstring = f"select series_name,season,episode_number,episode_name,id from series where {query} order by series_name,season,episode_number;"
+		#print("qstring:", qstring)
 		ret = sqlite3(qstring)
 		if ret is not None:
 			if type(ret) == str:
@@ -175,7 +190,7 @@ def search_series(query_string):
 		return results
 
 
-def querydb(tables, query):
+def querydb(tables, query, getfilepath=False):
 	ret = []
 	if type(tables) != list:
 		if "," in tables:
@@ -183,13 +198,13 @@ def querydb(tables, query):
 		else:
 			tables = [tables]
 	for table in tables:
-		print("table:", table)
+		#print("table:", table)
 		if table == 'series':
-			ret = search_series(query)
+			ret = search_series(query_string=query, getfilepath=getfilepath)
 		elif table == 'movies':
-			ret = search_movies(query)
+			ret = search_movies(query_string=query, getfilepath=getfilepath)
 		elif table == 'music':
-			for item in search_music(query):
+			for item in search_music(query_string=query, getfilepath=getfilepath):
 				if item not in ret:
 					ret.append(item)
 		elif table == 'all':
@@ -198,12 +213,12 @@ def querydb(tables, query):
 				for item in results:
 					if item not in ret:
 						ret.append(item)
-			results = search_movies(query)
+			results = search_movies(query_string=query, getfilepath=getfilepath)
 			if results:
 				for item in results:
 					if item not in ret:
 						ret.append(item)
-			results = search_music(query)
+			results = search_music(query_string=query, getfilepath=getfilepath)
 			if results:
 				for item in results:
 					if item not in ret:

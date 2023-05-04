@@ -67,7 +67,12 @@ def find(path, ext):
 		return []
 
 #helper to write playlist file
-def write_medialist(filepath, files):
+def write_medialist(files=[], filepath=None):
+	if filepath is None:
+		filepath = os.path.join(np.DATA_DIR, 'current_playlist.dat')
+	if files == []:
+		log(f"No files provided! Aborting....", 'error')
+		return
 	if type(files) == list:
 		files = "\n".join(files)
 	with open(filepath , 'w') as f:
@@ -78,6 +83,7 @@ def write_medialist(filepath, files):
 
 #function used in place of old 'mkmedialist' shell script.
 def mkmedialist(path=None):
+	filepath = None
 	log(f"np.mkmedialist():Creating media list from \"{path}\"..", 'info')
 	extensions = ['mp4', 'mpg', 'mpeg', 'mov', 'wmv', 'avi', 'flv', 'mp3']
 	conf = readConf()
@@ -90,10 +96,10 @@ def mkmedialist(path=None):
 	out = []
 	for ext in extensions:
 		files = find(path, ext)
-		for filepath in files:
-			if filepath not in out:
-				out.append(filepath)
-	write_medialist(filepath, out)
+		for fp in files:
+			if fp not in out:
+				out.append(fp)
+	write_medialist(files=out)
 	print(filepath, out)
 	return newplaylist(items=out)
 
@@ -1331,8 +1337,11 @@ def start():
 						if type(ret) == str:
 							ret = ret.split("\n")
 						if type(ret) == list:
-							play_type = ret[0].split(':')[0]
-							log(f"np:start:EVENT=Search:query_string={query_string},table={table}", 'info')
+							try:
+								play_type = ret[0].split(':')[0]
+							except Exception as e:
+								log(f"np:start:EVENT=Search:ERROR - Weirdo search alert!!! ({e}, odd syntax???)", 'error')
+								play_type = MP.play_type
 							MP.playlist = MP.get_playlist_object(data=ret, play_mode='playlist', play_type=play_type)
 							log(f"np.start:EVENT:Search:Created new playlist object({MP.play_type})", 'info')
 							if play_type == 'series':
@@ -1342,8 +1351,10 @@ def start():
 							MP.play_mode = 'playlist'
 							UI.WINDOW['-PLAY_MODE-'].update(MP.play_mode)
 							log(f"np:start:EVENT=Search:play_mode updated ({MP.play_mode})", 'info')
-						else:
+						elif ret is None:
 							log(f"np:start:EVENT=Search:No results found!", 'warning')
+						else:
+							log(f"np:start:EVENT=Search:searchdb results returned an unknown type: ({ret}, {type(ret)}", 'warning')
 				elif event == '-Update Info-':
 					if values['-table_series-'] == True:
 						table = 'series'

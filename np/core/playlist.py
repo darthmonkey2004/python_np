@@ -165,9 +165,13 @@ class db_playlist():
 			self.current = self.playlist.pop(idx)
 			return self.current
 		if self.current is None:
-			log(f"playlist.next():Current not set! Setting to first item ({self.playlist[0]})", 'debug')
-			self.current = self.playlist[0]
-			return self.current
+			try:
+				log(f"playlist.next():Current not set! Setting to first item ({self.playlist[0]})", 'debug')
+				self.current = self.playlist[0]
+				return self.current
+			except Exception as e:
+				log(f"playlist._next():Error - playlist empty!!!", 'error')
+				return None
 		if self.loop_one:
 			self.current = self.playlist[0]
 			return self.current
@@ -624,9 +628,13 @@ def joinlist(l, joiner=', '):
 	return joiner.join(l)
 
 def is_npstring(string):
-	if 'movies' in string or 'series' in string or 'music' in string and ':' in string:
-		return True
-	elif '/' in string and '.' in string:
+	try:
+		if 'movies' in string or 'series' in string or 'music' in string and ':' in string:
+			return True
+		elif '/' in string and '.' in string:
+			return False
+	except Exception as e:
+		log(f"playlist.is_npstring():Error - {e}", 'error')
 		return False
 
 def get_movies(shuffle=False, include_inactive=False, sort=None):
@@ -703,7 +711,12 @@ def path_from_npstring(string):
 	idx = string.split(':')[len(string.split(':')) - 1]
 	table = string.split(':')[0]
 	qstring = f"id = \'{idx}\'"
-	return querydb(table=table, column='filepath', query=qstring)[0][0]
+	try:
+		data = querydb(table=table, column='filepath', query=qstring)[0][0]
+		return data
+	except Exception as e:
+		log(f"playlist.path_from_npstring():Error - {e}, qstring:{qstring}, table:{table}", 'error')
+		return None
 
 
 def npstring_from_path(path):
@@ -742,6 +755,9 @@ def load_playlist(filepath=None):
 		return []
 
 def save_playlist(items, filepath=None):
+	if items == ' ' or items is None or items == '' or items == []:
+		log(f"No items provided! Aborting playlist save...", 'error')
+		return False
 	try:
 		if filepath is None:
 			filepath = os.path.join(os.path.expanduser("~"), '.np', 'current_playlist.dat')
@@ -817,7 +833,7 @@ def get_random_table(tables=None):
 	pos = randint(0, len(tables) - 1)
 	return tables[pos]
 
-def build_playlist(play_mode=None, items=None, tables=None, max_items=200, shuffle=False, ret_type=None, new=False, save=True):
+def build_playlist(play_mode=None, items=None, tables=None, max_items=200, ret_type=None, new=False, save=True):
 	ret = create_temp_history()
 	if ret_type is not None:
 		if ret_type != 'playlist' and ret_type != 'items':
@@ -850,14 +866,18 @@ def build_playlist(play_mode=None, items=None, tables=None, max_items=200, shuff
 	else:
 		if not new:
 			# if items not included, check curent playlist dat file and load items.
-			items = load_playlist()
+			try:
+				items = load_playlist()
+			except Exception as e:
+				log(f"playlist.build_playlist():WARNING - Failed to load playlist!", 'warning')
+				items = []
 			if items == []:
 				pos = 0
 			else:
 				if type(items) == str:
 					items = [items]
 				pos = len(items)
-				log(f"playlist_utils.build_playlist():loaded playlist items! ret:{ret}, len(items):{pos}", 'info')
+				log(f"playlist.build_playlist():loaded playlist items! ret:{ret}, len(items):{pos}", 'info')
 		else:
 			items = []
 			pos = 0
@@ -907,9 +927,6 @@ def build_playlist(play_mode=None, items=None, tables=None, max_items=200, shuff
 					break
 	#remove temp history file
 	rm_temp_history()
-	if shuffle:
-		# if shuffle, randomize items list
-		random(items)
 	#return simple list of item filepaths for use in playlist.set()
 	if save:
 		log(f"playlist_utils.build_playlist():Playlist saved!", 'info')
